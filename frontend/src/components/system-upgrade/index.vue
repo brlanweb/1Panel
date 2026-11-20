@@ -17,16 +17,11 @@
                 <el-link underline="never" class="version" type="primary" @click="getVersionLog()">
                     {{ version }}
                 </el-link>
-                <el-badge
-                    is-dot
-                    v-if="isAdmin && !isOffline && !isEE"
-                    class="-mt-0.5"
-                    :hidden="version === 'Waiting' || !hasNewVersion"
-                >
-                    <el-link class="ml-2" underline="never" type="primary" @click="onLoadUpgradeInfo">
-                        {{ $t('commons.button.update') }}
-                    </el-link>
-                </el-badge>
+                <!-- Cluster fork: the upstream "update" link and its badge
+                     are hidden on purpose (see DESIGN.md §14). Version
+                     upgrades are out of scope for this fork: the panel
+                     must never offer or run an automatic update that would
+                     replace the cluster build with an upstream release. -->
                 <el-tag v-if="version === 'Waiting'" round class="ml-2.5">{{ $t('setting.upgrading') }}</el-tag>
             </div>
         </div>
@@ -37,22 +32,17 @@
 </template>
 
 <script setup lang="ts">
-import { getSettingBaseInfo, loadUpgradeInfo } from '@/api/modules/setting';
+import { getSettingBaseInfo } from '@/api/modules/setting';
 import Upgrade from '@/components/system-upgrade/upgrade/index.vue';
 import Releases from '@/components/system-upgrade/releases/index.vue';
-import i18n from '@/lang';
-import { MsgSuccess } from '@/utils/message';
 import { onMounted, ref } from 'vue';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
-const { isOffline, isMasterPro, isEE, isIntl, isAdmin, hasNewVersion } = useGlobalStore();
+const { isOffline, isMasterPro, isEE, isIntl } = useGlobalStore();
 const upgradeRef = ref();
 const releasesRef = ref();
 
 const version = ref<string>('');
-const loading = ref(false);
-const upgradeInfo = ref();
-const upgradeVersion = ref();
 
 const search = async () => {
     const res = await getSettingBaseInfo();
@@ -85,34 +75,6 @@ const toEdition = () => {
     } else {
         window.open('https://1panel.pro/pricing' + '', '_blank', 'noopener,noreferrer');
     }
-};
-
-const onLoadUpgradeInfo = async () => {
-    loading.value = true;
-    await loadUpgradeInfo()
-        .then(async (res) => {
-            loading.value = false;
-            if (res.data.testVersion || res.data.newVersion || res.data.latestVersion) {
-                upgradeInfo.value = res.data;
-                if (upgradeInfo.value.latestVersion) {
-                    upgradeVersion.value = upgradeInfo.value.latestVersion;
-                } else if (upgradeInfo.value.testVersion) {
-                    upgradeVersion.value = upgradeInfo.value.testVersion;
-                } else if (upgradeInfo.value.newVersion) {
-                    upgradeVersion.value = upgradeInfo.value.newVersion;
-                }
-                await upgradeRef.value.acceptParams({
-                    upgradeInfo: upgradeInfo.value,
-                    upgradeVersion: upgradeVersion.value,
-                });
-            } else {
-                MsgSuccess(i18n.global.t('setting.noUpgrade'));
-                return;
-            }
-        })
-        .catch(() => {
-            loading.value = false;
-        });
 };
 
 onMounted(() => {

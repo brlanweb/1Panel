@@ -68,6 +68,15 @@ const clusterRouter = {
                 permission: 'cluster_node_view',
             },
         },
+        {
+            path: '/cluster/monitor',
+            name: 'ClusterMonitor',
+            component: () => import('@/views/cluster/monitor/index.vue'),
+            meta: {
+                title: 'menu.clusterMonitor',
+                permission: 'cluster_node_view',
+            },
+        },
     ],
 };
 

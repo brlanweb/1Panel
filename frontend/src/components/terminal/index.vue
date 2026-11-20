@@ -48,6 +48,7 @@ const latency = ref(0);
 // Reconnect state. Only terminals that received a session hello reconnect;
 // the agent keeps a dirty-disconnected session alive for a short grace period.
 const sessionId = ref('');
+const wsNode = ref('');
 let wsEndpoint = '';
 let wsArgs = '';
 let closing = false;
@@ -141,6 +142,10 @@ interface WsProps {
     initCmd: string;
     waitForPrompt?: string;
     sessionId?: string;
+    // Panel node this terminal belongs to ('local' or a registered cluster
+    // node name). The websocket is opened against the master and proxied
+    // to the node with its stored API Key; empty means the master.
+    node?: string;
 }
 
 interface TerminalBufferLine {
@@ -156,6 +161,7 @@ const acceptParams = (props: WsProps) => {
             waitForPrompt.value = props.waitForPrompt || '';
             waitForPromptBuffer.value = '';
             sessionId.value = props.sessionId || '';
+            wsNode.value = props.node || '';
             init(props.endpoint, props.args);
         }
     });
@@ -306,14 +312,14 @@ const initWebSocket = async (endpoint_: string, args: string = '') => {
     const token = ++initWebSocketToken;
     closing = false;
     wsEndpoint = endpoint_;
-    // Terminal never follows node switching: a terminal is a shell on a
-    // specific host, and this panel's terminal always opens on the master
-    // panel. To reach another panel's machines, add them as SSH hosts on
-    // the master. Forcing operateNode=local here (and in the backend
-    // proxy) keeps the terminal visibly on the master instead of silently
-    // opening somewhere else.
+    // The terminal belongs to wsNode (a registered cluster node) or the
+    // master when empty: the websocket is opened against the master and
+    // the master proxies it to that node with its stored API Key. The
+    // remote panel validates the key and issues a 90s lease for its agent;
+    // if the remote agent is too old for API-key leases the connection
+    // fails here with that error instead of silently opening the master.
     const params = new URLSearchParams(args);
-    params.set('operateNode', 'local');
+    params.set('operateNode', wsNode.value || 'local');
     const normalizedArgs = params.toString();
     wsArgs = normalizedArgs;
     const href = window.location.href;
@@ -327,7 +333,7 @@ const initWebSocket = async (endpoint_: string, args: string = '') => {
     if (revalidating) {
         conn += '&terminalRevalidate=1';
     }
-    const authError = await checkStreamAuth(conn);
+    const authError = await checkStreamAuth(conn, wsNode.value || undefined);
     if (token !== initWebSocketToken || !termReady.value) {
         return;
     }

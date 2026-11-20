@@ -296,6 +296,14 @@ func (u *ClusterNodeService) ProxyRequest(w http.ResponseWriter, r *http.Request
 			req.Header.Del("Authorization")
 			req.Header.Del("X-CSRF-Token")
 			req.Header.Del("X-Panel-User")
+			// Master-session terminal identity headers must never reach
+			// the remote panel: the remote panel derives its own terminal
+			// identity (and 90s lease) from the API Key above. Leaking
+			// the master's session hash would also let the remote agent
+			// mistake this request for a master-local terminal session.
+			req.Header.Del("X-Panel-User-ID")
+			req.Header.Del("X-Panel-Auth-Session-ID")
+			req.Header.Del("X-Panel-Auth-Lease-Until")
 		},
 		Transport: clusterProxyTransport(),
 		// Normalize remote auth failures into 502 envelopes so a remote

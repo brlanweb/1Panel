@@ -301,6 +301,9 @@ export namespace File {
         name?: string;
         page: number;
         pageSize: number;
+        // Newest lines first when true (the agent's ReadFileByLine latest
+        // mode); the cluster monitor uses it to read recent access logs.
+        latest?: boolean;
         taskID?: string;
         taskType?: string;
         taskOperate?: string;

@@ -416,3 +416,78 @@ func TestClusterListOptions(t *testing.T) {
 		}
 	}
 }
+
+func TestClusterProxyTerminalForwardsWithAPIAuth(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	upgrader := websocket.Upgrader{}
+	var gotToken string
+	var leakedIdentity bool
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotToken = r.Header.Get("1Panel-Token")
+		if r.Header.Get("X-Panel-User-ID") != "" || r.Header.Get("X-Panel-Auth-Session-ID") != "" || r.Header.Get("X-Panel-Auth-Lease-Until") != "" {
+			leakedIdentity = true
+		}
+		if r.URL.Path != "/api/v2/hosts/terminal/local" {
+			http.NotFound(w, r)
+			return
+		}
+		if gotToken == "" {
+			http.Error(w, "missing api auth", http.StatusUnauthorized)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		_ = conn.WriteMessage(websocket.TextMessage, append([]byte("term-echo:"), msg...))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterNodeService()
+	master := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !svc.ProxyRequest(w, r, "node-b", true) {
+			http.NotFound(w, r)
+		}
+	}))
+	defer master.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(master.URL, "http") + "/api/v2/hosts/terminal/local?cols=80&rows=24&operateNode=node-b"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial terminal through proxy: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.WriteMessage(websocket.TextMessage, []byte("ls"))
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read terminal through proxy: %v", err)
+	}
+	if string(msg) != "term-echo:ls" {
+		t.Errorf("ws reply = %q, want term-echo:ls", msg)
+	}
+	if gotToken == "" {
+		t.Error("remote terminal upgrade carried no 1Panel-Token (API Key auth missing)")
+	}
+	if leakedIdentity {
+		t.Error("master-session terminal identity headers leaked to the remote panel")
+	}
+}
+
+func TestClusterProxyTerminalUnknownNode(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	svc := NewIClusterNodeService()
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/hosts/terminal/local?operateNode=ghost", nil)
+	rec := httptest.NewRecorder()
+	if handled := svc.ProxyRequest(rec, req, "ghost", true); handled {
+		t.Error("ProxyRequest returned true for an unregistered node terminal request; Proxy() must answer 502 instead")
+	}
+}

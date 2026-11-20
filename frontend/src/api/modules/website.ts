@@ -26,12 +26,18 @@ export const opWebsite = (req: Website.WebSiteOp, node?: string) => {
     return http.post<any>(`/websites/operate${query}`, req);
 };
 
-export const opWebsiteLog = (req: Website.WebSiteOpLog) => {
-    return http.post<any>(`/websites/log/operate`, req);
+export const opWebsiteLog = (req: Website.WebSiteOpLog, node?: string) => {
+    const query = node ? `?operateNode=${node}` : '';
+    return http.post<any>(`/websites/log/operate${query}`, req);
 };
 
-export const getWebsiteLog = (req: Website.WebSiteLogReq) => {
-    return http.post<Website.WebSiteLog>(`/websites/log/search`, req);
+export const getWebsiteLog = (req: Website.WebSiteLogReq, node?: string) => {
+    return http.post<Website.WebSiteLog>(
+        `/websites/log/search`,
+        req,
+        undefined,
+        node ? { CurrentNode: node } : undefined,
+    );
 };
 
 export const updateWebsite = (req: Website.WebSiteUpdateReq, node?: string) => {

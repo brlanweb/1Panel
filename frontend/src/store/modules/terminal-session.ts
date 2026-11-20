@@ -46,10 +46,11 @@ const createTerminalSessionState = (persistent: boolean) => {
         let title = init.title;
         let args = init.args || '';
         if (init.wsID === 0) {
-            // Terminal never follows node switching (see
-            // components/terminal/index.vue): every terminal opens on the
-            // master panel, so sessions are always recorded as local and
-            // never titled with another node's name.
+            // Docked terminal sessions in this store are master-local by
+            // design: they persist in the bottom terminal dock of the
+            // master panel. A transient terminal for another node is
+            // opened directly from the cluster overview drawer (which
+            // passes node to the Terminal component), not through here.
             const node = 'local';
             if (!args.includes('operateNode=')) args = [args, `operateNode=${node}`].filter(Boolean).join('&');
             if (node !== 'local' && !init.nodeName) title = `${title} (${decodeURIComponent(node)})`;

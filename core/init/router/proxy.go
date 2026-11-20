@@ -3,6 +3,7 @@ package router
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/url"
 	"path"
@@ -96,16 +97,16 @@ func Proxy(policies ...agentProxyPolicy) gin.HandlerFunc {
 		if nodeID, ok := mcpapi.NodeID(c.Request); ok {
 			useLocalAgent = nodeID == "local"
 		}
-		if isTerminalRequest(reqPath) {
-			// Terminal never follows node switching: a terminal is a shell
-			// on a specific host, and this panel's terminal always opens
-			// on the master panel. Users reach another panel's machines
-			// by adding them as SSH hosts on the master (see the terminal
-			// host page). Forcing local here covers every terminal entry
-			// point (host shell, container shell, SSH shell, sessions).
-			currentNode = "local"
-			useLocalAgent = true
-		}
+		// Terminal follows node switching through the cluster proxy: the
+		// browser opens the websocket against the master, the master
+		// forwards the upgrade to the selected node with its stored API
+		// Key, and the remote panel validates the key and hands the
+		// terminal a 90s authorization lease for its own agent
+		// (terminal_session lease capability). If the remote agent is too
+		// old to support API-key leases, the remote panel answers
+		// ErrAPIKeyTerminalUpgradeRequired and the terminal drawer shows
+		// that instead of pretending to be connected. Local terminals
+		// keep working exactly as before (useLocalAgent below).
 
 		apiReq := c.GetBool("API_AUTH")
 		terminalRevalidate := c.Query("terminalRevalidate") == "1" && isTerminalRevalidationEndpoint(reqPath)
@@ -164,6 +165,13 @@ func Proxy(policies ...agentProxyPolicy) gin.HandlerFunc {
 			// behaviour) instead of failing here.
 			if service.NewIClusterNodeService().ProxyRequest(c.Writer, c.Request, currentNode, isClusterProxyAdmin(c)) {
 				c.Abort()
+				return
+			}
+			if isTerminalRequest(reqPath) {
+				// Unknown node name: fail loudly instead of falling through
+				// to the xpack stub, which would leave a websocket upgrade
+				// hanging on a route that does not exist.
+				helper.ErrorWithDetail(c, http.StatusBadGateway, "ErrProxy", fmt.Errorf("node %q is not a registered cluster node", currentNode))
 				return
 			}
 		}
@@ -237,9 +245,9 @@ func isLocalAPI(urlPath string) bool {
 }
 
 // isTerminalRequest reports whether the request opens or manages a
-// terminal session. All terminal traffic stays on the master panel (see
-// the force-local branch in Proxy); it is the one feature that does not
-// follow node switching.
+// terminal session. Terminal traffic follows node switching through the
+// cluster proxy when the node is a registered panel node (see Proxy);
+// "local" terminals are served by the master panel itself.
 func isTerminalRequest(reqPath string) bool {
 	return reqPath == "/api/v2/hosts/terminal" ||
 		strings.HasPrefix(reqPath, "/api/v2/hosts/terminal/")

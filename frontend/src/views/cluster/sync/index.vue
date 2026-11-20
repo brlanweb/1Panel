@@ -313,39 +313,46 @@ const onResourceSelect = (selection: Cluster.SyncResource[]) => {
     previewItems.value = [];
 };
 
+// buildLocalNode returns the current (master) panel as a sync node: id 0
+// is the local pseudo-node on the backend, never a cluster_nodes row.
+const buildLocalNode = (): Cluster.NodeInfo => ({
+    id: 0,
+    name: i18n.global.t('cluster.localNode'),
+    entryUrl: '',
+    remark: '',
+    groupId: 0,
+    keyHint: '',
+    status: 'online',
+    latencyMs: 0,
+    version: '',
+    lastCheckAt: '',
+    lastError: '',
+    cpuUsedPercent: 0,
+    memUsedPercent: 0,
+    appCount: 0,
+    websiteCount: 0,
+    lastSyncStatus: '',
+    lastSyncAt: '',
+    createdAt: '',
+    updatedAt: '',
+});
+
 const loadNodes = async () => {
+    // The local node is set FIRST, before any request: the node list
+    // request can fail (network, session, backend error) and the old code
+    // only prepended the local node inside the try, so a failed request
+    // left the dropdowns with no local option at all — on a deployed
+    // panel this was reported as "the master node is still not in the
+    // node selection". The request only ever appends remote nodes.
+    allNodes.value = [buildLocalNode()];
     loading.value = true;
     try {
         const res = await searchClusterNodes({ page: 1, pageSize: 500 });
-        // The current (master) panel is always a sync source/target: id 0
-        // is the local pseudo-node on the backend, never a cluster_nodes
-        // row. Without it, local <-> remote sync is impossible in the
-        // common one-remote-node topology (source=remote leaves no target,
-        // and source=local cannot be picked at all).
-        const localNode: Cluster.NodeInfo = {
-            id: 0,
-            name: i18n.global.t('cluster.localNode'),
-            entryUrl: '',
-            remark: '',
-            groupId: 0,
-            keyHint: '',
-            status: 'online',
-            latencyMs: 0,
-            version: '',
-            lastCheckAt: '',
-            lastError: '',
-            cpuUsedPercent: 0,
-            memUsedPercent: 0,
-            appCount: 0,
-            websiteCount: 0,
-            lastSyncStatus: '',
-            lastSyncAt: '',
-            createdAt: '',
-            updatedAt: '',
-        };
-        allNodes.value = [localNode, ...(res.data.items || [])];
+        const remote = (res?.data?.items || []).filter((item) => item.id !== 0);
+        allNodes.value = [buildLocalNode(), ...remote];
     } catch {
-        // The request interceptor already reports the error.
+        // The request interceptor already reports the error; the local
+        // node stays selectable either way.
     } finally {
         loading.value = false;
     }

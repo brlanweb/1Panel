@@ -618,6 +618,7 @@ const message = {
         syncTask: 'Sync Task',
         agent: 'Agents',
         agentNoData: 'No agent summary data exists in the open-source build; no number is shown here.',
+        countsNotRefreshed: 'Not refreshed',
         cores: 'cores',
         restartUnsupported:
             'There is no public API in the open-source build to restart a remote panel; use the node itself to restart it.',

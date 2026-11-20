@@ -105,15 +105,33 @@
                                 </el-col>
                                 <el-col :span="8">
                                     <el-card shadow="hover">
-                                        <el-statistic :title="$t('cluster.appCount')" :value="selectedNode.appCount" />
+                                        <!-- Header counts come from the same live queries as
+                                        the tables below (res.data.total), never from the
+                                        aggregate snapshot, which can be stale or 0 for
+                                        the master node. null = this batch failed to
+                                        refresh: show —, not a stale-looking number. -->
+                                        <el-statistic
+                                            :title="$t('cluster.appCount')"
+                                            :value="selectedNode.appCount ?? '—'"
+                                        />
+                                        <el-text v-if="selectedNode.appCount === null" type="warning" size="small">
+                                            {{ $t('cluster.countsNotRefreshed') }}
+                                        </el-text>
                                     </el-card>
                                 </el-col>
                                 <el-col :span="8">
                                     <el-card shadow="hover">
                                         <el-statistic
                                             :title="$t('cluster.websiteCount')"
-                                            :value="selectedNode.websiteCount"
+                                            :value="selectedNode.websiteCount ?? '—'"
                                         />
+                                        <el-text
+                                            v-if="selectedNode.websiteCount === null"
+                                            type="warning"
+                                            size="small"
+                                        >
+                                            {{ $t('cluster.countsNotRefreshed') }}
+                                        </el-text>
                                     </el-card>
                                 </el-col>
                             </el-row>
@@ -379,8 +397,8 @@ interface OverviewNode {
     cpuTotal: number;
     memUsedPercent: number;
     memTotal: number;
-    appCount: number;
-    websiteCount: number;
+    appCount: number | null;
+    websiteCount: number | null;
     groupId: number;
     fetchError: string;
 }
@@ -496,8 +514,13 @@ const loadAll = async () => {
                 cpuTotal: local.data.cpuTotal || 0,
                 memUsedPercent: local.data.memoryUsedPercent || 0,
                 memTotal: local.data.memoryTotal || 0,
-                appCount: 0,
-                websiteCount: 0,
+                // Header counts are NOT taken from the aggregate snapshot
+                // (the master node is not in it, so it used to show 0,
+                // and a failed refresh kept a stale number). They are
+                // filled by loadSelectedNodeData from the same live
+                // queries as the tables below; null means not refreshed.
+                appCount: null,
+                websiteCount: null,
                 groupId: 0,
                 fetchError: '',
             });
@@ -512,8 +535,8 @@ const loadAll = async () => {
                 cpuTotal: 0,
                 memUsedPercent: 0,
                 memTotal: 0,
-                appCount: 0,
-                websiteCount: 0,
+                appCount: null,
+                websiteCount: null,
                 groupId: 0,
                 fetchError: '',
             });
@@ -530,8 +553,12 @@ const loadAll = async () => {
                     cpuTotal: snap.cpuTotal || 0,
                     memUsedPercent: snap.memUsedPercent || 0,
                     memTotal: snap.memTotal || 0,
-                    appCount: snap.appCount || 0,
-                    websiteCount: snap.websiteCount || 0,
+                    // Snapshot counts are not displayed: they come from a
+                    // different query path (all:true / persisted row) than
+                    // the tables below, so they can disagree with them.
+                    // loadSelectedNodeData fills them from the live totals.
+                    appCount: null,
+                    websiteCount: null,
                     groupId: groupIds[snap.nodeId] || 0,
                     fetchError: snap.fetchError || '',
                 });
@@ -581,8 +608,11 @@ const loadSelectedNodeData = async () => {
         websites.value = sitesRes.status === 'fulfilled' ? sitesRes.value.data.items || [] : [];
         certs.value = certsRes.status === 'fulfilled' ? certsRes.value.data.items || [] : [];
         cronjobs.value = cronRes.status === 'fulfilled' ? cronRes.value.data.items || [] : [];
-        // Keep the aggregate counts honest: the tables above are the first
-        // page only, so the header counts stay the aggregate totals.
+        // Header counts use the totals of this same batch of live queries,
+        // so the number always matches the tables below. A failed query
+        // leaves null ("—" + 未刷新) instead of a stale snapshot value.
+        node.appCount = appsRes.status === 'fulfilled' ? appsRes.value.data.total : null;
+        node.websiteCount = sitesRes.status === 'fulfilled' ? sitesRes.value.data.total : null;
         await loadDatabases();
     } finally {
         appsLoading.value = false;

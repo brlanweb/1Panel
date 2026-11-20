@@ -1,6 +1,7 @@
 package service
 
 import (
+	"crypto/sha256"
 	"encoding/json"
 	"io"
 	"net"
@@ -8,6 +9,7 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/1Panel-dev/1Panel/core/app/dto"
@@ -350,7 +352,7 @@ func TestSyncLocalNodeListsFiles(t *testing.T) {
 			http.NotFound(w, r)
 			return
 		}
-		envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+		envelope(w, map[string]interface{}{"items": []map[string]interface{}{
 			{"name": "a.txt", "isDir": false, "size": 10},
 			{"name": "dir", "isDir": true},
 		}})
@@ -394,7 +396,7 @@ func TestSyncLocalToRemoteFileExecute(t *testing.T) {
 	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/files/search":
-			envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{
 				{"name": "a.txt", "isDir": false, "size": 11},
 			}})
 		case "/api/v2/files/download":
@@ -408,7 +410,7 @@ func TestSyncLocalToRemoteFileExecute(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/files/search":
-			envelope(w, map[string]interface{}{"files": []interface{}{}})
+			envelope(w, map[string]interface{}{"items": []interface{}{}})
 		case "/api/v2/files/upload":
 			if err := r.ParseMultipartForm(32 << 20); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -461,7 +463,7 @@ func TestSyncRemoteToLocalFileExecute(t *testing.T) {
 	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/files/search":
-			envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{
 				{"name": "b.txt", "isDir": false, "size": 5},
 			}})
 		case "/api/v2/files/download":
@@ -477,7 +479,7 @@ func TestSyncRemoteToLocalFileExecute(t *testing.T) {
 	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case "/api/v2/files/search":
-			envelope(w, map[string]interface{}{"files": []interface{}{}})
+			envelope(w, map[string]interface{}{"items": []interface{}{}})
 		case "/api/v2/files/upload":
 			if err := r.ParseMultipartForm(32 << 20); err != nil {
 				http.Error(w, err.Error(), http.StatusBadRequest)
@@ -515,5 +517,269 @@ func TestSyncRemoteToLocalFileExecute(t *testing.T) {
 	}
 	if len(records) != 1 || records[0].Action != "create" {
 		t.Errorf("records = %+v, want one create record", records)
+	}
+}
+
+func TestSyncFileListParsesRealAgentShape(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	// The real agent answers /api/v2/files/search with response.FileInfo
+	// (files.FileInfo): entries live under "items", with path/name at the
+	// top level. The old parser read a "files" key that never exists, so
+	// the list was always empty on a real panel while the tests faked the
+	// wrong shape and passed.
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/files/search" {
+			http.NotFound(w, r)
+			return
+		}
+		envelope(w, map[string]interface{}{
+			"path": "/data", "name": "data", "itemTotal": 3,
+			"items": []map[string]interface{}{
+				{"name": "a.txt", "isDir": false, "size": 11},
+				{"name": "sub", "isDir": true, "size": 0},
+				{"name": "b.log", "isDir": false, "size": 5},
+			},
+		})
+	}))
+	svc := NewIClusterSyncService()
+	res, err := svc.ListResources(dto.ClusterSyncResourceSearch{Kind: "file", SourceNodeID: 0, Path: "/data", Page: 1, PageSize: 100})
+	if err != nil {
+		t.Fatalf("ListResources local file: %v", err)
+	}
+	if len(res) != 2 || res[0].Key != "/data/a.txt" || res[0].Size != 11 || res[1].Key != "/data/b.log" || res[1].Size != 5 {
+		t.Fatalf("resources = %+v, want /data/a.txt (11) and /data/b.log (5), dirs skipped", res)
+	}
+}
+
+// fileTransferFixture wires a local fake agent (unix socket) and a remote
+// fake panel (httptest) for file sync tests. content is what the source
+// download returns; targetSize is the size the target already has for the
+// same name (-1 = target has no such file). It returns the service and
+// pointers to the captured upload (bytes, name, dir, call count).
+func fileTransferFixture(t *testing.T, content []byte, targetSize int64) (IClusterSyncService, model.ClusterNode, *[]byte, *string, *string, *int) {
+	t.Helper()
+	restore := setupSyncTestDB(t)
+	t.Cleanup(restore)
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{
+				{"name": "a.txt", "isDir": false, "size": len(content)},
+			}})
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write(content)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	var uploaded []byte
+	var uploadedName, uploadedDir string
+	uploadCount := 0
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			items := []interface{}{}
+			if targetSize >= 0 {
+				items = []interface{}{map[string]interface{}{"name": "a.txt", "isDir": false, "size": targetSize}}
+			}
+			envelope(w, map[string]interface{}{"items": items})
+		case "/api/v2/files/upload":
+			uploadCount++
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			uploadedDir = r.FormValue("path")
+			f, hdr, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer f.Close()
+			uploadedName = hdr.Filename
+			uploaded, _ = io.ReadAll(f)
+			envelope(w, map[string]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(remote.Close)
+	target := insertTestNode(t, "node-b", remote.URL, "online")
+	return NewIClusterSyncService(), target, &uploaded, &uploadedName, &uploadedDir, &uploadCount
+}
+
+func TestSyncFileTransferByteIdenticalOverwrite(t *testing.T) {
+	content := []byte("sync-bytes\x00\x01\x02\xffhello-sync!")
+	wantHash := sha256.Sum256(content)
+	svc, target, uploaded, uploadedName, uploadedDir, uploadCount := fileTransferFixture(t, content, 999)
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID},
+		ResourceKeys: []string{"/data/a.txt"}, Path: "/data", OverwriteConflicts: true,
+	})
+	if err != nil {
+		t.Fatalf("Execute local->remote file: %v", err)
+	}
+	if *uploadCount != 1 {
+		t.Fatalf("upload calls = %d, want 1", *uploadCount)
+	}
+	if *uploadedName != "a.txt" || *uploadedDir != "/data" {
+		t.Errorf("upload = name %q dir %q, want a.txt /data", *uploadedName, *uploadedDir)
+	}
+	if gotHash := sha256.Sum256(*uploaded); gotHash != wantHash {
+		t.Errorf("uploaded sha256 = %x, want %x (bytes differ from source)", gotHash, wantHash)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCreate {
+		t.Errorf("records = %+v, want one create record", records)
+	}
+}
+
+func TestSyncFileTransferSkipConflict(t *testing.T) {
+	content := []byte("sync-bytes\x00\x01\x02\xffhello-sync!")
+	svc, target, _, _, _, uploadCount := fileTransferFixture(t, content, 999)
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID},
+		ResourceKeys: []string{"/data/a.txt"}, Path: "/data", OverwriteConflicts: false,
+	})
+	if err != nil {
+		t.Fatalf("Execute local->remote file: %v", err)
+	}
+	if *uploadCount != 0 {
+		t.Errorf("upload calls = %d, want 0 (conflict must be skipped, not uploaded)", *uploadCount)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionSkipConflict {
+		t.Errorf("records = %+v, want one skip-conflict record", records)
+	}
+}
+
+func TestSyncFileTransferByteIdenticalRemoteToLocal(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	content := []byte("\x00\x01\x02\xffremote-bytes-1234567890")
+	wantHash := sha256.Sum256(content)
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{
+				{"name": "b.bin", "isDir": false, "size": len(content)},
+			}})
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write(content)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer remote.Close()
+	source := insertTestNode(t, "node-b", remote.URL, "online")
+	var uploaded []byte
+	var uploadedName string
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []interface{}{}})
+		case "/api/v2/files/upload":
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			f, hdr, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer f.Close()
+			uploadedName = hdr.Filename
+			uploaded, _ = io.ReadAll(f)
+			envelope(w, map[string]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: source.ID, TargetNodeIDs: []uint{0},
+		ResourceKeys: []string{"/data/b.bin"}, Path: "/data",
+	})
+	if err != nil {
+		t.Fatalf("Execute remote->local file: %v", err)
+	}
+	if uploadedName != "b.bin" {
+		t.Errorf("uploaded name = %q, want b.bin", uploadedName)
+	}
+	if gotHash := sha256.Sum256(uploaded); gotHash != wantHash {
+		t.Errorf("uploaded sha256 = %x, want %x (bytes differ from source)", gotHash, wantHash)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCreate {
+		t.Errorf("records = %+v, want one create record", records)
+	}
+}
+
+func TestSyncRemoteDownloadJsonErrorRejected(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	// The agent answers errors as a JSON envelope with HTTP 200 (bad API
+	// key, sensitive path, missing file). The download must reject that
+	// body instead of saving it as the file and "syncing" corrupt bytes.
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{
+				{"name": "c.txt", "isDir": false, "size": 3},
+			}})
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": 401, "message": "ErrApiConfigKeyInvalid", "data": nil})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer remote.Close()
+	source := insertTestNode(t, "node-b", remote.URL, "online")
+	uploadCount := 0
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []interface{}{}})
+		case "/api/v2/files/upload":
+			uploadCount++
+			envelope(w, map[string]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: source.ID, TargetNodeIDs: []uint{0},
+		ResourceKeys: []string{"/data/c.txt"}, Path: "/data",
+	})
+	if err != nil {
+		t.Fatalf("Execute remote->local file: %v", err)
+	}
+	if uploadCount != 0 {
+		t.Errorf("upload calls = %d, want 0 (failed download must not upload)", uploadCount)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionFailed {
+		t.Fatalf("records = %+v, want one failed record", records)
+	}
+	if !strings.Contains(records[0].Reason, "download from source failed") {
+		t.Errorf("record reason = %q, want it to mention the failed download", records[0].Reason)
 	}
 }

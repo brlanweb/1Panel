@@ -594,6 +594,7 @@ const message = {
         syncTask: '同步任务',
         agent: '智能体',
         agentNoData: '开源版本暂无智能体汇总数据，此处不展示任何数字。',
+        countsNotRefreshed: '未刷新',
         cores: '核',
         restartUnsupported: '开源版本没有远程重启面板的公开接口，暂不支持一键重启，请到该节点本机操作。',
         terminalNodeOffline: '该节点当前离线，终端可能无法连接；可先切回主节点检查。',

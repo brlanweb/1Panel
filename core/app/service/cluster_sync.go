@@ -235,15 +235,21 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		if dir == "" {
 			dir = "/"
 		}
+		// The agent's /api/v2/files/search returns response.FileInfo
+		// (files.FileInfo): entries live under "items", not "files".
+		// Parsing "files" always yielded an empty list even though the
+		// call succeeded — that is why the file list never showed any
+		// rows on a deployed panel (the old tests faked the wrong shape
+		// too; see TestSyncFileListParsesRealAgentShape).
 		var data struct {
-			Files []map[string]interface{} `json:"files"`
+			Items []map[string]interface{} `json:"items"`
 		}
 		body := map[string]interface{}{"path": dir, "page": page, "pageSize": pageSize, "sortBy": "name", "sortOrder": "ascending", "isDetail": true}
 		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/files/search", body, &data, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
-		for _, f := range data.Files {
+		for _, f := range data.Items {
 			if toBool(f["isDir"]) {
 				continue
 			}
@@ -557,6 +563,19 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 	if resp.StatusCode() != http.StatusOK {
 		_ = os.Remove(tmpPath)
 		return "", 0, fmt.Errorf("source panel returned HTTP %d while downloading the file", resp.StatusCode())
+	}
+	// The agent answers errors as a JSON envelope with HTTP 200 (bad API
+	// key, sensitive path, missing file). Without this check the JSON
+	// error body would be saved as the file and "synced" as corrupt
+	// content; the local branch already guards the same way.
+	if strings.Contains(strings.ToLower(resp.Header().Get("Content-Type")), "application/json") {
+		raw, _ := os.ReadFile(tmpPath)
+		_ = os.Remove(tmpPath)
+		var env remoteEnvelope
+		if json.Unmarshal(raw, &env) == nil && strings.TrimSpace(env.Message) != "" {
+			return "", 0, fmt.Errorf("source panel error: %s", truncateErr(env.Message))
+		}
+		return "", 0, fmt.Errorf("source panel returned an unreadable download response")
 	}
 	info, err := os.Stat(tmpPath)
 	if err != nil {

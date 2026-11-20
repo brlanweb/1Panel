@@ -7,6 +7,13 @@ const (
 	ClusterSyncKindImage = "image"
 	ClusterSyncKindApp   = "app"
 	ClusterSyncKindCert  = "cert"
+	// ClusterSyncKindPhp is a PHP extension template (name + extension list),
+	// listed from the source panel's own template table
+	// (POST /runtimes/php/extensions/search) and written to the target with
+	// POST /runtimes/php/extensions/import (create / skip-same) or
+	// /update (explicit overwrite). The official xpack push endpoint is NOT
+	// used: it answers ErrXpackNotFound on open-source panels.
+	ClusterSyncKindPhp = "php"
 )
 
 // ClusterSyncResource is one normalized resource listed from a source node.
@@ -21,7 +28,7 @@ type ClusterSyncResource struct {
 }
 
 type ClusterSyncResourceSearch struct {
-	Kind         string `json:"kind" validate:"required,oneof=file image app cert"`
+	Kind         string `json:"kind" validate:"required,oneof=file image app cert php"`
 	SourceNodeID uint   `json:"sourceNodeId" validate:"required"`
 	// File resources only: directory to list on the source node.
 	Path string `json:"path"`
@@ -31,7 +38,7 @@ type ClusterSyncResourceSearch struct {
 }
 
 type ClusterSyncPreviewReq struct {
-	Kind          string   `json:"kind" validate:"required,oneof=file image app cert"`
+	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
 	SourceNodeID  uint     `json:"sourceNodeId" validate:"required"`
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
@@ -51,7 +58,7 @@ type ClusterSyncPreviewItem struct {
 }
 
 type ClusterSyncExecuteReq struct {
-	Kind          string   `json:"kind" validate:"required,oneof=file image app cert"`
+	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
 	SourceNodeID  uint     `json:"sourceNodeId" validate:"required"`
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`

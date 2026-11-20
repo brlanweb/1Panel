@@ -74,7 +74,7 @@ func (s *ClusterSyncService) getNode(id uint) (model.ClusterNode, error) {
 
 func validSyncKind(kind string) bool {
 	switch kind {
-	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert:
+	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert, dto.ClusterSyncKindPhp:
 		return true
 	}
 	return false
@@ -154,7 +154,9 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		return out, int64(len(out)), nil
 	case dto.ClusterSyncKindImage:
 		var result remotePage
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize}, &result, 15*time.Second); err != nil {
+		// PageImage requires orderBy + order (oneof) — omitting them is a
+		// backend 400, which used to make the image list silently empty.
+		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize, "orderBy": "createdAt", "order": "null"}, &result, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -225,6 +227,31 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 				Key: id, Name: domain,
 				Detail: toString(item["provider"]),
 				Extra:  strconv.FormatBool(toBool(item["autoRenew"])),
+			})
+		}
+		return out, result.Total, nil
+	case dto.ClusterSyncKindPhp:
+		// PHP extension templates live in the source panel's own template
+		// table (seeded with Default/WordPress/Flarum/SeaCMS/Dev). Key is
+		// the template id, Detail is the comma-separated extension list.
+		var result remotePage
+		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/runtimes/php/extensions/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
+			return nil, 0, err
+		}
+		var out []dto.ClusterSyncResource
+		for _, raw := range result.Items {
+			var item map[string]interface{}
+			if err := json.Unmarshal(raw, &item); err != nil {
+				continue
+			}
+			id := toString(item["id"])
+			name := toString(item["name"])
+			if id == "" || name == "" {
+				continue
+			}
+			out = append(out, dto.ClusterSyncResource{
+				Key: id, Name: name,
+				Detail: toString(item["extensions"]),
 			})
 		}
 		return out, result.Total, nil
@@ -306,6 +333,20 @@ func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNo
 		for _, item := range items {
 			if item.Name == res.Name {
 				return model.ClusterSyncActionSkipConflict, "target already has a certificate for this domain (content comparison happens at execution; same content is skipped there)"
+			}
+		}
+		return model.ClusterSyncActionCreate, ""
+	case dto.ClusterSyncKindPhp:
+		items, _, err := s.listRemoteResources(kind, target, "", 1, 500)
+		if err != nil {
+			return model.ClusterSyncActionFailed, "could not list target PHP templates: " + truncateErr(err.Error())
+		}
+		for _, item := range items {
+			if item.Name == res.Name {
+				if item.Detail == res.Detail {
+					return model.ClusterSyncActionSkipSame, "target already has the same PHP extension template"
+				}
+				return model.ClusterSyncActionSkipConflict, "target has a PHP template with the same name but different extensions"
 			}
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -553,6 +594,46 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		}
 		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/websites/ssl/upload", body, nil, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "certificate upload on target failed: " + truncateErr(err.Error())
+		}
+		return model.ClusterSyncActionCreate, ""
+	case dto.ClusterSyncKindPhp:
+		// Write path is the open-source import endpoint: it creates the
+		// template, returns "skipped" when the target already has the same
+		// content, and fails with ErrPHPExtensionsConflict on a name
+		// clash with different extensions. The official xpack push
+		// endpoint is NOT used (ErrXpackNotFound on open-source panels).
+		// res.Detail carries the extension list from the source listing.
+		var status string
+		err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/import", map[string]interface{}{"name": res.Name, "extensions": res.Detail}, &status, 10*time.Second)
+		if err == nil {
+			if status == "skipped" {
+				return model.ClusterSyncActionSkipSame, "target already has the same PHP extension template"
+			}
+			return model.ClusterSyncActionCreate, ""
+		}
+		if !strings.Contains(err.Error(), "ErrPHPExtensionsConflict") {
+			return model.ClusterSyncActionFailed, "PHP template import on target failed: " + truncateErr(err.Error())
+		}
+		if !overwrite {
+			return model.ClusterSyncActionSkipConflict, "target has a PHP template with the same name but different extensions"
+		}
+		// Explicit overwrite: resolve the target template id and update it.
+		targetItems, _, listErr := s.listRemoteResources(kind, target, "", 1, 500)
+		if listErr != nil {
+			return model.ClusterSyncActionFailed, "could not list target PHP templates for overwrite: " + truncateErr(listErr.Error())
+		}
+		var targetID uint64
+		for _, item := range targetItems {
+			if item.Name == res.Name {
+				targetID, _ = strconv.ParseUint(strings.TrimSpace(item.Key), 10, 64)
+				break
+			}
+		}
+		if targetID == 0 {
+			return model.ClusterSyncActionFailed, "target PHP template disappeared before overwrite"
+		}
+		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/update", map[string]interface{}{"id": targetID, "extensions": res.Detail}, nil, 10*time.Second); err != nil {
+			return model.ClusterSyncActionFailed, "PHP template update on target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
 	}

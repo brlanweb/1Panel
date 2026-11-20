@@ -98,6 +98,52 @@ func clusterProxyTransport() *http.Transport {
 	}
 }
 
+// clusterProxyWebsocketTransport is the transport for websocket upgrades
+// (terminals). It deliberately has NO ResponseHeaderTimeout and NO
+// IdleConnTimeout: once upgraded, the connection is a long-lived shell
+// session, not a request/response round trip. The 60s/90s limits of the
+// regular transport must never kill an idle terminal — a shell that sits
+// idle for 90s is normal, and the agent already closes the connection
+// itself every 60s for lease revalidation (close 4410), which the frontend
+// re-attaches. IdleConnTimeout does not apply to a hijacked connection in
+// Go's transport, but the handshake itself must not be subject to the
+// response-header deadline either, so upgrades get their own transport.
+func clusterProxyWebsocketTransport() *http.Transport {
+	return &http.Transport{
+		Proxy: http.ProxyFromEnvironment,
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+		TLSHandshakeTimeout: 5 * time.Second,
+	}
+}
+
+func isWebsocketUpgrade(r *http.Request) bool {
+	if r == nil {
+		return false
+	}
+	if !strings.EqualFold(strings.TrimSpace(r.Header.Get("Upgrade")), "websocket") {
+		return false
+	}
+	for _, token := range strings.Split(r.Header.Get("Connection"), ",") {
+		if strings.EqualFold(strings.TrimSpace(token), "upgrade") {
+			return true
+		}
+	}
+	return false
+}
+
+// clusterProxyTransportFor picks the websocket transport for upgrades and
+// the bounded transport for everything else.
+func clusterProxyTransportFor(r *http.Request) *http.Transport {
+	if isWebsocketUpgrade(r) {
+		return clusterProxyWebsocketTransport()
+	}
+	return clusterProxyTransport()
+}
+
 // proxyError writes a 1Panel-envelope error for a failed proxied request.
 // It never falls back to local data: showing master data while the user
 // believes they are operating node B would silently apply changes to the
@@ -305,7 +351,12 @@ func (u *ClusterNodeService) ProxyRequest(w http.ResponseWriter, r *http.Request
 			req.Header.Del("X-Panel-Auth-Session-ID")
 			req.Header.Del("X-Panel-Auth-Lease-Until")
 		},
-		Transport: clusterProxyTransport(),
+		// Websocket upgrades (terminals) use the no-timeout transport:
+		// a shell session is long-lived and idle by nature, and the
+		// regular transport's 60s response-header / 90s idle limits
+		// must never apply to it. Plain HTTP/SSE/download requests keep
+		// the bounded transport.
+		Transport: clusterProxyTransportFor(r),
 		// Normalize remote auth failures into 502 envelopes so a remote
 		// 401 never becomes a master login redirect. Streaming bodies
 		// (SSE, downloads, websockets) pass through untouched.

@@ -491,3 +491,191 @@ func TestClusterProxyTerminalUnknownNode(t *testing.T) {
 		t.Error("ProxyRequest returned true for an unregistered node terminal request; Proxy() must answer 502 instead")
 	}
 }
+
+func TestClusterProxyTerminalReattachAfterRevalidate(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	// Fake remote agent: first connection without a session id gets a
+	// session hello and is then closed with 4410 (lease revalidation,
+	// agent/utils/terminal/session.go CloseCodeRevalidate); a second
+	// connection carrying the same session id is accepted and echoes.
+	upgrader := websocket.Upgrader{}
+	var gotTokens []string
+	var gotSessions []string
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		gotTokens = append(gotTokens, r.Header.Get("1Panel-Token"))
+		gotSessions = append(gotSessions, r.URL.Query().Get("session"))
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		session := r.URL.Query().Get("session")
+		if session == "" {
+			_ = conn.WriteMessage(websocket.TextMessage, []byte(`{"type":"session","id":"sess-1"}`))
+			_ = conn.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(4410, "terminal authorization revalidation required"),
+				time.Now().Add(time.Second))
+			return
+		}
+		if session != "sess-1" {
+			_ = conn.WriteControl(websocket.CloseMessage,
+				websocket.FormatCloseMessage(4404, "session not found"),
+				time.Now().Add(time.Second))
+			return
+		}
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, append([]byte("term-echo:"), msg...)); err != nil {
+				return
+			}
+		}
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterNodeService()
+	master := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !svc.ProxyRequest(w, r, "node-b", true) {
+			http.NotFound(w, r)
+		}
+	}))
+	defer master.Close()
+
+	wsBase := "ws" + strings.TrimPrefix(master.URL, "http") + "/api/v2/hosts/terminal/local?cols=80&rows=24&operateNode=node-b"
+	conn1, _, err := websocket.DefaultDialer.Dial(wsBase, nil)
+	if err != nil {
+		t.Fatalf("dial terminal through proxy: %v", err)
+	}
+	_, hello, err := conn1.ReadMessage()
+	if err != nil {
+		t.Fatalf("read session hello through proxy: %v", err)
+	}
+	if !strings.Contains(string(hello), "sess-1") {
+		t.Fatalf("session hello = %q, want it to carry sess-1", hello)
+	}
+	// The fake agent closes with 4410; the client must see that close code.
+	_, _, err = conn1.ReadMessage()
+	if err == nil || !websocket.IsCloseError(err, 4410) {
+		t.Fatalf("after hello, expected close 4410, got %v", err)
+	}
+	_ = conn1.Close()
+
+	// Revalidation: reattach with the session id (and terminalRevalidate=1,
+	// exactly as the frontend does). The proxy must forward the session
+	// param and the API key, and the echo must flow.
+	conn2, _, err := websocket.DefaultDialer.Dial(wsBase+"&session=sess-1&terminalRevalidate=1", nil)
+	if err != nil {
+		t.Fatalf("dial reattach through proxy: %v", err)
+	}
+	defer conn2.Close()
+	_ = conn2.WriteMessage(websocket.TextMessage, []byte("ls"))
+	_, msg, err := conn2.ReadMessage()
+	if err != nil {
+		t.Fatalf("read echo after reattach: %v", err)
+	}
+	if string(msg) != "term-echo:ls" {
+		t.Errorf("ws reply after reattach = %q, want term-echo:ls", msg)
+	}
+	if len(gotTokens) != 2 || gotTokens[0] == "" || gotTokens[1] == "" {
+		t.Errorf("reattach carried API tokens = %v, want a token on both connections", gotTokens)
+	}
+	if len(gotSessions) != 2 || gotSessions[1] != "sess-1" {
+		t.Errorf("session params seen by remote = %v, want second to be sess-1", gotSessions)
+	}
+}
+
+func TestClusterProxyTerminalUpgradeAuthFailure(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	// Fake remote that rejects the terminal upgrade with HTTP 401: the
+	// proxy must answer 502, never 401, so the master frontend does not
+	// treat it as "my session expired" and redirect to login.
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"code":401,"message":"ErrApiConfigKeyInvalid","data":null}`))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterNodeService()
+	master := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !svc.ProxyRequest(w, r, "node-b", true) {
+			http.NotFound(w, r)
+		}
+	}))
+	defer master.Close()
+
+	// Plain HTTP GET (the checkStreamAuth preflight): expect a 502 envelope.
+	resp, err := http.Get(master.URL + "/api/v2/hosts/terminal/local?cols=80&rows=24&operateNode=node-b&terminalRevalidate=1")
+	if err != nil {
+		t.Fatalf("GET terminal preflight through proxy: %v", err)
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Errorf("preflight status = %d, want 502 (remote 401 must never surface as 401)", resp.StatusCode)
+	}
+	if !strings.Contains(string(body), "API Key") {
+		t.Errorf("preflight body = %q, want the API Key hint", body)
+	}
+}
+
+func TestClusterProxyTerminalIdleStaysOpen(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	upgrader := websocket.Upgrader{}
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		for {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
+				return
+			}
+			if err := conn.WriteMessage(websocket.TextMessage, append([]byte("term-echo:"), msg...)); err != nil {
+				return
+			}
+		}
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterNodeService()
+	master := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !svc.ProxyRequest(w, r, "node-b", true) {
+			http.NotFound(w, r)
+		}
+	}))
+	defer master.Close()
+
+	wsURL := "ws" + strings.TrimPrefix(master.URL, "http") + "/api/v2/hosts/terminal/local?cols=80&rows=24&operateNode=node-b"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatalf("dial terminal through proxy: %v", err)
+	}
+	defer conn.Close()
+	// Idle for 3s with no traffic (the real 90s idle limit cannot be
+	// waited out in a unit test; the upgrade path uses the no-timeout
+	// transport, and this proves the proxied connection is not torn down
+	// while idle on a short horizon).
+	time.Sleep(3 * time.Second)
+	_ = conn.WriteMessage(websocket.TextMessage, []byte("pwd"))
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read echo after idle through proxy: %v", err)
+	}
+	if string(msg) != "term-echo:pwd" {
+		t.Errorf("ws reply after idle = %q, want term-echo:pwd", msg)
+	}
+}

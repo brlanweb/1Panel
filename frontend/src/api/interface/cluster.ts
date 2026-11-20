@@ -115,7 +115,7 @@ export namespace Cluster {
         nodeId?: number;
     }
 
-    export type SyncKind = 'file' | 'image' | 'app' | 'cert';
+    export type SyncKind = 'file' | 'image' | 'app' | 'cert' | 'php';
 
     export interface SyncResource {
         key: string;

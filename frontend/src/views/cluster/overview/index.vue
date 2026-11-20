@@ -190,6 +190,20 @@
                                             <el-option label="MySQL" value="mysql" />
                                             <el-option label="PostgreSQL" value="postgresql" />
                                         </el-select>
+                                        <el-select
+                                            v-model="dbInstance"
+                                            class="p-w-200"
+                                            :disabled="!dbOptions.length"
+                                            :placeholder="$t('cluster.dbNoInstance')"
+                                            @change="loadDatabases"
+                                        >
+                                            <el-option
+                                                v-for="item in dbOptions"
+                                                :key="item.database"
+                                                :label="item.database"
+                                                :value="item.database"
+                                            />
+                                        </el-select>
                                     </div>
                                 </template>
                                 <el-table :data="databases" style="width: 100%" v-loading="databasesLoading">
@@ -259,8 +273,18 @@
                 <div v-if="terminalNodeOffline" class="drawer-note">
                     <el-alert type="warning" :closable="false" :title="$t('cluster.terminalNodeOffline')" />
                 </div>
+                <div v-if="terminalExpired" class="drawer-note">
+                    <el-alert type="error" :closable="false" :title="$t('cluster.terminalDisconnected')">
+                        <template #default>
+                            <el-button type="primary" size="small" @click="reconnectTerminal">
+                                {{ $t('cluster.terminalReconnect') }}
+                            </el-button>
+                            <span class="ml-2">{{ $t('cluster.terminalReconnectHelper') }}</span>
+                        </template>
+                    </el-alert>
+                </div>
                 <div class="terminal-drawer-body">
-                    <Terminal ref="terminalRef" />
+                    <Terminal ref="terminalRef" @session="terminalExpired = false" @expired="terminalExpired = true" />
                 </div>
             </template>
         </DrawerPro>
@@ -325,7 +349,7 @@ import { getGroupList } from '@/api/modules/group';
 import { searchAppInstalled } from '@/api/modules/app';
 import { searchWebsites } from '@/api/modules/website';
 import { searchSSL } from '@/api/modules/website';
-import { searchMysqlDBs, searchPostgresqlDBs } from '@/api/modules/database';
+import { searchMysqlDBs, searchPostgresqlDBs, listDatabases } from '@/api/modules/database';
 import { searchCronjobPage, handleOnce } from '@/api/modules/cronjob';
 import { listRunningServices, readSystemLogs } from '@/api/modules/log';
 import { loadCurrentInfo } from '@/api/modules/dashboard';
@@ -376,6 +400,14 @@ const certsLoading = ref(false);
 const dbType = ref<'mysql' | 'postgresql'>('mysql');
 const databases = ref<Array<Database.MysqlDBInfo | Database.PostgresqlDBInfo>>([]);
 const databasesLoading = ref(false);
+// Database server instances of the selected node for the current dbType.
+// The search APIs require a non-empty `database` (instance name), so the
+// options are loaded first and the first available instance is used; when
+// the node has no instance at all the card shows an empty state instead
+// of calling search with an empty database (backend `required` error).
+const dbOptions = ref<Array<Database.DatabaseOption>>([]);
+const dbInstance = ref('');
+const dbOptionsKey = ref('');
 const cronjobs = ref<Cronjob.CronjobInfo[]>([]);
 const cronjobsLoading = ref(false);
 
@@ -383,6 +415,8 @@ const terminalVisible = ref(false);
 const terminalRef = ref();
 const terminalNodeName = ref('');
 const terminalNodeOffline = ref(false);
+const terminalNode = ref<OverviewNode | undefined>(undefined);
+const terminalExpired = ref(false);
 const nodeLogVisible = ref(false);
 const nodeLogNodeName = ref('');
 const nodeLogNodeKey = ref('');
@@ -538,7 +572,10 @@ const loadSelectedNodeData = async () => {
                 param,
             ),
             searchSSL({ page: 1, pageSize: 8 }, param),
-            searchCronjobPage({ page: 1, pageSize: 8, info: '', groupIDs: [] }, param),
+            searchCronjobPage(
+                { page: 1, pageSize: 8, info: '', groupIDs: [], orderBy: 'createdAt', order: 'null' },
+                param,
+            ),
         ]);
         apps.value = appsRes.status === 'fulfilled' ? appsRes.value.data.items || [] : [];
         websites.value = sitesRes.status === 'fulfilled' ? sitesRes.value.data.items || [] : [];
@@ -561,11 +598,43 @@ const loadDatabases = async () => {
     databasesLoading.value = true;
     try {
         const param = nodeParam(node);
+        // Instance options are per node + dbType: reload when either changes.
+        const optionsKey = `${node.key}:${dbType.value}`;
+        if (dbOptionsKey.value !== optionsKey) {
+            dbOptions.value = [];
+            dbInstance.value = '';
+            try {
+                const type =
+                    dbType.value === 'mysql' ? 'mysql,mariadb,mysql-cluster' : 'postgresql,postgresql-cluster';
+                const res = await listDatabases(type, param);
+                dbOptions.value = res.data || [];
+            } catch {
+                dbOptions.value = [];
+            }
+            dbOptionsKey.value = optionsKey;
+            if (dbOptions.value.length) {
+                dbInstance.value = dbOptions.value[0].database;
+            }
+        }
+        // No database server instance on this node: empty state, no search
+        // call (searching with an empty `database` is a backend 400).
+        if (!dbInstance.value) {
+            databases.value = [];
+            return;
+        }
+        const search = {
+            info: '',
+            database: dbInstance.value,
+            page: 1,
+            pageSize: 8,
+            orderBy: 'createdAt',
+            order: 'null',
+        };
         if (dbType.value === 'mysql') {
-            const res = await searchMysqlDBs({ info: '', database: '', page: 1, pageSize: 8 }, param);
+            const res = await searchMysqlDBs(search, param);
             databases.value = res.data.items || [];
         } else {
-            const res = await searchPostgresqlDBs({ info: '', database: '', page: 1, pageSize: 8 }, param);
+            const res = await searchPostgresqlDBs(search, param);
             databases.value = res.data.items || [];
         }
     } catch {
@@ -582,7 +651,28 @@ const goNodeManage = () => {
 const openTerminal = (node: OverviewNode) => {
     terminalNodeName.value = node.displayName;
     terminalNodeOffline.value = node.status !== 'online';
+    terminalNode.value = node;
+    terminalExpired.value = false;
     terminalVisible.value = true;
+    nextTick(() => {
+        terminalRef.value?.acceptParams({
+            endpoint: '/api/v2/hosts/terminal/local',
+            args: '',
+            error: '',
+            initCmd: '',
+            node: node.name,
+        });
+    });
+};
+
+// The Terminal component emits `expired` when the agent drops the session
+// (lease revalidation failed, session not found, shell exited). Without
+// this the drawer only shows one red "disconnected" line inside xterm;
+// the alert below gives the user a reconnect button instead.
+const reconnectTerminal = () => {
+    const node = terminalNode.value;
+    if (!node) return;
+    terminalExpired.value = false;
     nextTick(() => {
         terminalRef.value?.acceptParams({
             endpoint: '/api/v2/hosts/terminal/local',

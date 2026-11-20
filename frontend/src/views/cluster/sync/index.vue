@@ -7,6 +7,7 @@
                     <el-tab-pane :label="$t('cluster.syncKindImage')" name="image" />
                     <el-tab-pane :label="$t('cluster.syncKindApp')" name="app" />
                     <el-tab-pane :label="$t('cluster.syncKindCert')" name="cert" />
+                    <el-tab-pane :label="$t('cluster.syncKindPhp')" name="php" />
                 </el-tabs>
 
                 <el-card shadow="never" class="mb-4">

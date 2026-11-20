@@ -48,6 +48,14 @@
                             <span class="ml-2">{{ $t('cluster.monitorEnableNow') }}</span>
                         </template>
                     </el-alert>
+                    <el-alert
+                        v-if="loadError"
+                        type="error"
+                        :closable="false"
+                        show-icon
+                        :title="$t('cluster.monitorLoadErrorTitle')"
+                        :description="loadError"
+                    />
                     <el-text v-if="parsedLines" type="info" size="small">
                         {{ $t('cluster.monitorDataWindow', [parsedLines, totalLines]) }}
                     </el-text>
@@ -59,6 +67,25 @@
                             <el-col :span="6" v-for="stat in todayStats" :key="stat.label">
                                 <el-card shadow="hover">
                                     <el-statistic :title="stat.label" :value="stat.value" />
+                                </el-card>
+                            </el-col>
+                        </el-row>
+                        <el-row :gutter="12" class="mb-4">
+                            <el-col :span="6">
+                                <el-card shadow="hover">
+                                    <el-statistic :title="$t('cluster.monitorRealtimeReqs')" :value="realtimeAgg.reqs" />
+                                </el-card>
+                            </el-col>
+                            <el-col :span="6">
+                                <el-card shadow="hover">
+                                    <el-statistic :title="$t('cluster.monitorRealtimeTraffic')" :value="realtimeAgg.traffic" />
+                                </el-card>
+                            </el-col>
+                            <el-col :span="12">
+                                <el-card shadow="hover">
+                                    <el-text type="info" size="small">
+                                        {{ $t('cluster.monitorRealtimeNote') }}
+                                    </el-text>
                                 </el-card>
                             </el-col>
                         </el-row>
@@ -78,23 +105,34 @@
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('cluster.monitorVisits')" name="visits">
-                        <el-table :data="dailyRows" style="width: 100%" :default-sort="{ prop: 'date', order: 'descending' }">
-                            <el-table-column :label="$t('commons.table.date')" prop="date" width="130px" sortable />
-                            <el-table-column :label="$t('cluster.monitorPv')" prop="pv" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitorUv')" prop="uv" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitorIps')" prop="ips" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitorTraffic')" prop="traffic" sortable align="right">
-                                <template #default="{ row }">{{ formatBytes(row.trafficBytes) }}</template>
-                            </el-table-column>
-                            <el-table-column :label="$t('cluster.monitorSpiders')" prop="spiders" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitorReqs')" prop="reqs" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitor4xx')" prop="e4xx" sortable align="right" />
-                            <el-table-column :label="$t('cluster.monitor5xx')" prop="e5xx" sortable align="right" />
-                        </el-table>
-                        <el-empty v-if="!dailyRows.length" :description="$t('commons.msg.noneData')" />
+                        <el-row :gutter="12">
+                            <el-col :span="8" v-for="card in rankCards" :key="card.title" class="mb-4">
+                                <el-card shadow="never">
+                                    <template #header>{{ card.title }}</template>
+                                    <el-table :data="card.rows" size="small" max-height="320">
+                                        <el-table-column :label="card.colLabel" prop="label" show-overflow-tooltip />
+                                        <el-table-column :label="$t('cluster.monitorCount')" prop="count" width="80px" align="right" />
+                                    </el-table>
+                                    <el-empty v-if="!card.rows.length" :description="$t('commons.msg.noneData')" />
+                                </el-card>
+                            </el-col>
+                        </el-row>
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('cluster.monitorTrends')" name="trends">
+                        <el-card shadow="never" class="mb-4">
+                            <template #header>
+                                <div class="card-header-with-select">
+                                    <span>{{ $t('cluster.visitorTrend') }}</span>
+                                    <el-select v-model="trendRange" class="p-w-150" @change="buildTrend">
+                                        <el-option :label="$t('cluster.today')" value="today" />
+                                        <el-option :label="$t('cluster.last7Days')" value="7d" />
+                                        <el-option :label="$t('cluster.last30Days')" value="30d" />
+                                    </el-select>
+                                </div>
+                            </template>
+                            <v-charts type="line" :option="trendOption" height="280px" />
+                        </el-card>
                         <el-table :data="hourlyRows" style="width: 100%">
                             <el-table-column :label="$t('commons.table.date')" prop="label" width="160px" />
                             <el-table-column :label="$t('cluster.monitorPv')" prop="pv" align="right" />
@@ -107,7 +145,32 @@
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('cluster.monitorReqLog')" name="reqlog">
+                        <el-row :gutter="12" class="mb-4">
+                            <el-col :span="3" v-for="chip in reqChips" :key="chip.label">
+                                <el-card shadow="hover">
+                                    <el-statistic :title="chip.label" :value="chip.value" />
+                                </el-card>
+                            </el-col>
+                        </el-row>
                         <el-form :inline="true" class="mb-4">
+                            <el-form-item>
+                                <el-date-picker
+                                    v-model="logFilterRange"
+                                    type="datetimerange"
+                                    range-separator="→"
+                                    :start-placeholder="$t('commons.table.date')"
+                                    :end-placeholder="$t('commons.table.date')"
+                                />
+                            </el-form-item>
+                            <el-form-item>
+                                <el-select v-model="logFilterMethod" class="p-w-150" clearable :placeholder="$t('cluster.monitorMethod')">
+                                    <el-option label="GET" value="GET" />
+                                    <el-option label="POST" value="POST" />
+                                    <el-option label="PUT" value="PUT" />
+                                    <el-option label="DELETE" value="DELETE" />
+                                    <el-option label="HEAD" value="HEAD" />
+                                </el-select>
+                            </el-form-item>
                             <el-form-item>
                                 <el-select v-model="logFilterStatus" class="p-w-150" clearable :placeholder="$t('cluster.monitorStatus')">
                                     <el-option label="2xx" value="2" />
@@ -214,14 +277,36 @@ const { globalStore } = useGlobalStore();
 const masterAlias = globalStore.getMasterAlias();
 
 // --- Access-log parsing (nginx combined format) ---
-// 1.2.3.4 - - [20/Nov/2026:10:11:12 +0800] "GET /path HTTP/1.1" 200 1234 "-" "UA"
+// 1.2.3.4 - - [20/Nov/2026:10:11:12 +0800] "GET /path HTTP/1.1" 200 1234 "https://ref" "UA"
 const LOG_RE =
-    /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]*) \S*" (\d{3}) (\d+|-) "[^"]*" "([^"]*)"/;
+    /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]*) \S*" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)"/;
 const MONTHS: Record<string, number> = {
     Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
     Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
 };
 const SPIDER_RE = /bot|spider|crawl|slurp|baidu|googlebot|bingbot|sogou|360spider|yandex|duckduck/i;
+
+// Minimal UA parsing for the visits rankings (browser / OS / device). The
+// default access-log format carries no response-time field, so request-log
+// latency is shown as — by design, not as 0.
+const parseUA = (ua: string): { browser: string; os: string; device: string } => {
+    const lower = ua.toLowerCase();
+    let browser = 'Other';
+    if (lower.includes('edg/')) browser = 'Edge';
+    else if (lower.includes('opr/') || lower.includes('opera')) browser = 'Opera';
+    else if (lower.includes('chrome/')) browser = 'Chrome';
+    else if (lower.includes('firefox/')) browser = 'Firefox';
+    else if (lower.includes('safari/')) browser = 'Safari';
+    else if (lower.includes('msie') || lower.includes('trident/')) browser = 'IE';
+    let os = 'Other';
+    if (lower.includes('windows')) os = 'Windows';
+    else if (lower.includes('mac os')) os = 'macOS';
+    else if (lower.includes('android')) os = 'Android';
+    else if (lower.includes('iphone') || lower.includes('ipad')) os = 'iOS';
+    else if (lower.includes('linux')) os = 'Linux';
+    const device = /mobile|android|iphone|ipad/i.test(ua) ? 'Mobile' : 'Desktop';
+    return { browser, os, device };
+};
 
 interface ReqRow {
     ip: string;
@@ -230,7 +315,11 @@ interface ReqRow {
     method: string;
     status: number;
     bytes: number;
+    referer: string;
     ua: string;
+    browser: string;
+    os: string;
+    device: string;
     spider: boolean;
     time: number;
     timeLabel: string;
@@ -255,6 +344,8 @@ const parseLine = (line: string, domain: string): ReqRow | null => {
     const tzMin = Number(tz.slice(1, 3)) * 60 + Number(tz.slice(3, 5));
     const time = Date.UTC(year, month, day, hh, mm, ss) - tzSign * tzMin * 60000;
     const status = Number(m[5]);
+    const ua = m[8];
+    const { browser, os, device } = parseUA(ua);
     return {
         ip: m[1],
         domain,
@@ -262,8 +353,12 @@ const parseLine = (line: string, domain: string): ReqRow | null => {
         method: m[3],
         status,
         bytes: m[6] === '-' ? 0 : Number(m[6]),
-        ua: m[7],
-        spider: SPIDER_RE.test(m[7]),
+        referer: m[7],
+        ua,
+        browser,
+        os,
+        device,
+        spider: SPIDER_RE.test(ua),
         time,
         timeLabel: new Date(time).toLocaleString(),
         dateKey: `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
@@ -300,6 +395,10 @@ const aggregateRows = (rows: ReqRow[]) => {
 
 const loading = ref(false);
 const sitesLoading = ref(false);
+// Set when a fetch actually fails (node unreachable, API error, log read
+// error). Shown as an alert; distinct from "log not enabled" (banner) and
+// from "enabled but no rows yet" (empty state).
+const loadError = ref('');
 const activeTab = ref('overview');
 const nodeName = ref('local');
 const onlineNodes = ref<Cluster.NodeInfo[]>([]);
@@ -317,6 +416,8 @@ const logFilterStatus = ref('');
 const logFilterSpider = ref<boolean | undefined>(undefined);
 const logFilterUrl = ref('');
 const logFilterIp = ref('');
+const logFilterMethod = ref('');
+const logFilterRange = ref<[Date, Date] | null>(null);
 const siteRows = ref<Array<{ id: number; domain: string } & ReturnType<typeof aggregateRows>>>([]);
 
 const selectedWebsite = computed(() => websites.value.find((item) => item.id === websiteId.value));
@@ -336,16 +437,60 @@ const todayStats = computed(() => [
     { label: i18n.global.t('cluster.monitor4xx'), value: todayAgg.value.e4xx },
     { label: i18n.global.t('cluster.monitor5xx'), value: todayAgg.value.e5xx },
 ]);
-const dailyRows = computed(() => {
-    const byDay = new Map<string, ReqRow[]>();
-    for (const row of reqRows.value) {
-        const list = byDay.get(row.dateKey) || [];
-        list.push(row);
-        byDay.set(row.dateKey, list);
+// --- Rankings for the visits tab (top 10 each) ---
+const topBy = (key: (row: ReqRow) => string, rows: ReqRow[], limit = 10) => {
+    const counts = new Map<string, number>();
+    for (const row of rows) {
+        const k = key(row);
+        counts.set(k, (counts.get(k) || 0) + 1);
     }
-    return [...byDay.entries()]
-        .map(([date, rows]) => ({ date, ...aggregateRows(rows) }))
-        .sort((a, b) => (a.date < b.date ? 1 : -1));
+    return [...counts.entries()]
+        .map(([label, count]) => ({ label, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, limit);
+};
+const rankings = computed(() => ({
+    urls: topBy((r) => r.url, reqRows.value),
+    referers: topBy((r) => (r.referer && r.referer !== '-' ? r.referer : '—'), reqRows.value),
+    ips: topBy((r) => r.ip, reqRows.value),
+    browsers: topBy((r) => r.browser, reqRows.value),
+    os: topBy((r) => r.os, reqRows.value),
+    devices: topBy((r) => r.device, reqRows.value),
+    statuses: topBy((r) => String(r.status), reqRows.value),
+}));
+const rankCards = computed(() => {
+    const t = (key: string) => i18n.global.t(key);
+    const r = rankings.value;
+    return [
+        { title: t('cluster.monitorRankUrl'), colLabel: 'URL', rows: r.urls },
+        { title: t('cluster.monitorRankReferer'), colLabel: t('cluster.monitorRankSource'), rows: r.referers },
+        { title: t('cluster.monitorRankIp'), colLabel: 'IP', rows: r.ips },
+        { title: t('cluster.monitorRankBrowser'), colLabel: t('cluster.monitorRankBrowser'), rows: r.browsers },
+        { title: t('cluster.monitorRankOs'), colLabel: t('cluster.monitorRankOs'), rows: r.os },
+        { title: t('cluster.monitorRankDevice'), colLabel: t('cluster.monitorRankDevice'), rows: r.devices },
+        { title: t('cluster.monitorRankStatus'), colLabel: t('cluster.monitorStatus'), rows: r.statuses },
+    ];
+});
+// --- Realtime (last 60 s) for the overview tab, from the parsed window ---
+const realtimeAgg = computed(() => {
+    const cutoff = Date.now() - 60 * 1000;
+    const rows = reqRows.value.filter((row) => row.time >= cutoff);
+    return { reqs: rows.length, traffic: formatBytes(rows.reduce((sum, r) => sum + r.bytes, 0)) };
+});
+// --- Request-log chips (whole parsed window) ---
+const reqChips = computed(() => {
+    const agg = aggregateRows(reqRows.value);
+    const ok = reqRows.value.filter((r) => r.status >= 200 && r.status < 300).length;
+    const errors = agg.e4xx + agg.e5xx;
+    return [
+        { label: i18n.global.t('cluster.monitorReqs'), value: agg.reqs },
+        { label: '200', value: ok },
+        { label: i18n.global.t('cluster.monitorErrors'), value: errors },
+        { label: i18n.global.t('cluster.monitorIps'), value: agg.ips },
+        { label: i18n.global.t('cluster.monitorSpiders'), value: agg.spiders },
+        { label: i18n.global.t('cluster.monitorTraffic'), value: formatBytes(agg.trafficBytes) },
+        { label: i18n.global.t('cluster.monitorAvgResp'), value: '—' },
+    ];
 });
 const hourlyRows = computed(() => {
     const days = trendRange.value === 'today' ? 1 : trendRange.value === '7d' ? 7 : 30;
@@ -372,6 +517,11 @@ const filteredReqRows = computed(() => {
             if (logFilterSpider.value !== undefined && row.spider !== logFilterSpider.value) return false;
             if (logFilterUrl.value && !row.url.includes(logFilterUrl.value)) return false;
             if (logFilterIp.value && !row.ip.includes(logFilterIp.value)) return false;
+            if (logFilterMethod.value && row.method !== logFilterMethod.value) return false;
+            if (logFilterRange.value) {
+                const [start, end] = logFilterRange.value;
+                if (row.time < start.getTime() || row.time > end.getTime()) return false;
+            }
             return true;
         })
         .slice(0, 500);
@@ -404,6 +554,7 @@ const onNodeChange = async () => {
     websites.value = [];
     reqRows.value = [];
     parsedLines.value = 0;
+    loadError.value = '';
     await loadWebsites();
 };
 
@@ -415,12 +566,14 @@ const loadWebsites = async () => {
             param,
         );
         websites.value = res.data.items || [];
+        loadError.value = '';
         if (websites.value.length && !websiteId.value) {
             websiteId.value = websites.value[0].id;
             await loadSite();
         }
-    } catch {
+    } catch (e: any) {
         websites.value = [];
+        loadError.value = e?.message || i18n.global.t('cluster.monitorLoadError');
     }
 };
 
@@ -431,11 +584,19 @@ const loadSite = async () => {
     reqRows.value = [];
     parsedLines.value = 0;
     totalLines.value = 0;
+    loadError.value = '';
     try {
         const param = nodeName.value;
         const meta = await getWebsiteLog({ id: site.id, logType: 'access.log', page: 1, pageSize: 1 }, param);
         logEnabled.value = !!meta.data?.enable;
         logEnabledSwitch.value = logEnabled.value;
+        // Error-log switch state was never initialised from the server.
+        try {
+            const errMeta = await getWebsiteLog({ id: site.id, logType: 'error.log', page: 1, pageSize: 1 }, param);
+            errorLogSwitch.value = !!errMeta.data?.enable;
+        } catch {
+            errorLogSwitch.value = false;
+        }
         if (!logEnabled.value) {
             return;
         }
@@ -457,8 +618,9 @@ const loadSite = async () => {
         reqRows.value = rows;
         parsedLines.value = lines.length;
         buildTrend();
-    } catch {
+    } catch (e: any) {
         reqRows.value = [];
+        loadError.value = e?.message || i18n.global.t('cluster.monitorLoadError');
     } finally {
         loading.value = false;
     }

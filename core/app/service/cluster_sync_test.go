@@ -168,3 +168,155 @@ func TestAggregateSnapshot(t *testing.T) {
 		t.Errorf("persisted counts = apps %d websites %d, want 3 and 2", persisted.AppCount, persisted.WebsiteCount)
 	}
 }
+
+func TestSyncPreviewPhp(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	sourceTemplates := []map[string]interface{}{
+		{"id": 1, "name": "WordPress", "extensions": "exif,igbinary,imagick"},
+		{"id": 2, "name": "SeaCMS", "extensions": "mysqli,pdo_mysql,gd,curl"},
+		{"id": 3, "name": "Custom", "extensions": "gd,zip"},
+	}
+	targetTemplates := []map[string]interface{}{
+		{"id": 1, "name": "WordPress", "extensions": "exif,igbinary,imagick"},
+		{"id": 2, "name": "SeaCMS", "extensions": "mysqli,pdo_mysql,gd"},
+	}
+	phpHandler := func(items []map[string]interface{}) http.HandlerFunc {
+		return func(w http.ResponseWriter, r *http.Request) {
+			envelope(w, map[string]interface{}{"total": len(items), "items": items})
+		}
+	}
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/runtimes/php/extensions/search" {
+			phpHandler(sourceTemplates)(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer source.Close()
+	target := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/runtimes/php/extensions/search" {
+			phpHandler(targetTemplates)(w, r)
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer target.Close()
+
+	sourceNode := insertTestNode(t, "source", source.URL, model.ClusterNodeStatusOnline)
+	targetNode := insertTestNode(t, "target", target.URL, model.ClusterNodeStatusOnline)
+
+	svc := NewIClusterSyncService()
+	items, err := svc.Preview(dto.ClusterSyncPreviewReq{
+		Kind:          dto.ClusterSyncKindPhp,
+		SourceNodeID:  sourceNode.ID,
+		TargetNodeIDs: []uint{targetNode.ID},
+		ResourceKeys:  []string{"1", "2", "3"},
+	})
+	if err != nil {
+		t.Fatalf("Preview php: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("Preview returned %d items, want 3", len(items))
+	}
+	want := map[string]string{
+		"1": model.ClusterSyncActionSkipSame,
+		"2": model.ClusterSyncActionSkipConflict,
+		"3": model.ClusterSyncActionCreate,
+	}
+	for _, item := range items {
+		if want[item.ResourceKey] != item.Action {
+			t.Errorf("Preview(%s) = %s (%s), want %s", item.ResourceKey, item.Action, item.Reason, want[item.ResourceKey])
+		}
+	}
+}
+
+func TestSyncImageSearchSendsOrderBy(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	var gotBody map[string]interface{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/containers/image/search", func(w http.ResponseWriter, r *http.Request) {
+		_ = json.NewDecoder(r.Body).Decode(&gotBody)
+		envelope(w, map[string]interface{}{"total": 0, "items": []interface{}{}})
+	})
+	source := httptest.NewServer(mux)
+	defer source.Close()
+	sourceNode := insertTestNode(t, "source", source.URL, model.ClusterNodeStatusOnline)
+
+	svc := NewIClusterSyncService()
+	if _, err := svc.ListResources(dto.ClusterSyncResourceSearch{
+		Kind: dto.ClusterSyncKindImage, SourceNodeID: sourceNode.ID, Page: 1, PageSize: 10,
+	}); err != nil {
+		t.Fatalf("ListResources image: %v", err)
+	}
+	// PageImage requires orderBy + order; omitting them used to be a
+	// backend 400, which made the image list silently empty.
+	if gotBody["orderBy"] != "createdAt" || gotBody["order"] != "null" {
+		t.Errorf("image search body = %v, want orderBy=createdAt order=null", gotBody)
+	}
+}
+
+func TestSyncPhpImport(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	// Fake target: import creates, returns "skipped" for identical content,
+	// and a conflict error for a same-name template with other extensions.
+	imported := map[string]string{"WordPress": "exif,igbinary,imagick"}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/api/v2/runtimes/php/extensions/search", func(w http.ResponseWriter, r *http.Request) {
+		items := []map[string]interface{}{}
+		for name, ext := range imported {
+			items = append(items, map[string]interface{}{"id": 1, "name": name, "extensions": ext})
+		}
+		envelope(w, map[string]interface{}{"total": len(items), "items": items})
+	})
+	mux.HandleFunc("/api/v2/runtimes/php/extensions/import", func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		name, _ := body["name"].(string)
+		ext, _ := body["extensions"].(string)
+		if old, ok := imported[name]; ok {
+			if old == ext {
+				envelope(w, "skipped")
+				return
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": 500, "message": "ErrPHPExtensionsConflict", "data": nil})
+			return
+		}
+		imported[name] = ext
+		envelope(w, "created")
+	})
+	target := httptest.NewServer(mux)
+	defer target.Close()
+	source := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		envelope(w, map[string]interface{}{"total": 0, "items": []interface{}{}})
+	}))
+	defer source.Close()
+	sourceNode := insertTestNode(t, "source", source.URL, model.ClusterNodeStatusOnline)
+	targetNode := insertTestNode(t, "target", target.URL, model.ClusterNodeStatusOnline)
+
+	svc := NewIClusterSyncService().(*ClusterSyncService)
+	// Same content -> skipped by the remote import itself.
+	action, _ := svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
+		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "exif,igbinary,imagick"}, "", false)
+	if action != model.ClusterSyncActionSkipSame {
+		t.Errorf("transferOne same php template = %s, want skip-same", action)
+	}
+	// Different extensions, no overwrite -> skip-conflict.
+	action, _ = svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
+		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "gd,zip"}, "", false)
+	if action != model.ClusterSyncActionSkipConflict {
+		t.Errorf("transferOne conflicting php template = %s, want skip-conflict", action)
+	}
+	// New template -> created.
+	action, _ = svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
+		dto.ClusterSyncResource{Key: "10", Name: "SeaCMS", Detail: "mysqli,pdo_mysql,gd,curl"}, "", false)
+	if action != model.ClusterSyncActionCreate {
+		t.Errorf("transferOne new php template = %s, want create", action)
+	}
+}

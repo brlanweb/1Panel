@@ -40,6 +40,11 @@ type IClusterNodeService interface {
 	CheckAll() error
 	Overview() (dto.ClusterNodeOverview, error)
 	Aggregate() (dto.ClusterAggregateOverview, error)
+	ListOptions() ([]dto.ClusterNodeOption, error)
+	// ProxyRequest forwards one request to the named panel node. It
+	// returns false when the name is not a registered cluster node.
+	// isAdmin reports whether the master session belongs to a super admin.
+	ProxyRequest(w http.ResponseWriter, r *http.Request, nodeName string, isAdmin bool) bool
 }
 
 func NewIClusterNodeService() IClusterNodeService {
@@ -212,7 +217,13 @@ func (u *ClusterNodeService) callRemote(node model.ClusterNode, method, path str
 		return 0, nil, fmt.Errorf("credential decrypt failed")
 	}
 	timestamp := strconv.FormatInt(time.Now().Unix(), 10)
-	targetURL := strings.TrimRight(node.EntryURL, "/") + path
+	// The API lives at the panel origin; the entrance path segment (if any)
+	// must not be part of the target, or the remote panel answers NoRoute.
+	apiBase, err := panelAPIBase(node.EntryURL)
+	if err != nil {
+		return 0, nil, err
+	}
+	targetURL := apiBase + path
 	client := resty.New().
 		SetTimeout(timeout).
 		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})

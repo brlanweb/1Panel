@@ -160,3 +160,20 @@ func (b *BaseApi) GetClusterAggregateOverview(c *gin.Context) {
 	}
 	helper.SuccessWithData(c, overview)
 }
+
+// @Tags Cluster Node
+// @Summary List cluster node switcher options
+// @Success 200 {object} dto.PageResult
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/options [get]
+// The bottom node switcher reads this (local only): the master entry is
+// added by the frontend, the rest are the registered panel nodes.
+func (b *BaseApi) ListClusterNodeOptions(c *gin.Context) {
+	options, err := clusterNodeService.ListOptions()
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, options)
+}

@@ -46,10 +46,11 @@ const createTerminalSessionState = (persistent: boolean) => {
         let title = init.title;
         let args = init.args || '';
         if (init.wsID === 0) {
-            const { currentNode } = useGlobalStore();
-            const node =
-                /operateNode=([^&]+)/.exec(args)?.[1] ||
-                encodeURIComponent(init.nodeName || currentNode.value || 'local');
+            // Terminal never follows node switching (see
+            // components/terminal/index.vue): every terminal opens on the
+            // master panel, so sessions are always recorded as local and
+            // never titled with another node's name.
+            const node = 'local';
             if (!args.includes('operateNode=')) args = [args, `operateNode=${node}`].filter(Boolean).join('&');
             if (node !== 'local' && !init.nodeName) title = `${title} (${decodeURIComponent(node)})`;
         }

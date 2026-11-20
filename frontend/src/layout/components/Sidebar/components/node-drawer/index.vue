@@ -27,7 +27,7 @@
                                         <el-button
                                             class="node-favorite-button"
                                             link
-                                            v-if="isAdmin"
+                                            v-if="isAdmin && row.source !== 'cluster'"
                                             :type="row.isFavorite ? 'warning' : 'info'"
                                             :loading="favoriteLoadingIDs.includes(row.id)"
                                             @click.stop="toggleFavorite(row)"
@@ -86,6 +86,10 @@ const { isAdmin } = useGlobalStore();
 
 type NodeItem = Setting.NodeItem & {
     group?: string;
+    // 'cluster' for panel nodes registered under Cluster; undefined for
+    // official nodes. Used to hide the favorite pin (xpack-only) and to
+    // keep cluster entries clickable when their status is Unknown.
+    source?: string;
 };
 
 const props = defineProps<{

@@ -489,7 +489,11 @@ const message = {
         nodeName: '节点名称',
         entryUrl: '面板地址',
         entryUrlPlaceholder: '例如 https://192.168.1.10:12345',
-        entryUrlHelper: '仅添加受信任的节点；自签名证书可正常使用。',
+        entryUrlHelper: '仅添加受信任的节点；自签名证书可正常使用。此处添加的是面板型节点（面板地址 + API Key），底部切换后全站操作该面板；与需要 SSH 装机的节点类型不同。',
+        switchAdminOnly: '只有主节点管理员才能切换节点',
+        switchTestFailed: '节点连接测试失败，无法切换',
+        terminalStaysLocal:
+            '终端不跟随节点切换：这里列出的是主节点（本机）的主机，终端始终连到本机；要连其他面板的机器，请在本机添加 SSH 主机。',
         apiInterfaceHelper: '远程面板需开启「面板设置 > API 接口」，否则健康检查将返回 401。',
         apiKey: 'API Key',
         apiKeyPlaceholder: '粘贴远程面板的 API Key',

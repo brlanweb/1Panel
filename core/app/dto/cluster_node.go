@@ -56,6 +56,19 @@ type ClusterNodeOverview struct {
 	Unknown int64 `json:"unknown"`
 }
 
+// ClusterNodeOption is one entry of the bottom node switcher: the master
+// ("local") entry is added by the frontend, the rest come from ListOptions.
+// Status uses the official switcher vocabulary (Healthy/Unhealthy/Unknown);
+// Version is always empty for panel nodes (no version endpoint exists).
+type ClusterNodeOption struct {
+	ID      uint   `json:"id"`
+	Name    string `json:"name"`
+	Addr    string `json:"addr"`
+	Status  string `json:"status"`
+	IsBound bool   `json:"isBound"`
+	Version string `json:"version"`
+}
+
 // ClusterNodeSnapshot is one node's last aggregate refresh: live CPU/memory
 // from the remote GET /dashboard/current/node plus app/website totals. A
 // nil FetchError means the refresh succeeded; otherwise the snapshot fields

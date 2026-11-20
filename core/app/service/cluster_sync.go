@@ -389,7 +389,11 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 	}
 	tmpPath = tmp.Name()
 	_ = tmp.Close()
-	targetURL := strings.TrimRight(node.EntryURL, "/") + "/api/v2/files/download"
+	apiBase, err := panelAPIBase(node.EntryURL)
+	if err != nil {
+		return "", 0, err
+	}
+	targetURL := apiBase + "/api/v2/files/download"
 	doGet := func(token string) (*resty.Response, error) {
 		return client.R().
 			SetHeader("1Panel-Timestamp", timestamp).
@@ -432,7 +436,11 @@ func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileN
 		return err
 	}
 	defer f.Close()
-	targetURL := strings.TrimRight(node.EntryURL, "/") + "/api/v2/files/upload"
+	apiBase, err := panelAPIBase(node.EntryURL)
+	if err != nil {
+		return err
+	}
+	targetURL := apiBase + "/api/v2/files/upload"
 	doPost := func(token string) (*resty.Response, error) {
 		if _, err := f.Seek(0, io.SeekStart); err != nil {
 			return nil, err

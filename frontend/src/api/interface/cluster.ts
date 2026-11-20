@@ -53,6 +53,17 @@ export namespace Cluster {
         unknown: number;
     }
 
+    // One entry of the bottom node switcher. The master ("local") entry is
+    // added by the frontend; the rest are registered panel nodes.
+    export interface NodeOption {
+        id: number;
+        name: string;
+        addr: string;
+        status: string;
+        isBound: boolean;
+        version: string;
+    }
+
     export interface NodeSnapshot {
         nodeId: number;
         name: string;

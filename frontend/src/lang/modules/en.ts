@@ -509,7 +509,12 @@ const message = {
         nodeName: 'Node Name',
         entryUrl: 'Panel URL',
         entryUrlPlaceholder: 'e.g. https://192.168.1.10:12345',
-        entryUrlHelper: 'Only add trusted nodes; self-signed certificates are accepted.',
+        entryUrlHelper:
+            'Only add trusted nodes; self-signed certificates are accepted. Nodes added here are panel nodes (panel URL + API Key); after switching at the bottom, the whole site operates that panel. They are different from nodes that require SSH installation.',
+        switchAdminOnly: 'Only master admins can switch nodes',
+        switchTestFailed: 'Node connection test failed, cannot switch',
+        terminalStaysLocal:
+            'Terminal does not follow node switching: the hosts listed here belong to the master panel (this machine), and terminals always connect here. To reach another panel’s machines, add them as SSH hosts on this panel.',
         apiInterfaceHelper:
             'The remote panel needs Settings > API Interface enabled, otherwise health checks return 401.',
         apiKey: 'API Key',

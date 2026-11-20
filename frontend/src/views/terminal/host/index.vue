@@ -22,6 +22,13 @@
                 <TableRefresh @search="search()" />
             </template>
             <template #main>
+                <el-alert
+                    :title="$t('cluster.terminalStaysLocal')"
+                    type="info"
+                    :closable="false"
+                    show-icon
+                    class="p-mb-2"
+                />
                 <ComplexTable
                     :cache-pagination="false"
                     :pagination-config="paginationConfig"

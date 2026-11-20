@@ -25,9 +25,7 @@ import { decodeBase64, encodeBase64 } from '@/utils/base64';
 import { TerminalStore } from '@/store';
 import { MsgError } from '@/utils/message';
 import { checkStreamAuth } from '@/utils/stream-auth';
-import { useGlobalStore } from '@/composables/useGlobalStore';
 import i18n from '@/lang';
-const { currentNode } = useGlobalStore();
 
 // session: agent side session id known (fresh or reattached)
 // expired: the agent no longer has the session; a reconnect must open a new one
@@ -308,17 +306,21 @@ const initWebSocket = async (endpoint_: string, args: string = '') => {
     const token = ++initWebSocketToken;
     closing = false;
     wsEndpoint = endpoint_;
-    wsArgs = args;
+    // Terminal never follows node switching: a terminal is a shell on a
+    // specific host, and this panel's terminal always opens on the master
+    // panel. To reach another panel's machines, add them as SSH hosts on
+    // the master. Forcing operateNode=local here (and in the backend
+    // proxy) keeps the terminal visibly on the master instead of silently
+    // opening somewhere else.
+    const params = new URLSearchParams(args);
+    params.set('operateNode', 'local');
+    const normalizedArgs = params.toString();
+    wsArgs = normalizedArgs;
     const href = window.location.href;
     const protocol = href.split('//')[0] === 'http:' ? 'ws' : 'wss';
     const host = href.split('//')[1].split('/')[0];
     const endpoint = endpoint_.replace(/^\/+/, '');
-    const params = new URLSearchParams(args);
-    const node = params.has('id') ? 'local' : currentNode.value;
-    let conn = `${protocol}://${host}/${endpoint}?cols=${term.value.cols}&rows=${term.value.rows}&${args}&operateNode=${node}`;
-    if (params.has('operateNode')) {
-        conn = `${protocol}://${host}/${endpoint}?cols=${term.value.cols}&rows=${term.value.rows}&${args}`;
-    }
+    let conn = `${protocol}://${host}/${endpoint}?cols=${term.value.cols}&rows=${term.value.rows}&${normalizedArgs}`;
     if (sessionId.value) {
         conn += `&session=${encodeURIComponent(sessionId.value)}`;
     }

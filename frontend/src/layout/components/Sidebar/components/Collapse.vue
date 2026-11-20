@@ -32,18 +32,18 @@
                     <el-tag class="msg-tag" v-if="taskCount !== 0" size="small" round>{{ taskCount }}</el-tag>
                 </div>
                 <el-divider v-if="showNodes()" class="divider" />
-                <div class="dropdown-item" @click="openNodeDashboard" v-if="isXpackOrEE">
+                <div class="dropdown-item" @click="openNodeDashboard" v-if="showClusterOverview">
                     <SvgIcon class="icon" iconName="p-gailan1" />
                     {{ $t('xpack.node.multiOverview') }}
                 </div>
-                <el-divider v-if="isXpackOrEE" class="divider" />
+                <el-divider v-if="showClusterOverview" class="divider" />
 
                 <div v-if="showNodes()">
                     <el-scrollbar max-height="288px" :noresize="true">
                         <div
                             class="dropdown-item"
                             @click="changeNode(item.name)"
-                            :disabled="item.status !== 'Healthy'"
+                            :disabled="item.source === 'cluster' ? false : item.status !== 'Healthy'"
                             v-for="item in visibleNodeOptions"
                             :key="item.name"
                         >
@@ -95,6 +95,7 @@ import router from '@/routers';
 import { loadProductProFromDB } from '@/utils/xpack';
 import { routerToNameWithQuery } from '@/utils/router';
 import { changeToLocal, listNodes, setDefaultNodeInfo } from '@/utils/node';
+import { listClusterNodeOptions, testClusterNode } from '@/api/modules/cluster';
 import { Login } from '@/api/interface/auth';
 import { syncAuthInfo } from '@/utils/rbac';
 import UserInfo from './user-info/index.vue';
@@ -102,7 +103,7 @@ import NodeDrawer from './node-drawer/index.vue';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
 const currentUser = ref<Login.AuthInfo>();
-const { globalStore, currentNode, currentNodeAddr, defaultNetwork, entrance, isEnterprise, isXpackOrEE } =
+const { globalStore, currentNode, currentNodeAddr, defaultNetwork, entrance, isAdmin, isEnterprise, isXpackOrEE } =
     useGlobalStore();
 const menuStore = MenuStore();
 const nodes = ref([]);
@@ -160,24 +161,50 @@ const handleFavoriteChange = async () => {
 const loadNodes = async () => {
     loading.value = true;
     nodes.value = [];
-    if (!isXpackOrEE.value) {
-        changeToLocal();
-        loading.value = false;
+    if (isXpackOrEE.value) {
+        await listNodes('all')
+            .then((res) => {
+                nodes.value = res || [];
+                if (nodes.value.length === 0) {
+                    setDefaultNodeInfo();
+                }
+                nodeOptions.value = nodes.value || [];
+                loading.value = false;
+            })
+            .catch(() => {
+                setDefaultNodeInfo();
+                loading.value = false;
+            });
         return;
     }
-    await listNodes('all')
-        .then((res) => {
-            nodes.value = res || [];
-            if (nodes.value.length === 0) {
-                setDefaultNodeInfo();
-            }
-            nodeOptions.value = nodes.value || [];
-            loading.value = false;
-        })
-        .catch(() => {
-            setDefaultNodeInfo();
-            loading.value = false;
-        });
+    // No commercial multi-node: the switcher lists the master panel plus
+    // the panel nodes registered under Cluster (URL + API Key). These are
+    // panel nodes, not SSH-installed nodes.
+    try {
+        const res = await listClusterNodeOptions();
+        const clusterNodes = (res.data || []).map((item) => ({ ...item, source: 'cluster' }));
+        nodeOptions.value = [
+            {
+                id: 0,
+                name: 'local',
+                addr: '127.0.0.1',
+                status: 'Healthy',
+                isBound: true,
+                version: props.version,
+                source: 'local',
+            },
+            ...clusterNodes,
+        ];
+        nodes.value = nodeOptions.value;
+        if (currentNode.value !== 'local' && !nodeOptions.value.some((item) => item.name === currentNode.value)) {
+            // The node this browser was switched to no longer exists.
+            changeToLocal();
+        }
+    } catch {
+        setDefaultNodeInfo();
+    } finally {
+        loading.value = false;
+    }
 };
 const changeNode = async (command: string) => {
     if (currentNode.value === command || switchingNode.value) {
@@ -188,6 +215,10 @@ const changeNode = async (command: string) => {
     try {
         for (const item of nodes.value) {
             if (item.name == command) {
+                if (item.source === 'cluster') {
+                    await changeToClusterNode(item);
+                    return;
+                }
                 if (command == 'local') {
                     if (isEnterprise.value) {
                         await loadCurrentUser('local');
@@ -246,8 +277,52 @@ const loadGlobalSetting = async (currentNode?: string) => {
     });
 };
 
+const changeToClusterNode = async (item) => {
+    // The stored remote API key is equivalent to super admin on the target
+    // panel, so only master admins may switch the whole site to a node.
+    if (!isAdmin.value) {
+        MsgError(i18n.global.t('cluster.switchAdminOnly'));
+        return;
+    }
+    if (item.status !== 'Healthy') {
+        // An unchecked node may simply never have been probed: test it live
+        // before switching instead of refusing outright.
+        try {
+            const res = await testClusterNode(item.id);
+            if (res?.data?.status !== 'online') {
+                MsgError(i18n.global.t('cluster.switchTestFailed'));
+                return;
+            }
+            item.status = 'Healthy';
+        } catch {
+            MsgError(i18n.global.t('cluster.switchTestFailed'));
+            return;
+        }
+    }
+    // The remote default network is best-effort: failing to read it must
+    // not block the switch.
+    try {
+        await loadGlobalSetting(item.name);
+    } catch {}
+    localStorage.removeItem('dashboardCache');
+    localStorage.removeItem('upgradeChecked');
+    currentNode.value = item.name;
+    currentNodeAddr.value = item.addr;
+    loadProductProFromDB();
+    routerToNameWithQuery('home', { t: Date.now() });
+};
+
+const showClusterOverview = computed(() => {
+    return isXpackOrEE.value || nodeOptions.value.length > 1;
+});
+
 const showNodes = () => {
-    return nodes.value.length > 0 && isXpackOrEE.value;
+    if (isXpackOrEE.value) {
+        return nodes.value.length > 0;
+    }
+    // Cluster mode: only show the switcher when at least one panel node is
+    // registered (the list always contains the local master entry).
+    return nodeOptions.value.length > 1;
 };
 
 const taskCount = ref(0);
@@ -263,7 +338,11 @@ const openTask = () => {
 };
 
 const openNodeDashboard = () => {
-    routerToNameWithQuery('NodeDashboard', { uncached: 'true' });
+    if (isXpackOrEE.value) {
+        routerToNameWithQuery('NodeDashboard', { uncached: 'true' });
+        return;
+    }
+    routerToNameWithQuery('ClusterOverview', { uncached: 'true' });
 };
 
 const logout = () => {

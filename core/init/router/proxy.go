@@ -12,6 +12,7 @@ import (
 
 	"github.com/1Panel-dev/1Panel/core/app/api/v2/helper"
 	baseRepo "github.com/1Panel-dev/1Panel/core/app/repo"
+	"github.com/1Panel-dev/1Panel/core/app/service"
 	"github.com/1Panel-dev/1Panel/core/cmd/server/res"
 	"github.com/1Panel-dev/1Panel/core/constant"
 	"github.com/1Panel-dev/1Panel/core/global"
@@ -95,6 +96,16 @@ func Proxy(policies ...agentProxyPolicy) gin.HandlerFunc {
 		if nodeID, ok := mcpapi.NodeID(c.Request); ok {
 			useLocalAgent = nodeID == "local"
 		}
+		if isTerminalRequest(reqPath) {
+			// Terminal never follows node switching: a terminal is a shell
+			// on a specific host, and this panel's terminal always opens
+			// on the master panel. Users reach another panel's machines
+			// by adding them as SSH hosts on the master (see the terminal
+			// host page). Forcing local here covers every terminal entry
+			// point (host shell, container shell, SSH shell, sessions).
+			currentNode = "local"
+			useLocalAgent = true
+		}
 
 		apiReq := c.GetBool("API_AUTH")
 		terminalRevalidate := c.Query("terminalRevalidate") == "1" && isTerminalRevalidationEndpoint(reqPath)
@@ -138,6 +149,23 @@ func Proxy(policies ...agentProxyPolicy) gin.HandlerFunc {
 		if !strings.HasPrefix(reqPath, "/api/v2/core") && useLocalAgent {
 			proxyLocalAgent(c)
 			return
+		}
+		if !useLocalAgent {
+			// Core APIs are always served by the master panel itself:
+			// cluster management, panel settings, login and every other
+			// /api/v2/core/* handler are master-local by construction.
+			if strings.HasPrefix(reqPath, "/api/v2/core") {
+				c.Next()
+				return
+			}
+			// True node switching for registered panel nodes: forward the
+			// request to the node with its stored Legacy API Key. Unknown
+			// names fall through to the xpack provider below (previous
+			// behaviour) instead of failing here.
+			if service.NewIClusterNodeService().ProxyRequest(c.Writer, c.Request, currentNode, isClusterProxyAdmin(c)) {
+				c.Abort()
+				return
+			}
 		}
 		xpack.MultiNodeProvider.Proxy(c, currentNode)
 		c.Abort()
@@ -206,4 +234,30 @@ func isLocalAPI(urlPath string) bool {
 	return urlPath == "/api/v2/core/xpack/sync/ssl" ||
 		urlPath == "/api/v2/core/xpack/sync/php/extensions" ||
 		urlPath == "/api/v2/core/xpack/settings/search"
+}
+
+// isTerminalRequest reports whether the request opens or manages a
+// terminal session. All terminal traffic stays on the master panel (see
+// the force-local branch in Proxy); it is the one feature that does not
+// follow node switching.
+func isTerminalRequest(reqPath string) bool {
+	return reqPath == "/api/v2/hosts/terminal" ||
+		strings.HasPrefix(reqPath, "/api/v2/hosts/terminal/")
+}
+
+// isClusterProxyAdmin reports whether the current master session belongs to
+// a super admin. The stored remote API key is equivalent to super admin on
+// the target panel, so only master admins may operate a node through the
+// cluster proxy. API-key-authenticated callers are admins by construction
+// (the CoreAPIAuthMiddleware success handler sets Role ADMIN).
+func isClusterProxyAdmin(c *gin.Context) bool {
+	value, ok := c.Get(psessionUtils.GinContextSessionUserKey)
+	if !ok {
+		return false
+	}
+	user, ok := value.(psessionUtils.SessionUser)
+	if !ok {
+		return false
+	}
+	return user.Role == "ADMIN"
 }

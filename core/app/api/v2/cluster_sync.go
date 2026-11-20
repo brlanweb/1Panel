@@ -1,0 +1,116 @@
+package v2
+
+import (
+	"github.com/1Panel-dev/1Panel/core/app/api/v2/helper"
+	"github.com/1Panel-dev/1Panel/core/app/dto"
+	"github.com/gin-gonic/gin"
+)
+
+// @Tags Cluster Sync
+// @Summary List resources of one kind on a source node (for sync selection)
+// @Accept json
+// @Param request body dto.ClusterSyncResourceSearch true "request"
+// @Success 200 {object} []dto.ClusterSyncResource
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/resources/search [post]
+func (b *BaseApi) SearchClusterSyncResources(c *gin.Context) {
+	var req dto.ClusterSyncResourceSearch
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	list, err := clusterSyncService.ListResources(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, list)
+}
+
+// @Tags Cluster Sync
+// @Summary Preview a sync execution (per resource x target action, no changes made)
+// @Accept json
+// @Param request body dto.ClusterSyncPreviewReq true "request"
+// @Success 200 {object} []dto.ClusterSyncPreviewItem
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/preview [post]
+func (b *BaseApi) PreviewClusterSync(c *gin.Context) {
+	var req dto.ClusterSyncPreviewReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	items, err := clusterSyncService.Preview(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, items)
+}
+
+// @Tags Cluster Sync
+// @Summary Execute a sync task (creates a task; conflicts are skipped unless overwriteConflicts is true)
+// @Accept json
+// @Param request body dto.ClusterSyncExecuteReq true "request"
+// @Success 200 {object} dto.ClusterSyncTaskInfo
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/execute [post]
+// @x-panel-log {"bodyKeys":["kind"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"执行集群资源同步 [kind]","formatEN":"execute cluster resource sync [kind]"}
+func (b *BaseApi) ExecuteClusterSync(c *gin.Context) {
+	var req dto.ClusterSyncExecuteReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	taskID, err := clusterSyncService.Execute(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, gin.H{"taskId": taskID})
+}
+
+// @Tags Cluster Sync
+// @Summary Search sync tasks
+// @Accept json
+// @Param request body dto.ClusterSyncTaskSearch true "request"
+// @Success 200 {object} dto.PageResult
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/tasks/search [post]
+func (b *BaseApi) SearchClusterSyncTasks(c *gin.Context) {
+	var req dto.ClusterSyncTaskSearch
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	total, list, err := clusterSyncService.SearchTasks(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, dto.PageResult{
+		Total: total,
+		Items: list,
+	})
+}
+
+// @Tags Cluster Sync
+// @Summary List per-item records of one sync task
+// @Accept json
+// @Param request body dto.OperateByID true "request"
+// @Success 200 {object} []dto.ClusterSyncRecordInfo
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/tasks/records [post]
+func (b *BaseApi) ListClusterSyncTaskRecords(c *gin.Context) {
+	var req dto.OperateByID
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	list, err := clusterSyncService.TaskRecords(req.ID)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, list)
+}

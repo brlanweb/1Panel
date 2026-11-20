@@ -78,5 +78,9 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddModelServicesMenu,
 		migrations.UpdateAiMenus,
 		migrations.MoveOpsReportMenuToAgent,
+		migrations.AddClusterNodes,
+		migrations.AddClusterNodesMenu,
+		migrations.AddClusterSyncTables,
+		migrations.AddClusterNodeGroup,
 	}
 }

@@ -77,6 +77,15 @@ const clusterRouter = {
                 permission: 'cluster_node_view',
             },
         },
+        {
+            path: '/cluster/db-replication',
+            name: 'ClusterDbReplication',
+            component: () => import('@/views/cluster/db-replication/index.vue'),
+            meta: {
+                title: 'menu.clusterDbReplication',
+                permission: 'cluster_node_view',
+            },
+        },
     ],
 };
 

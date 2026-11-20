@@ -193,4 +193,102 @@ export namespace Cluster {
         durationMs: number;
         createdAt: string;
     }
+
+    // Cross-server one-way database replication (MySQL GTID + binlog, or
+    // PostgreSQL logical replication). Replica lag is not readable through
+    // any existing panel API, so lastDelaySeconds stays null (shown as —).
+    export type DbReplicationType = 'mysql' | 'mariadb' | 'postgresql';
+
+    export interface DbReplicationInfo {
+        id: number;
+        name: string;
+        dbType: DbReplicationType;
+        masterNodeId: number;
+        masterName: string;
+        masterInstance: string;
+        masterHost: string;
+        masterPort: number;
+        database: string;
+        replicaNodeId: number;
+        replicaName: string;
+        replicaInstance: string;
+        replicaDatabase: string;
+        replUsername: string;
+        status: string;
+        setupStep: string;
+        manualSteps: string;
+        preflight: string;
+        masterServerId: number;
+        replicaServerId: number;
+        masterBinlogFile: string;
+        masterBinlogPosition: string;
+        snapshotStatus: string;
+        snapshotDetail: string;
+        lastDelaySeconds: number | null;
+        lastError: string;
+        lastCheckedAt: string;
+        lastConfirmedAt: string;
+        failoverSuggested: boolean;
+        createdAt: string;
+        updatedAt: string;
+    }
+
+    export interface DbReplicationCreate {
+        name: string;
+        dbType: DbReplicationType;
+        masterNodeId: number;
+        masterInstance: string;
+        masterHost: string;
+        masterPort: number;
+        database: string;
+        replicaNodeId: number;
+        replicaInstance: string;
+        replicaDatabase: string;
+        replUsername: string;
+        replPassword: string;
+    }
+
+    export interface DbReplicationUpdate {
+        id: number;
+        name?: string;
+        replUsername?: string;
+        replPassword?: string;
+    }
+
+    export interface DbPreflightCheck {
+        name: string;
+        status: 'pass' | 'fail' | 'warn' | 'manual';
+        detail: string;
+    }
+
+    export interface DbManualStep {
+        key: string;
+        title: string;
+        sql: string;
+        done: boolean;
+    }
+
+    export interface DbInstance {
+        id: number;
+        name: string;
+        type: string;
+        version: string;
+        port: number;
+    }
+
+    export interface DbSchema {
+        name: string;
+    }
+
+    export interface DbFailoverInfo {
+        id: number;
+        replicationId: number;
+        fromNodeId: number;
+        fromName: string;
+        toNodeId: number;
+        toName: string;
+        reason: string;
+        repointed: number;
+        createdAt: string;
+    }
 }

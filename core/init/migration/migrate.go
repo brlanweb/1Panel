@@ -83,5 +83,7 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddClusterSyncTables,
 		migrations.AddClusterNodeGroup,
 		migrations.ExpandClusterMenu,
+		migrations.AddClusterDbReplicationTables,
+		migrations.AddClusterDbReplicationMenu,
 	}
 }

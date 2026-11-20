@@ -66,3 +66,82 @@ export const searchClusterSyncTasks = (req: Cluster.SyncTaskSearch) => {
 export const listClusterSyncTaskRecords = (id: number) => {
     return http.postLocalNode<Cluster.SyncTaskRecord[]>(`/core/cluster/sync/tasks/records`, { id });
 };
+
+export const searchDbReplications = () => {
+    return http.postLocalNode<Cluster.DbReplicationInfo[]>(`/core/cluster/db-replications/search`, {});
+};
+
+export const getDbReplication = (id: number) => {
+    return http.postLocalNode<Cluster.DbReplicationInfo>(`/core/cluster/db-replications/get`, { id });
+};
+
+export const createDbReplication = (req: Cluster.DbReplicationCreate) => {
+    return http.postLocalNode<{ id: number }>(`/core/cluster/db-replications`, req);
+};
+
+export const updateDbReplication = (req: Cluster.DbReplicationUpdate) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/update`, req);
+};
+
+export const deleteDbReplication = (id: number) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/del`, { id });
+};
+
+export const searchDbInstances = (nodeId: number, dbType: string) => {
+    return http.postLocalNode<Cluster.DbInstance[]>(`/core/cluster/db-replications/instances/search`, {
+        nodeId,
+        dbType,
+    });
+};
+
+export const searchDbSchemas = (nodeId: number, dbType: string, instance: string) => {
+    return http.postLocalNode<Cluster.DbSchema[]>(`/core/cluster/db-replications/schemas/search`, {
+        nodeId,
+        dbType,
+        instance,
+    });
+};
+
+export const preflightDbReplication = (id: number) => {
+    return http.postLocalNode<Cluster.DbPreflightCheck[]>(`/core/cluster/db-replications/preflight`, { id });
+};
+
+export const listDbManualSteps = (id: number) => {
+    return http.postLocalNode<Cluster.DbManualStep[]>(`/core/cluster/db-replications/manual-steps`, { id });
+};
+
+export const markDbManualStepsDone = (id: number, manualStepKeys: string[]) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/manual-steps/done`, { id, manualStepKeys });
+};
+
+export const configureDbReplication = (id: number) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/configure`, { id });
+};
+
+export const startDbSnapshot = (id: number) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/snapshot/start`, { id });
+};
+
+export const confirmDbReplicationStarted = (id: number, manualStepKeys: string[]) => {
+    return http.postLocalNode<any>(`/core/cluster/db-replications/confirm-started`, { id, manualStepKeys });
+};
+
+export const refreshDbReplication = (id: number) => {
+    return http.postLocalNode<Cluster.DbReplicationInfo>(`/core/cluster/db-replications/refresh`, { id });
+};
+
+export const listDbPromoteSteps = (id: number) => {
+    return http.postLocalNode<Cluster.DbManualStep[]>(`/core/cluster/db-replications/promote/steps`, { id });
+};
+
+export const promoteDbReplication = (id: number, reason: string, manualStepKeys: string[]) => {
+    return http.postLocalNode<Cluster.DbFailoverInfo>(`/core/cluster/db-replications/promote`, {
+        id,
+        reason,
+        manualStepKeys,
+    });
+};
+
+export const listDbFailovers = (id: number) => {
+    return http.postLocalNode<Cluster.DbFailoverInfo[]>(`/core/cluster/db-replications/failovers`, { id });
+};

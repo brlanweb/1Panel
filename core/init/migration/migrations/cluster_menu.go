@@ -19,6 +19,7 @@ var clusterMenuChildren = []dto.ShowMenu{
 	{ID: "1244", Disabled: false, Title: "menu.clusterWaf", IsShow: true, Label: "ClusterWaf", Path: "/cluster/waf", Sort: 40},
 	{ID: "1245", Disabled: false, Title: "menu.clusterSync", IsShow: true, Label: "ClusterSync", Path: "/cluster/sync", Sort: 50},
 	{ID: "1246", Disabled: false, Title: "menu.clusterMonitor", IsShow: true, Label: "ClusterMonitor", Path: "/cluster/monitor", Sort: 60},
+	{ID: "1247", Disabled: false, Title: "menu.clusterDbReplication", IsShow: true, Label: "ClusterDbReplication", Path: "/cluster/db-replication", Sort: 70},
 }
 
 // ExpandClusterMenu fixes the sidebar entry for Cluster Management.

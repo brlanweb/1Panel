@@ -49,7 +49,7 @@
                             <el-input v-model="dirPath" class="p-w-200" />
                         </el-form-item>
                         <el-form-item>
-                            <el-button type="primary" :disabled="!sourceNodeId" @click="searchResources">
+                            <el-button type="primary" :disabled="sourceNodeId === undefined" @click="searchResources">
                                 {{ $t('cluster.searchResources') }}
                             </el-button>
                         </el-form-item>
@@ -57,6 +57,15 @@
                 </el-card>
 
                 <el-card shadow="never" class="mb-4">
+                    <el-alert
+                        v-if="resourceError"
+                        type="error"
+                        :title="resourceError"
+                        closable
+                        show-icon
+                        class="mb-4"
+                        @close="resourceError = ''"
+                    />
                     <el-table
                         :data="resources"
                         style="width: 100%"
@@ -218,6 +227,7 @@ const resources = ref<Cluster.SyncResource[]>([]);
 const selectedResources = ref<Cluster.SyncResource[]>([]);
 const previewItems = ref<Cluster.SyncPreviewItem[]>([]);
 const overwriteConflicts = ref(false);
+const resourceError = ref('');
 const tasks = ref<Cluster.SyncTask[]>([]);
 const taskColumns = ref([]);
 const detailVisible = ref(false);
@@ -238,7 +248,7 @@ const targetOptions = computed(() =>
     onlineNodes.value.filter((node) => node.id !== sourceNodeId.value),
 );
 const canPreview = computed(
-    () => !!sourceNodeId.value && targetNodeIds.value.length > 0 && selectedResources.value.length > 0,
+    () => sourceNodeId.value !== undefined && targetNodeIds.value.length > 0 && selectedResources.value.length > 0,
 );
 const hasCreateItems = computed(() => previewItems.value.some((item) => item.action === 'create'));
 
@@ -276,15 +286,26 @@ const clearStepResults = () => {
     resources.value = [];
     selectedResources.value = [];
     previewItems.value = [];
+    resourceError.value = '';
 };
 
 const onKindChange = () => {
     clearStepResults();
+    // Switching kind reloads the resource list for the selected source
+    // instead of leaving the previous kind's rows on screen.
+    if (sourceNodeId.value !== undefined) {
+        searchResources();
+    }
 };
 
 const onSourceChange = () => {
     targetNodeIds.value = targetNodeIds.value.filter((id) => id !== sourceNodeId.value);
     clearStepResults();
+    // Selecting a source node loads its resources immediately; the search
+    // button remains as a manual refresh.
+    if (sourceNodeId.value !== undefined) {
+        searchResources();
+    }
 };
 
 const onResourceSelect = (selection: Cluster.SyncResource[]) => {
@@ -296,7 +317,33 @@ const loadNodes = async () => {
     loading.value = true;
     try {
         const res = await searchClusterNodes({ page: 1, pageSize: 500 });
-        allNodes.value = res.data.items;
+        // The current (master) panel is always a sync source/target: id 0
+        // is the local pseudo-node on the backend, never a cluster_nodes
+        // row. Without it, local <-> remote sync is impossible in the
+        // common one-remote-node topology (source=remote leaves no target,
+        // and source=local cannot be picked at all).
+        const localNode: Cluster.NodeInfo = {
+            id: 0,
+            name: i18n.global.t('cluster.localNode'),
+            entryUrl: '',
+            remark: '',
+            groupId: 0,
+            keyHint: '',
+            status: 'online',
+            latencyMs: 0,
+            version: '',
+            lastCheckAt: '',
+            lastError: '',
+            cpuUsedPercent: 0,
+            memUsedPercent: 0,
+            appCount: 0,
+            websiteCount: 0,
+            lastSyncStatus: '',
+            lastSyncAt: '',
+            createdAt: '',
+            updatedAt: '',
+        };
+        allNodes.value = [localNode, ...(res.data.items || [])];
     } catch {
         // The request interceptor already reports the error.
     } finally {
@@ -305,10 +352,11 @@ const loadNodes = async () => {
 };
 
 const searchResources = async () => {
-    if (!sourceNodeId.value) {
+    if (sourceNodeId.value === undefined) {
         MsgError(i18n.global.t('cluster.selectSourceFirst'));
         return;
     }
+    resourceError.value = '';
     resourceLoading.value = true;
     previewItems.value = [];
     await searchClusterSyncResources({
@@ -321,13 +369,19 @@ const searchResources = async () => {
         .then((res) => {
             resources.value = res.data || [];
         })
+        .catch((err: any) => {
+            // Surface the failure in-page (which endpoint, what the panel
+            // said) instead of silently leaving an empty table.
+            resources.value = [];
+            resourceError.value = err?.message || i18n.global.t('cluster.fetchError');
+        })
         .finally(() => {
             resourceLoading.value = false;
         });
 };
 
 const runPreview = async () => {
-    if (!sourceNodeId.value) {
+    if (sourceNodeId.value === undefined) {
         MsgError(i18n.global.t('cluster.selectSourceFirst'));
         return;
     }
@@ -370,7 +424,7 @@ const pollTask = async (taskId: number, attempts: number) => {
 };
 
 const runExecute = async () => {
-    if (!sourceNodeId.value || !targetNodeIds.value.length || !selectedResources.value.length) {
+    if (sourceNodeId.value === undefined || !targetNodeIds.value.length || !selectedResources.value.length) {
         return;
     }
     executeLoading.value = true;

@@ -29,7 +29,7 @@ type ClusterSyncResource struct {
 
 type ClusterSyncResourceSearch struct {
 	Kind         string `json:"kind" validate:"required,oneof=file image app cert php"`
-	SourceNodeID uint   `json:"sourceNodeId" validate:"required"`
+	SourceNodeID uint   `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	// File resources only: directory to list on the source node.
 	Path string `json:"path"`
 	Page int    `json:"page"`
@@ -39,7 +39,7 @@ type ClusterSyncResourceSearch struct {
 
 type ClusterSyncPreviewReq struct {
 	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
-	SourceNodeID  uint     `json:"sourceNodeId" validate:"required"`
+	SourceNodeID  uint     `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
 	// File resources only: directory the keys were listed from.
@@ -59,7 +59,7 @@ type ClusterSyncPreviewItem struct {
 
 type ClusterSyncExecuteReq struct {
 	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
-	SourceNodeID  uint     `json:"sourceNodeId" validate:"required"`
+	SourceNodeID  uint     `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
 	// File resources only: directory the keys were listed from.

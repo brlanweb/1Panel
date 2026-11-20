@@ -581,6 +581,7 @@ const message = {
         syncKindCert: 'Certificate',
         syncKindPhp: 'Extension Template',
         sourceNode: 'Source Node',
+        localNode: 'Current node (local)',
         targetNodes: 'Target Nodes',
         dirPath: 'Directory Path',
         searchResources: 'Search Resources',

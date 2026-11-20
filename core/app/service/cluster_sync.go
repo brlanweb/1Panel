@@ -1,11 +1,16 @@
 package service
 
 import (
+	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
+	"mime/multipart"
+	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -72,6 +77,104 @@ func (s *ClusterSyncService) getNode(id uint) (model.ClusterNode, error) {
 	return node, nil
 }
 
+// localAgentSocketPath is the unix socket of this panel's own agent. The
+// core talks to its own agent over this socket without API-key auth (the
+// socket itself is the trust boundary, same as proxy_local). Tests point it
+// at a temp socket.
+var localAgentSocketPath = "/etc/1panel/agent.sock"
+
+func localAgentHTTPClient(timeout time.Duration) *http.Client {
+	return &http.Client{
+		Timeout: timeout,
+		Transport: &http.Transport{
+			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+				d := &net.Dialer{Timeout: timeout}
+				return d.DialContext(ctx, "unix", localAgentSocketPath)
+			},
+		},
+	}
+}
+
+// localClusterNode is the pseudo-node for this (master) panel. It is never
+// stored in cluster_nodes: ID 0 is the local panel by convention everywhere
+// in the sync service and API (the DTOs accept 0 as a valid SourceNodeID).
+func localClusterNode() model.ClusterNode {
+	return model.ClusterNode{ID: 0, Name: "local", Status: model.ClusterNodeStatusOnline}
+}
+
+func isLocalNode(node model.ClusterNode) bool { return node.ID == 0 }
+
+// resolveNode resolves a sync node id: 0 is the local panel, anything else
+// is a registered cluster node.
+func (s *ClusterSyncService) resolveNode(id uint) (model.ClusterNode, error) {
+	if id == 0 {
+		return localClusterNode(), nil
+	}
+	return s.getNode(id)
+}
+
+// callLocalJSON calls this panel's own agent API over the unix socket and
+// unwraps the 1Panel envelope into out, mirroring callRemoteJSON's error
+// contract (a non-200 HTTP status or envelope code is an error carrying the
+// panel's message).
+func (s *ClusterSyncService) callLocalJSON(ctx context.Context, method, path string, body interface{}, out interface{}, timeout time.Duration) error {
+	var reader io.Reader
+	if body != nil {
+		raw, err := json.Marshal(body)
+		if err != nil {
+			return err
+		}
+		reader = bytes.NewReader(raw)
+	}
+	req, err := http.NewRequestWithContext(ctx, method, "http://localhost"+path, reader)
+	if err != nil {
+		return err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := localAgentHTTPClient(timeout).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		var env remoteEnvelope
+		if json.Unmarshal(raw, &env) == nil && strings.TrimSpace(env.Message) != "" {
+			return fmt.Errorf("local panel error: %s", truncateErr(env.Message))
+		}
+		return fmt.Errorf("local panel returned HTTP %d", resp.StatusCode)
+	}
+	var env remoteEnvelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return fmt.Errorf("local panel returned an unreadable response")
+	}
+	if env.Code != http.StatusOK {
+		if strings.TrimSpace(env.Message) != "" {
+			return fmt.Errorf("local panel error: %s", truncateErr(env.Message))
+		}
+		return fmt.Errorf("local panel error code %d", env.Code)
+	}
+	if out == nil || len(env.Data) == 0 || string(env.Data) == "null" {
+		return nil
+	}
+	return json.Unmarshal(env.Data, out)
+}
+
+// callNodeJSON is the node dispatcher for sync JSON calls: the local panel
+// goes over the unix socket, registered nodes go through the signed remote
+// call.
+func (s *ClusterSyncService) callNodeJSON(node model.ClusterNode, method, path string, body interface{}, out interface{}, timeout time.Duration) error {
+	if isLocalNode(node) {
+		return s.callLocalJSON(context.Background(), method, path, body, out, timeout)
+	}
+	return s.nodes.callRemoteJSON(node, method, path, body, out, timeout)
+}
+
 func validSyncKind(kind string) bool {
 	switch kind {
 	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert, dto.ClusterSyncKindPhp:
@@ -136,7 +239,7 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 			Files []map[string]interface{} `json:"files"`
 		}
 		body := map[string]interface{}{"path": dir, "page": page, "pageSize": pageSize, "sortBy": "name", "sortOrder": "ascending", "isDetail": true}
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/files/search", body, &data, 15*time.Second); err != nil {
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/files/search", body, &data, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -156,7 +259,7 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		var result remotePage
 		// PageImage requires orderBy + order (oneof) — omitting them is a
 		// backend 400, which used to make the image list silently empty.
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize, "orderBy": "createdAt", "order": "null"}, &result, 15*time.Second); err != nil {
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize, "orderBy": "createdAt", "order": "null"}, &result, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -181,7 +284,7 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		return out, result.Total, nil
 	case dto.ClusterSyncKindApp:
 		var result remotePage
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/apps/installed/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/apps/installed/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -209,7 +312,7 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		return out, result.Total, nil
 	case dto.ClusterSyncKindCert:
 		var result remotePage
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/websites/ssl/search", map[string]interface{}{"page": page, "pageSize": pageSize}, &result, 15*time.Second); err != nil {
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/websites/ssl/search", map[string]interface{}{"page": page, "pageSize": pageSize}, &result, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -235,7 +338,7 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		// table (seeded with Default/WordPress/Flarum/SeaCMS/Dev). Key is
 		// the template id, Detail is the comma-separated extension list.
 		var result remotePage
-		if err := s.nodes.callRemoteJSON(node, http.MethodPost, "/api/v2/runtimes/php/extensions/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/runtimes/php/extensions/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
 		var out []dto.ClusterSyncResource
@@ -263,7 +366,7 @@ func (s *ClusterSyncService) ListResources(req dto.ClusterSyncResourceSearch) ([
 	if !validSyncKind(req.Kind) {
 		return nil, buserr.New("ErrInvalidParams")
 	}
-	node, err := s.getNode(req.SourceNodeID)
+	node, err := s.resolveNode(req.SourceNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -358,7 +461,7 @@ func (s *ClusterSyncService) Preview(req dto.ClusterSyncPreviewReq) ([]dto.Clust
 	if !validSyncKind(req.Kind) {
 		return nil, buserr.New("ErrInvalidParams")
 	}
-	source, err := s.getNode(req.SourceNodeID)
+	source, err := s.resolveNode(req.SourceNodeID)
 	if err != nil {
 		return nil, err
 	}
@@ -375,7 +478,7 @@ func (s *ClusterSyncService) Preview(req dto.ClusterSyncPreviewReq) ([]dto.Clust
 		if targetID == req.SourceNodeID {
 			continue
 		}
-		target, err := s.getNode(targetID)
+		target, err := s.resolveNode(targetID)
 		if err != nil {
 			for _, key := range req.ResourceKeys {
 				out = append(out, dto.ClusterSyncPreviewItem{ResourceKey: key, TargetNodeID: targetID, Action: model.ClusterSyncActionFailed, Reason: "target node not found"})
@@ -514,20 +617,132 @@ func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileN
 	return nil
 }
 
+// downloadNodeFile / uploadNodeFile dispatch file transfers by node: the
+// local panel goes over the unix socket, registered nodes use the signed
+// remote calls.
+func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string) (string, int64, error) {
+	if isLocalNode(node) {
+		return s.downloadLocalFile(remotePath)
+	}
+	return s.downloadRemoteFile(node, remotePath)
+}
+
+func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
+	if isLocalNode(node) {
+		return s.uploadLocalFile(dir, fileName, tmpPath, overwrite)
+	}
+	return s.uploadRemoteFile(node, dir, fileName, tmpPath, overwrite)
+}
+
+// downloadLocalFile fetches a file from this panel's own agent over the unix
+// socket and streams it to a temp file (same 200 MB cap as the remote path).
+// The agent answers errors as a JSON envelope even with HTTP 200, so a JSON
+// content type is parsed as an error instead of being saved as file bytes.
+func (s *ClusterSyncService) downloadLocalFile(remotePath string) (string, int64, error) {
+	tmp, err := os.CreateTemp("", "cluster-sync-*")
+	if err != nil {
+		return "", 0, err
+	}
+	tmpPath := tmp.Name()
+	_ = tmp.Close()
+	targetURL := "http://localhost/api/v2/files/download?path=" + url.QueryEscape(remotePath)
+	resp, err := localAgentHTTPClient(10 * time.Minute).Get(targetURL)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return "", 0, err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		_ = os.Remove(tmpPath)
+		return "", 0, fmt.Errorf("local panel returned HTTP %d while downloading the file", resp.StatusCode)
+	}
+	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "application/json") {
+		raw, _ := io.ReadAll(resp.Body)
+		_ = os.Remove(tmpPath)
+		var env remoteEnvelope
+		if json.Unmarshal(raw, &env) == nil && strings.TrimSpace(env.Message) != "" {
+			return "", 0, fmt.Errorf("local panel error: %s", truncateErr(env.Message))
+		}
+		return "", 0, fmt.Errorf("local panel returned an unreadable download response")
+	}
+	out, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_TRUNC, 0600)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return "", 0, err
+	}
+	written, copyErr := io.CopyN(out, resp.Body, maxSyncFileBytes+1)
+	_ = out.Close()
+	if copyErr != nil && copyErr != io.EOF {
+		_ = os.Remove(tmpPath)
+		return "", 0, copyErr
+	}
+	if written > maxSyncFileBytes {
+		_ = os.Remove(tmpPath)
+		return "", 0, fmt.Errorf("file is over the %d-byte sync limit", maxSyncFileBytes)
+	}
+	return tmpPath, written, nil
+}
+
+// uploadLocalFile uploads a temp file to this panel's own agent over the
+// unix socket (multipart, streamed — the file is never buffered in memory).
+func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, overwrite bool) error {
+	f, err := os.Open(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	pr, pw := io.Pipe()
+	mw := multipart.NewWriter(pw)
+	go func() {
+		defer pw.Close()
+		_ = mw.WriteField("path", dir)
+		_ = mw.WriteField("overwrite", strconv.FormatBool(overwrite))
+		if part, err := mw.CreateFormFile("file", fileName); err == nil {
+			_, _ = io.Copy(part, f)
+		}
+		_ = mw.Close()
+	}()
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://localhost/api/v2/files/upload", pr)
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", mw.FormDataContentType())
+	resp, err := localAgentHTTPClient(10 * time.Minute).Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	raw, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("local panel returned HTTP %d while uploading the file", resp.StatusCode)
+	}
+	var env remoteEnvelope
+	if err := json.Unmarshal(raw, &env); err == nil && env.Code != http.StatusOK && env.Code != 0 {
+		if strings.TrimSpace(env.Message) != "" {
+			return fmt.Errorf("local panel error: %s", truncateErr(env.Message))
+		}
+		return fmt.Errorf("local panel error code %d", env.Code)
+	}
+	return nil
+}
+
 // transferOne executes a single (resource × target) transfer. It returns the
 // action recorded for the item and a human-readable reason ("" on create).
 func (s *ClusterSyncService) transferOne(kind string, source, target model.ClusterNode, res dto.ClusterSyncResource, reqPath string, overwrite bool) (string, string) {
 	switch kind {
 	case dto.ClusterSyncKindFile:
-		tmpPath, _, err := s.downloadRemoteFile(source, res.Key)
+		tmpPath, _, err := s.downloadNodeFile(source, res.Key)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "download from source failed: " + truncateErr(err.Error())
 		}
 		defer os.Remove(tmpPath)
 		dir := path.Dir(res.Key)
-		if err := s.uploadRemoteFile(target, dir, path.Base(res.Key), tmpPath, overwrite); err != nil {
+		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, overwrite); err != nil {
 			// Best effort: remove a partially uploaded file on the target.
-			_ = s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": res.Key, "isDir": false, "forceDelete": true}, nil, 10*time.Second)
+			_ = s.callNodeJSON(target, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": res.Key, "isDir": false, "forceDelete": true}, nil, 10*time.Second)
 			return model.ClusterSyncActionFailed, "upload to target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -535,7 +750,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		var out struct {
 			TaskID string `json:"taskID"`
 		}
-		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/containers/image/pull", map[string]interface{}{"imageName": []string{res.Key}}, &out, 10*time.Minute); err != nil {
+		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/pull", map[string]interface{}{"imageName": []string{res.Key}}, &out, 10*time.Minute); err != nil {
 			return model.ClusterSyncActionFailed, "image pull on target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -554,7 +769,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 				Value interface{} `json:"value"`
 			} `json:"params"`
 		}
-		if err := s.nodes.callRemoteJSON(source, http.MethodGet, "/api/v2/apps/installed/params/"+res.Key, nil, &appConfig, 10*time.Second); err != nil {
+		if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/apps/installed/params/"+res.Key, nil, &appConfig, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "could not read source app params: " + truncateErr(err.Error())
 		}
 		params := map[string]interface{}{}
@@ -564,7 +779,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 			}
 		}
 		body := map[string]interface{}{"appDetailId": appDetailID, "name": res.Name, "params": params}
-		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 10*time.Minute); err != nil {
+		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 10*time.Minute); err != nil {
 			return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -579,7 +794,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 			Provider      string `json:"provider"`
 			AutoRenew     bool   `json:"autoRenew"`
 		}
-		if err := s.nodes.callRemoteJSON(source, http.MethodGet, "/api/v2/websites/ssl/"+res.Key, nil, &cert, 10*time.Second); err != nil {
+		if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/websites/ssl/"+res.Key, nil, &cert, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "could not read source certificate: " + truncateErr(err.Error())
 		}
 		if cert.AutoRenew || strings.Contains(strings.ToLower(cert.Provider), "acme") {
@@ -592,7 +807,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 			"type": "paste", "privateKey": cert.PrivateKey, "certificate": cert.Pem,
 			"description": "synced from cluster node " + source.Name,
 		}
-		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/websites/ssl/upload", body, nil, 10*time.Second); err != nil {
+		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/websites/ssl/upload", body, nil, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "certificate upload on target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -604,7 +819,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		// endpoint is NOT used (ErrXpackNotFound on open-source panels).
 		// res.Detail carries the extension list from the source listing.
 		var status string
-		err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/import", map[string]interface{}{"name": res.Name, "extensions": res.Detail}, &status, 10*time.Second)
+		err := s.callNodeJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/import", map[string]interface{}{"name": res.Name, "extensions": res.Detail}, &status, 10*time.Second)
 		if err == nil {
 			if status == "skipped" {
 				return model.ClusterSyncActionSkipSame, "target already has the same PHP extension template"
@@ -632,7 +847,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		if targetID == 0 {
 			return model.ClusterSyncActionFailed, "target PHP template disappeared before overwrite"
 		}
-		if err := s.nodes.callRemoteJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/update", map[string]interface{}{"id": targetID, "extensions": res.Detail}, nil, 10*time.Second); err != nil {
+		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/update", map[string]interface{}{"id": targetID, "extensions": res.Detail}, nil, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "PHP template update on target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -644,7 +859,7 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 	if !validSyncKind(req.Kind) {
 		return 0, buserr.New("ErrInvalidParams")
 	}
-	source, err := s.getNode(req.SourceNodeID)
+	source, err := s.resolveNode(req.SourceNodeID)
 	if err != nil {
 		return 0, err
 	}
@@ -683,7 +898,7 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 		if targetID == req.SourceNodeID {
 			continue
 		}
-		target, err := s.getNode(targetID)
+		target, err := s.resolveNode(targetID)
 		if err != nil {
 			for _, key := range req.ResourceKeys {
 				_ = s.record(task.ID, req.Kind, key, "", source.ID, targetID, "", model.ClusterSyncActionFailed, "target node not found", 0)

@@ -4,6 +4,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"strings"
 	"testing"
 	"time"
@@ -677,5 +678,82 @@ func TestClusterProxyTerminalIdleStaysOpen(t *testing.T) {
 	}
 	if string(msg) != "term-echo:pwd" {
 		t.Errorf("ws reply after idle = %q, want term-echo:pwd", msg)
+	}
+}
+
+func TestClusterProxyTerminalOriginStripped(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+
+	// Fake remote enforcing the real core/middleware/websocket_origin.go
+	// guard: any upgrade whose Origin host differs from the request host,
+	// or whose Sec-Fetch-Site is present and not same-origin, is 403.
+	upgrader := websocket.Upgrader{}
+	var sawOrigin, sawFetchSite string
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawOrigin = r.Header.Get("Origin")
+		sawFetchSite = r.Header.Get("Sec-Fetch-Site")
+		if site := r.Header.Get("Sec-Fetch-Site"); site != "" && site != "same-origin" {
+			http.Error(w, "forbidden", http.StatusForbidden)
+			return
+		}
+		if origin := r.Header.Get("Origin"); origin != "" {
+			u, err := url.Parse(origin)
+			if err != nil || !strings.EqualFold(u.Host, r.Host) {
+				http.Error(w, "forbidden", http.StatusForbidden)
+				return
+			}
+		}
+		if r.Header.Get("1Panel-Token") == "" {
+			http.Error(w, "missing api auth", http.StatusUnauthorized)
+			return
+		}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		_ = conn.WriteMessage(websocket.TextMessage, append([]byte("term-echo:"), msg...))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterNodeService()
+	master := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !svc.ProxyRequest(w, r, "node-b", true) {
+			http.NotFound(w, r)
+		}
+	}))
+	defer master.Close()
+
+	// A browser opening a terminal on the master sends the master's Origin
+	// and Sec-Fetch-Site: cross-site. Before the fix the remote guard 403'd
+	// the upgrade; the proxy must strip both headers on upgrades.
+	wsURL := "ws" + strings.TrimPrefix(master.URL, "http") + "/api/v2/hosts/terminal/local?cols=80&rows=24&operateNode=node-b"
+	header := http.Header{}
+	header.Set("Origin", "http://master.example:9999")
+	header.Set("Sec-Fetch-Site", "cross-site")
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("dial terminal through proxy with cross-site origin: %v", err)
+	}
+	defer conn.Close()
+	_ = conn.WriteMessage(websocket.TextMessage, []byte("ls"))
+	_, msg, err := conn.ReadMessage()
+	if err != nil {
+		t.Fatalf("read terminal through proxy: %v", err)
+	}
+	if string(msg) != "term-echo:ls" {
+		t.Errorf("ws reply = %q, want term-echo:ls", msg)
+	}
+	if sawOrigin != "" {
+		t.Errorf("remote saw Origin %q, want it stripped on proxied upgrades", sawOrigin)
+	}
+	if sawFetchSite != "" {
+		t.Errorf("remote saw Sec-Fetch-Site %q, want it stripped on proxied upgrades", sawFetchSite)
 	}
 }

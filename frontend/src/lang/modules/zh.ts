@@ -558,6 +558,7 @@ const message = {
         syncKindCert: '证书',
         syncKindPhp: '扩展模版',
         sourceNode: '源节点',
+        localNode: '当前节点（本机）',
         targetNodes: '目标节点',
         dirPath: '目录路径',
         searchResources: '查询资源',

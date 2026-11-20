@@ -2,8 +2,11 @@ package service
 
 import (
 	"encoding/json"
+	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -318,5 +321,199 @@ func TestSyncPhpImport(t *testing.T) {
 		dto.ClusterSyncResource{Key: "10", Name: "SeaCMS", Detail: "mysqli,pdo_mysql,gd,curl"}, "", false)
 	if action != model.ClusterSyncActionCreate {
 		t.Errorf("transferOne new php template = %s, want create", action)
+	}
+}
+
+// startLocalAgentTestServer serves handler on a temp unix socket and points
+// the sync service's local agent client at it, mimicking this panel's own
+// agent (the unix socket is the trust boundary, no API-key auth).
+func startLocalAgentTestServer(t *testing.T, handler http.Handler) {
+	t.Helper()
+	sock := filepath.Join(t.TempDir(), "agent.sock")
+	ln, err := net.Listen("unix", sock)
+	if err != nil {
+		t.Fatalf("listen unix socket: %v", err)
+	}
+	srv := &http.Server{Handler: handler}
+	go func() { _ = srv.Serve(ln) }()
+	t.Cleanup(func() { _ = srv.Close() })
+	old := localAgentSocketPath
+	localAgentSocketPath = sock
+	t.Cleanup(func() { localAgentSocketPath = old })
+}
+
+func TestSyncLocalNodeListsFiles(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/files/search" {
+			http.NotFound(w, r)
+			return
+		}
+		envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+			{"name": "a.txt", "isDir": false, "size": 10},
+			{"name": "dir", "isDir": true},
+		}})
+	}))
+	svc := NewIClusterSyncService()
+	res, err := svc.ListResources(dto.ClusterSyncResourceSearch{Kind: "file", SourceNodeID: 0, Path: "/data", Page: 1, PageSize: 100})
+	if err != nil {
+		t.Fatalf("ListResources local file: %v", err)
+	}
+	if len(res) != 1 || res[0].Key != "/data/a.txt" {
+		t.Fatalf("resources = %+v, want one file /data/a.txt (dirs skipped)", res)
+	}
+}
+
+func TestSyncLocalNodeListsImages(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v2/containers/image/search" {
+			http.NotFound(w, r)
+			return
+		}
+		envelope(w, map[string]interface{}{
+			"total": 1,
+			"items": []map[string]interface{}{{"id": "sha256:aaa", "tags": []string{"redis:7.2.5"}, "size": 100}},
+		})
+	}))
+	svc := NewIClusterSyncService()
+	res, err := svc.ListResources(dto.ClusterSyncResourceSearch{Kind: "image", SourceNodeID: 0, Page: 1, PageSize: 100})
+	if err != nil {
+		t.Fatalf("ListResources local image: %v", err)
+	}
+	if len(res) != 1 || res[0].Key != "redis:7.2.5" {
+		t.Fatalf("resources = %+v, want one image redis:7.2.5", res)
+	}
+}
+
+func TestSyncLocalToRemoteFileExecute(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+				{"name": "a.txt", "isDir": false, "size": 11},
+			}})
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write([]byte("hello-sync!"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	var uploadedName, uploadedDir, uploadedBytes string
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"files": []interface{}{}})
+		case "/api/v2/files/upload":
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			uploadedDir = r.FormValue("path")
+			f, hdr, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer f.Close()
+			uploadedName = hdr.Filename
+			raw, _ := io.ReadAll(f)
+			uploadedBytes = string(raw)
+			envelope(w, map[string]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer remote.Close()
+	target := insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID},
+		ResourceKeys: []string{"/data/a.txt"}, Path: "/data",
+	})
+	if err != nil {
+		t.Fatalf("Execute local->remote file: %v", err)
+	}
+	if taskID == 0 {
+		t.Fatal("Execute returned taskID 0")
+	}
+	if uploadedName != "a.txt" || uploadedDir != "/data" || uploadedBytes != "hello-sync!" {
+		t.Errorf("upload = name %q dir %q bytes %q, want a.txt /data hello-sync!", uploadedName, uploadedDir, uploadedBytes)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != "create" {
+		t.Errorf("records = %+v, want one create record", records)
+	}
+}
+
+func TestSyncRemoteToLocalFileExecute(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"files": []map[string]interface{}{
+				{"name": "b.txt", "isDir": false, "size": 5},
+			}})
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write([]byte("b-data"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer remote.Close()
+	source := insertTestNode(t, "node-b", remote.URL, "online")
+	var uploadedName, uploadedBytes string
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"files": []interface{}{}})
+		case "/api/v2/files/upload":
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			f, hdr, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			defer f.Close()
+			uploadedName = hdr.Filename
+			raw, _ := io.ReadAll(f)
+			uploadedBytes = string(raw)
+			envelope(w, map[string]interface{}{})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: source.ID, TargetNodeIDs: []uint{0},
+		ResourceKeys: []string{"/data/b.txt"}, Path: "/data",
+	})
+	if err != nil {
+		t.Fatalf("Execute remote->local file: %v", err)
+	}
+	if uploadedName != "b.txt" || uploadedBytes != "b-data" {
+		t.Errorf("local upload = name %q bytes %q, want b.txt b-data", uploadedName, uploadedBytes)
+	}
+	records, err := svc.TaskRecords(taskID)
+	if err != nil {
+		t.Fatalf("TaskRecords: %v", err)
+	}
+	if len(records) != 1 || records[0].Action != "create" {
+		t.Errorf("records = %+v, want one create record", records)
 	}
 }

@@ -338,6 +338,25 @@ func (u *ClusterNodeService) ProxyRequest(w http.ResponseWriter, r *http.Request
 			req.Header.Set("CurrentNode", "local")
 			req.Header.Set("1Panel-Timestamp", timestamp)
 			req.Header.Set("1Panel-Token", token)
+			// Websocket upgrades (terminals) must not carry the browser's
+			// cross-site origin headers: the remote core's
+			// WebSocketOriginGuard rejects any upgrade whose Origin host
+			// differs from the request host, and any Sec-Fetch-Site other
+			// than same-origin. The browser's handshake carries the
+			// master's Origin (and Sec-Fetch-Site: cross-site) while this
+			// proxy rewrites req.Host to the remote host, so every proxied
+			// terminal upgrade was 403'd before reaching the agent — while
+			// the plain-GET preflight and plain HTTP/SSE logs passed the
+			// guard untouched, which is exactly the "logs work, terminal
+			// doesn't connect" symptom. Dropping both headers is what the
+			// guard itself allows (absent Origin passes); the remote
+			// agent's own upgrader accepts any origin, and auth is still
+			// enforced by the API key above. Non-upgrade requests keep
+			// their headers untouched.
+			if isWebsocketUpgrade(req) {
+				req.Header.Del("Origin")
+				req.Header.Del("Sec-Fetch-Site")
+			}
 			req.Header.Del("Cookie")
 			req.Header.Del("Authorization")
 			req.Header.Del("X-CSRF-Token")

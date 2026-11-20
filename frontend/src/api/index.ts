@@ -26,6 +26,11 @@ const isCsrfForbidden = (response?: AxiosResponse<any>) => {
 export type RequestConfig = AxiosRequestConfig & {
     skipErrorMessage?: boolean;
     errorMessageMode?: 'default' | 'manual';
+    // Skip the login redirect for 401/403 responses (see auth-response.ts).
+    // Only for requests deliberately sent to a remote panel through the
+    // cluster proxy, where a 401/403 is a node auth problem, not a master
+    // session problem.
+    skipAuthRedirect?: boolean;
 };
 
 class RequestHttp {
@@ -81,7 +86,10 @@ class RequestHttp {
                 const globalStore = GlobalStore();
                 const { data } = response;
                 const manualErrorMessage = (response.config as RequestConfig)?.errorMessageMode === 'manual';
-                const authResult = handleAuthResponseCode(data, { showRBACMessage: !manualErrorMessage });
+                const authResult = handleAuthResponseCode(data, {
+                    showRBACMessage: !manualErrorMessage,
+                    skipRedirect: (response.config as RequestConfig)?.skipAuthRedirect === true,
+                });
                 if (authResult.handled) {
                     if (authResult.action === 'return') {
                         return;

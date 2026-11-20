@@ -14,6 +14,13 @@ export interface AuthResponseResult {
 
 interface AuthResponseOptions {
     showRBACMessage?: boolean;
+    // When true, a 401/403 is reported as a plain rejection instead of
+    // redirecting to the login page. This is for requests that are
+    // deliberately sent to a *remote* panel through the cluster proxy:
+    // a remote auth failure (API interface disabled, wrong key, ...) is
+    // a node problem, not "my own session expired", so it must never
+    // redirect the master UI to login.
+    skipRedirect?: boolean;
 }
 
 const forbiddenMessage = () => i18n.global.t('commons.res.forbidden');
@@ -37,6 +44,9 @@ export const handleAuthResponseCode = (data: any, options: AuthResponseOptions =
     switch (data?.code) {
         case ResultEnum.OVERDUE:
         case ResultEnum.FORBIDDEN:
+            if (options.skipRedirect) {
+                return { handled: true, action: 'reject', message };
+            }
             redirectToEntrance();
             return { handled: true, action: 'reject', message };
         case ResultEnum.ERR_RBAC:
@@ -52,10 +62,13 @@ export const handleAuthResponseCode = (data: any, options: AuthResponseOptions =
     }
 };
 
-export const handleAuthResponseStatus = (status: number): AuthResponseResult => {
+export const handleAuthResponseStatus = (status: number, options: AuthResponseOptions = {}): AuthResponseResult => {
     switch (status) {
         case ResultEnum.OVERDUE:
         case ResultEnum.FORBIDDEN:
+            if (options.skipRedirect) {
+                return { handled: true, action: 'reject', message: forbiddenMessage() };
+            }
             redirectToEntrance();
             return { handled: true, action: 'reject', message: forbiddenMessage() };
         case ResultEnum.EXPIRED:

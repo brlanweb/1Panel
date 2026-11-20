@@ -120,10 +120,137 @@ func TestClusterProxyNonAdmin(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/v2/apps/installed/search", nil)
 	rec := httptest.NewRecorder()
 	if handled := svc.ProxyRequest(rec, req, "node-b", false); !handled {
-		t.Fatal("ProxyRequest returned false for a non-admin, want handled 403")
+		t.Fatal("ProxyRequest returned false for a non-admin, want handled")
 	}
-	if rec.Code != http.StatusForbidden {
-		t.Errorf("status = %d, want 403", rec.Code)
+	// Deliberately 502, not 403: a 401/403 envelope code makes the master
+	// frontend redirect to the login page.
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "管理员") {
+		t.Errorf("body = %s, want the admin-only message", rec.Body.String())
+	}
+}
+
+// TestClusterProxyRemoteAuthEnvelope401 is the regression test for the
+// "switching a node jumps back to login" bug. The remote panel's BadAuth
+// helper always answers HTTP 200 with an envelope {"code":401,...}, and
+// the master frontend redirects to login on any 401/403 envelope code.
+// The proxy must therefore normalize a remote auth envelope into a 502
+// envelope with a clear cause, never passing a 401/403 code through.
+func TestClusterProxyRemoteAuthEnvelope401(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"code":401,"message":"ErrApiConfigStatusInvalid","data":null}`))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+	svc := NewIClusterNodeService()
+	for _, path := range []string{"/api/v2/settings/search", "/api/v2/dashboard/current/node"} {
+		req := httptest.NewRequest(http.MethodPost, path, nil)
+		rec := httptest.NewRecorder()
+		if handled := svc.ProxyRequest(rec, req, "node-b", true); !handled {
+			t.Fatalf("ProxyRequest returned false for %s", path)
+		}
+		resp := rec.Result()
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if resp.StatusCode != http.StatusBadGateway {
+			t.Errorf("%s: status = %d, want 502", path, resp.StatusCode)
+		}
+		if strings.Contains(string(body), `"code":401`) || strings.Contains(string(body), `"code":403`) {
+			t.Errorf("%s: body = %s, must not contain a 401/403 envelope code", path, body)
+		}
+		if !strings.Contains(string(body), `"code":502`) {
+			t.Errorf("%s: body = %s, want a 502 envelope", path, body)
+		}
+		if !strings.Contains(string(body), "API 接口未开启") {
+			t.Errorf("%s: body = %s, want the interface-disabled hint", path, body)
+		}
+	}
+}
+
+func TestClusterProxyRemoteHTTP401Status(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"code":401,"message":"ErrApiConfigKeyInvalid","data":null}`))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+	svc := NewIClusterNodeService()
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/dashboard/current/node", nil)
+	rec := httptest.NewRecorder()
+	if handled := svc.ProxyRequest(rec, req, "node-b", true); !handled {
+		t.Fatal("ProxyRequest returned false")
+	}
+	resp := rec.Result()
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", resp.StatusCode)
+	}
+	if strings.Contains(string(body), `"code":401`) {
+		t.Errorf("body = %s, must not contain a 401 envelope code", body)
+	}
+	if !strings.Contains(string(body), "API Key 错误") {
+		t.Errorf("body = %s, want the wrong-key hint", body)
+	}
+}
+
+func TestClusterProxyRemoteAuthTimeInvalid(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"code":401,"message":"ErrApiConfigKeyTimeInvalid","data":null}`))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+	svc := NewIClusterNodeService()
+	req := httptest.NewRequest(http.MethodPost, "/api/v2/settings/search", nil)
+	rec := httptest.NewRecorder()
+	if handled := svc.ProxyRequest(rec, req, "node-b", true); !handled {
+		t.Fatal("ProxyRequest returned false")
+	}
+	if rec.Code != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "时间") {
+		t.Errorf("body = %s, want the clock-skew hint", rec.Body.String())
+	}
+}
+
+// TestClusterProxyNonAuthEnvelopePassthrough guards the other side of the
+// normalization: a non-auth remote envelope must pass through byte-for-byte
+// (only 401/403 codes are rewritten).
+func TestClusterProxyNonAuthEnvelopePassthrough(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json; charset=utf-8")
+		_, _ = w.Write([]byte(`{"code":500,"message":"boom","data":null}`))
+	}))
+	defer remote.Close()
+	_ = insertTestNode(t, "node-b", remote.URL, "online")
+	svc := NewIClusterNodeService()
+	req := httptest.NewRequest(http.MethodGet, "/api/v2/dashboard/current/node", nil)
+	rec := httptest.NewRecorder()
+	if handled := svc.ProxyRequest(rec, req, "node-b", true); !handled {
+		t.Fatal("ProxyRequest returned false")
+	}
+	resp := rec.Result()
+	body, _ := io.ReadAll(resp.Body)
+	resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Errorf("status = %d, want 200 passthrough", resp.StatusCode)
+	}
+	if !strings.Contains(string(body), `"code":500`) || !strings.Contains(string(body), "boom") {
+		t.Errorf("body = %s, want the remote envelope untouched", body)
 	}
 }
 

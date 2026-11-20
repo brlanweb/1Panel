@@ -520,7 +520,8 @@ const message = {
         apiKey: 'API Key',
         apiKeyPlaceholder: 'Paste the remote panel API Key',
         apiKeyKeepPlaceholder: 'Leave empty to keep the current key',
-        apiKeyHelper: 'API Key of the remote panel; required on create, leave empty on edit to keep it.',
+        apiKeyHelper:
+            'Paste the Legacy API Key from the remote panel’s “Settings > API Interface” page; newer API keys also work. The remote panel must have its API Interface enabled, the master node’s egress IP must be in its whitelist, and the two servers’ clocks must be in sync, otherwise switching fails with an interface/key error. Required on create; leave empty on edit to keep it.',
         remark: 'Remark',
         group: 'Group',
         status: 'Status',

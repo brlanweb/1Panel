@@ -1,8 +1,11 @@
 package service
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -109,7 +112,125 @@ func proxyError(w http.ResponseWriter, nodeName string, err error) {
 		nodeName, truncateErr(err.Error()))
 }
 
-// ProxyRequest forwards the incoming request to the registered panel node
+// remoteAuthFailureHint maps a remote 1Panel auth error key (the `message`
+// field of its error envelope) onto a Chinese hint telling the operator
+// what to check on the remote panel. It returns "" for keys that are not
+// auth failures. The timestamp case covers both an expired ApiKeyValidityTime
+// window and clock skew between the two panels (the remote rejects a
+// timestamp more than 60s in the future, or older than its validity window).
+func remoteAuthFailureHint(msgKey string) string {
+	switch strings.TrimSpace(msgKey) {
+	case "ErrApiConfigStatusInvalid":
+		return "远程面板 API 接口未开启，请在远程面板「面板设置 > API 接口」中开启后再切换"
+	case "ErrApiConfigKeyInvalid":
+		return "远程面板 API Key 错误，请检查节点表单里粘贴的 Key 是否为该远程面板的接口密钥"
+	case "ErrApiConfigKeyTimeInvalid":
+		return "远程面板 API Key 时间无效，请检查主节点与远程面板的服务器时间是否同步（时间相差过大时远程会拒绝请求）"
+	case "ErrApiConfigKeyExpired":
+		return "远程面板 API Key 已过期，请在远程面板重新生成"
+	case "ErrApiConfigIPInvalid":
+		return "远程面板 IP 白名单拒绝了主节点的访问，请把主节点出口 IP 加入远程面板 API 接口的白名单"
+	default:
+		return ""
+	}
+}
+
+// remoteAuthFailureEnvelope builds the 502 envelope the master returns when
+// a remote panel rejects the proxied API-key auth. The code is deliberately
+// 502, never 401/403: the master's frontend treats any 401/403 envelope
+// code as "my own session expired" and redirects to the login page
+// (frontend/src/utils/auth-response.ts), which is exactly the bug this
+// fixes — a remote auth problem must surface as a node error, never as a
+// master login redirect.
+func remoteAuthFailureEnvelope(msgKey string) []byte {
+	hint := remoteAuthFailureHint(msgKey)
+	if hint == "" {
+		hint = "远程面板拒绝了 API 访问（接口未开启或 API Key 错误/过期/白名单），请在远程面板设置里检查"
+	}
+	body, _ := json.Marshal(map[string]interface{}{
+		"code":    http.StatusBadGateway,
+		"message": hint,
+		"data":    nil,
+	})
+	return body
+}
+
+// maxProxiedAuthSniffBytes bounds how much of a proxied JSON body is read
+// while looking for an auth-failure envelope. Auth envelopes are tiny
+// (<1KB); anything larger cannot be one, so it is passed through untouched.
+const maxProxiedAuthSniffBytes = 1024 * 1024
+
+// replaceProxiedBody swaps a proxied response body (used for normalized
+// auth failures). It fixes Content-Length and drops Content-Encoding so the
+// replacement is served exactly as written.
+func replaceProxiedBody(resp *http.Response, status int, body []byte) {
+	resp.Body = io.NopCloser(bytes.NewReader(body))
+	resp.ContentLength = int64(len(body))
+	resp.Header.Set("Content-Type", "application/json; charset=utf-8")
+	resp.Header.Set("Content-Length", strconv.Itoa(len(body)))
+	resp.Header.Del("Content-Encoding")
+	resp.StatusCode = status
+	resp.Status = fmt.Sprintf("%d %s", status, http.StatusText(status))
+}
+
+// normalizeProxiedAuthFailure rewrites a remote auth failure into a 502
+// envelope. It runs as the ReverseProxy ModifyResponse hook.
+//
+// Why this is needed: the remote panel's BadAuth helper always answers
+// HTTP 200 with an envelope {"code":401,...} (core/app/api/v2/helper
+// ErrorWithDetail answers ctx.JSON(http.StatusOK, ...) for every error),
+// so a naive pass-through hands the master frontend an envelope code 401,
+// and its response interceptor redirects to the login page. Streaming
+// responses (SSE logs, downloads, websockets) are never buffered or
+// rewritten: they are not JSON, and an auth failure on those paths arrives
+// as an HTTP 401/403 status instead, which is rewritten from the status
+// alone. A non-JSON 200 body and any non-auth JSON envelope pass through
+// byte-for-byte.
+func normalizeProxiedAuthFailure(resp *http.Response) error {
+	if resp.StatusCode == http.StatusSwitchingProtocols {
+		return nil
+	}
+	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		msgKey := ""
+		if body, err := io.ReadAll(io.LimitReader(resp.Body, maxProxiedAuthSniffBytes)); err == nil {
+			var env remoteEnvelope
+			if json.Unmarshal(body, &env) == nil {
+				msgKey = env.Message
+			}
+		}
+		_ = resp.Body.Close()
+		replaceProxiedBody(resp, http.StatusBadGateway, remoteAuthFailureEnvelope(msgKey))
+		return nil
+	}
+	if resp.StatusCode != http.StatusOK {
+		return nil
+	}
+	if !strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "application/json") {
+		return nil
+	}
+	body, err := io.ReadAll(io.LimitReader(resp.Body, maxProxiedAuthSniffBytes+1))
+	if err != nil {
+		return err
+	}
+	if len(body) > maxProxiedAuthSniffBytes {
+		// Too large to be an auth envelope: replay it untouched.
+		resp.Body = io.NopCloser(io.MultiReader(bytes.NewReader(body), resp.Body))
+		return nil
+	}
+	_ = resp.Body.Close()
+	var env remoteEnvelope
+	if err := json.Unmarshal(body, &env); err != nil {
+		resp.Body = io.NopCloser(bytes.NewReader(body))
+		return nil
+	}
+	if env.Code != http.StatusUnauthorized && env.Code != http.StatusForbidden {
+		resp.Body = io.NopCloser(bytes.NewReader(body))
+		return nil
+	}
+	replaceProxiedBody(resp, http.StatusBadGateway, remoteAuthFailureEnvelope(env.Message))
+	return nil
+}
+
 // named nodeName and streams the remote response back unchanged.
 //
 // It returns false when nodeName is not a registered cluster node, so the
@@ -129,9 +250,14 @@ func (u *ClusterNodeService) ProxyRequest(w http.ResponseWriter, r *http.Request
 		return false
 	}
 	if !isAdmin {
+		// Deliberately 502, not 403: a 401/403 envelope code makes the
+		// master frontend redirect to the login page (see
+		// remoteAuthFailureEnvelope). This is a master-side refusal, not
+		// a proxied failure, but it must surface as an error, never as a
+		// login redirect.
 		w.Header().Set("Content-Type", "application/json; charset=utf-8")
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"code":403,"message":"only master admins can operate a cluster node"}`))
+		w.WriteHeader(http.StatusBadGateway)
+		_, _ = w.Write([]byte(`{"code":502,"message":"只有主节点管理员才能操作集群节点"}`))
 		return true
 	}
 	apiBase, err := panelAPIBase(node.EntryURL)
@@ -172,6 +298,10 @@ func (u *ClusterNodeService) ProxyRequest(w http.ResponseWriter, r *http.Request
 			req.Header.Del("X-Panel-User")
 		},
 		Transport: clusterProxyTransport(),
+		// Normalize remote auth failures into 502 envelopes so a remote
+		// 401 never becomes a master login redirect. Streaming bodies
+		// (SSE, downloads, websockets) pass through untouched.
+		ModifyResponse: normalizeProxiedAuthFailure,
 		// Flush streaming responses (SSE logs, downloads) immediately.
 		FlushInterval: -1,
 		ErrorHandler: func(w http.ResponseWriter, _ *http.Request, err error) {

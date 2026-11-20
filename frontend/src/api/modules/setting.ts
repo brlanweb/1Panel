@@ -86,7 +86,25 @@ export const loadDaemonJsonPath = () => {
 export const updateAgentSetting = (param: Setting.SettingUpdate) => {
     return http.post(`/settings/update`, param);
 };
-export const getAgentSettingInfo = (currentNode?: string) => {
+export const getAgentSettingInfo = (
+    currentNode?: string,
+    options?: { skipAuthRedirect?: boolean },
+) => {
+    if (options?.skipAuthRedirect) {
+        // Switch probe: the request is deliberately sent to a remote panel
+        // through the cluster proxy, so a 401/403 from the remote panel
+        // must be a plain rejection (with the proxy's 502 hint), never a
+        // redirect to the master login page.
+        return http.postWithConfig<Setting.AgentSettingInfo>(
+            `/settings/search`,
+            {},
+            {
+                headers: currentNode ? { CurrentNode: currentNode } : undefined,
+                errorMessageMode: 'manual',
+                skipAuthRedirect: true,
+            },
+        );
+    }
     return http.post<Setting.AgentSettingInfo>(
         `/settings/search`,
         {},

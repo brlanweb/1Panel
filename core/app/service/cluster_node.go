@@ -207,10 +207,12 @@ type remoteEnvelope struct {
 }
 
 // callRemote performs one signed request against a remote panel's core API
-// (path is relative to the panel entry URL, e.g. "/api/v2/health/check").
+// (path is relative to the panel entry URL, e.g. "/api/v2/settings/search").
 // It signs with the legacy HMAC-SHA256 scheme first and falls back to the
-// legacy MD5 scheme on HTTP 401, exactly like probeNode did. The API key is
-// never logged. timeout bounds the whole request.
+// legacy MD5 scheme on HTTP 401. The API key is never logged. timeout
+// bounds the whole request. Note the remote panel answers auth failures as
+// HTTP 200 with an envelope {"code":401,...}, so callers must parse the
+// envelope — the HTTP status alone never proves the key works.
 func (u *ClusterNodeService) callRemote(node model.ClusterNode, method, path string, body interface{}, timeout time.Duration) (int, []byte, error) {
 	apiKey, err := u.decryptNodeKey(node)
 	if err != nil {
@@ -403,24 +405,51 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 	return result, nil
 }
 
-// probeNode calls the remote panel's GET /api/v2/health/check with the legacy
-// API-key headers. It never logs the key. A 401 means the remote panel's API
-// interface is disabled (or the key is wrong) — that is reported distinctly
-// instead of a bare "offline".
+// probeNode checks the remote panel's API auth using the same path the
+// node switch uses: POST /api/v2/settings/search, the agent endpoint the
+// switch probe (loadGlobalSetting) reads right before switching. The old
+// probe used GET /api/v2/health/check and only looked at the HTTP status,
+// which never caught a bad key: the remote panel's BadAuth helper always
+// answers HTTP 200 with an envelope {"code":401,...}, so a disabled API
+// interface or a wrong key was reported as "online" and only failed later,
+// at switch time, with a login redirect.
+//
+// The probe therefore parses the envelope: code 200 means the key works;
+// code 401/403 means the key is rejected, mapped onto a specific hint by
+// remoteAuthFailureHint (interface disabled / wrong key / time invalid /
+// expired / IP whitelist). Any other failure is "offline" with the remote
+// message attached. The key itself is never logged.
 func (u *ClusterNodeService) probeNode(node model.ClusterNode) (latencyMs int64, apiDisabled bool, errMsg string) {
 	start := time.Now()
-	status, _, err := u.callRemote(node, http.MethodGet, "/api/v2/health/check", nil, 5*time.Second)
+	status, raw, err := u.callRemote(node, http.MethodPost, "/api/v2/settings/search", map[string]interface{}{}, 5*time.Second)
 	latencyMs = time.Since(start).Milliseconds()
 	if err != nil {
 		return latencyMs, false, truncateErr(err.Error())
 	}
-	switch status {
+	if status == http.StatusUnauthorized || status == http.StatusForbidden {
+		return latencyMs, true, remoteAuthFailureHint("")
+	}
+	if status != http.StatusOK {
+		return latencyMs, false, fmt.Sprintf("remote panel returned HTTP %d", status)
+	}
+	var env remoteEnvelope
+	if err := json.Unmarshal(raw, &env); err != nil {
+		return latencyMs, false, "remote panel returned an unreadable response"
+	}
+	switch env.Code {
 	case http.StatusOK:
 		return latencyMs, false, ""
-	case http.StatusUnauthorized:
-		return latencyMs, true, "remote API interface disabled or API key rejected (HTTP 401). Enable Settings > API Interface on the remote panel and check the key."
+	case http.StatusUnauthorized, http.StatusForbidden:
+		hint := remoteAuthFailureHint(env.Message)
+		if hint == "" {
+			hint = "远程面板拒绝了 API 访问（接口未开启或 API Key 错误/过期/白名单），请在远程面板设置里检查"
+		}
+		return latencyMs, true, hint
 	default:
-		return latencyMs, false, fmt.Sprintf("remote panel returned HTTP %d", status)
+		if strings.TrimSpace(env.Message) != "" {
+			return latencyMs, false, fmt.Sprintf("remote panel error: %s", truncateErr(env.Message))
+		}
+		return latencyMs, false, fmt.Sprintf("remote panel error code %d", env.Code)
 	}
 }
 

@@ -271,8 +271,8 @@ const changeNode = async (command: string) => {
     }
 };
 
-const loadGlobalSetting = async (currentNode?: string) => {
-    await getAgentSettingInfo(currentNode).then((res) => {
+const loadGlobalSetting = async (currentNode?: string, skipAuthRedirect = false) => {
+    await getAgentSettingInfo(currentNode, skipAuthRedirect ? { skipAuthRedirect: true } : undefined).then((res) => {
         defaultNetwork.value = res.data.defaultNetwork;
     });
 };
@@ -290,7 +290,7 @@ const changeToClusterNode = async (item) => {
         try {
             const res = await testClusterNode(item.id);
             if (res?.data?.status !== 'online') {
-                MsgError(i18n.global.t('cluster.switchTestFailed'));
+                MsgError(res?.data?.lastError || i18n.global.t('cluster.switchTestFailed'));
                 return;
             }
             item.status = 'Healthy';
@@ -299,11 +299,20 @@ const changeToClusterNode = async (item) => {
             return;
         }
     }
-    // The remote default network is best-effort: failing to read it must
-    // not block the switch.
+    // The remote default network is a pre-switch probe, not best-effort:
+    // if the remote panel rejects the API auth here, the switch must stop
+    // with the remote's own error message (e.g. API interface disabled)
+    // instead of switching and then bouncing to the login page. The probe
+    // runs with skipAuthRedirect so a remote 401/403 can never redirect
+    // the master UI to login.
     try {
-        await loadGlobalSetting(item.name);
-    } catch {}
+        await loadGlobalSetting(item.name, true);
+    } catch (e: any) {
+        MsgError(
+            e?.response?.data?.message || e?.message || i18n.global.t('cluster.switchTestFailed'),
+        );
+        return;
+    }
     localStorage.removeItem('dashboardCache');
     localStorage.removeItem('upgradeChecked');
     currentNode.value = item.name;

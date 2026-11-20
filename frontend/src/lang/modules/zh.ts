@@ -498,7 +498,8 @@ const message = {
         apiKey: 'API Key',
         apiKeyPlaceholder: '粘贴远程面板的 API Key',
         apiKeyKeepPlaceholder: '留空则保留原 Key',
-        apiKeyHelper: '远程面板的 API Key，创建时必填；编辑时留空表示不修改。',
+        apiKeyHelper:
+            '粘贴远程面板「面板设置 > API 接口」里的传统接口密钥（Legacy API Key）；新版 API Key 同样可用。远程面板必须开启 API 接口，主节点出口 IP 须在白名单内，两台服务器时间须同步，否则切换时会报接口未开启或密钥错误。创建时必填；编辑时留空表示不修改。',
         remark: '备注',
         group: '分组',
         status: '状态',

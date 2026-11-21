@@ -17,6 +17,17 @@
             <span>{{ $t('cluster.succeeded') }}：{{ task.succeeded }}</span>
             <span>{{ $t('cluster.skipped') }}：{{ task.skipped }}</span>
             <span>{{ $t('cluster.failed') }}：{{ task.failed }}</span>
+            <el-button
+                v-if="task.status === 'running' && cancellable"
+                class="ml-auto"
+                type="danger"
+                plain
+                size="small"
+                :loading="cancelling"
+                @click="onCancel"
+            >
+                {{ $t('cluster.cancelTask') }}
+            </el-button>
         </div>
         <div v-if="task && task.status === 'running'" class="progress-box mt-3">
             <div class="flx-align-center">
@@ -73,10 +84,33 @@
 import { computed, onBeforeUnmount, ref } from 'vue';
 import { Loading } from '@element-plus/icons-vue';
 import i18n from '@/lang';
-import { listClusterSyncTaskRecords, searchClusterSyncTasks } from '@/api/modules/cluster';
+import { cancelClusterSyncTask, listClusterSyncTaskRecords, searchClusterSyncTasks } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
 import { computeSize } from '@/utils/size';
 import { dateFormatSimple } from '@/utils/date';
+import { ElMessageBox } from 'element-plus';
+import { MsgSuccess } from '@/utils/message';
+
+// File and image transfers can be cancelled (temp files are removed).
+// App migration installs on the target first, so cancel is not offered.
+const cancellable = computed(() => ['file', 'image'].includes(task.value?.kind || ''));
+const cancelling = ref(false);
+const onCancel = () => {
+    ElMessageBox.confirm(i18n.global.t('cluster.cancelTaskConfirm'), i18n.global.t('cluster.cancelTask'), {
+        confirmButtonText: i18n.global.t('commons.button.confirm'),
+        cancelButtonText: i18n.global.t('commons.button.cancel'),
+        type: 'warning',
+    }).then(async () => {
+        cancelling.value = true;
+        try {
+            await cancelClusterSyncTask(taskId.value);
+            MsgSuccess(i18n.global.t('cluster.cancelTaskSubmitted'));
+            refresh();
+        } finally {
+            cancelling.value = false;
+        }
+    });
+};
 
 const emit = defineEmits(['finished']);
 
@@ -138,9 +172,11 @@ const actionTagType = (action: string) => {
     if (action === 'create') return 'success';
     if (action === 'skip-same') return 'info';
     if (action === 'skip-conflict') return 'warning';
+    if (action === 'cancelled') return 'info';
     return 'danger';
 };
 const actionLabel = (action: string) => {
+    if (action === 'cancelled') return i18n.global.t('cluster.taskStatus_cancelled');
     if (action === 'create') return i18n.global.t('cluster.actionCreate');
     if (action === 'skip-same') return i18n.global.t('cluster.actionSkipSame');
     if (action === 'skip-conflict') return i18n.global.t('cluster.actionSkipConflict');

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -796,9 +797,9 @@ func checkDownloadedFile(tmpPath string) error {
 
 func (s *ClusterDbReplicationService) uploadSnapshot(node model.ClusterNode, dir, fileName, tmpPath string) error {
 	if isLocalNode(node) {
-		return s.sync.uploadLocalFile(dir, fileName, tmpPath, true)
+		return s.sync.uploadLocalFile(context.Background(), dir, fileName, tmpPath, true)
 	}
-	return s.sync.uploadRemoteFile(node, dir, fileName, tmpPath, true, nil)
+	return s.sync.uploadRemoteFile(context.Background(), node, dir, fileName, tmpPath, true, nil)
 }
 
 // ---------- CRUD ----------

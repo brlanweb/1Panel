@@ -83,6 +83,39 @@ type resumableUploadChunk struct {
 	Offset     int64
 	FileSize   int64
 	Overwrite  bool
+	// Parallel: chunks may arrive out of order (concurrent uploads from a
+	// cluster master). Each chunk is written at its offset; the file is
+	// finalized once every byte has been received, not on the last index.
+	Parallel bool
+}
+
+// parallelChunkUploads tracks received ranges (offset -> length) of
+// parallel uploads so retried chunks are not counted twice.
+var parallelChunkUploads = struct {
+	sync.Mutex
+	items map[string]map[int64]int64
+}{items: make(map[string]map[int64]int64)}
+
+func recordParallelChunk(uploadID string, offset, length int64) int64 {
+	parallelChunkUploads.Lock()
+	defer parallelChunkUploads.Unlock()
+	ranges, ok := parallelChunkUploads.items[uploadID]
+	if !ok {
+		ranges = make(map[int64]int64)
+		parallelChunkUploads.items[uploadID] = ranges
+	}
+	ranges[offset] = length
+	var received int64
+	for _, l := range ranges {
+		received += l
+	}
+	return received
+}
+
+func forgetParallelChunks(uploadID string) {
+	parallelChunkUploads.Lock()
+	delete(parallelChunkUploads.items, uploadID)
+	parallelChunkUploads.Unlock()
 }
 
 func invalidChunkUploadError(message string) error {
@@ -1145,21 +1178,32 @@ func writeResumableUploadChunk(chunk resumableUploadChunk, chunkData []byte) err
 			_ = part.Close()
 		}
 	}()
-	if stat, statErr := part.Stat(); statErr != nil {
-		return statErr
-	} else if chunk.Offset > stat.Size() {
-		return invalidChunkUploadError(fmt.Sprintf("unexpected upload offset %d, current size is %d", chunk.Offset, stat.Size()))
-	} else if chunk.Offset < stat.Size() && chunkEnd > stat.Size() {
-		if err = part.Truncate(chunk.Offset); err != nil {
+	if chunk.Parallel {
+		// Out-of-order write; gaps stay sparse until their chunk lands.
+		if _, err = part.WriteAt(chunkData, chunk.Offset); err != nil {
 			return err
 		}
-	}
-	if _, err = part.WriteAt(chunkData, chunk.Offset); err != nil {
-		return err
-	}
+		if recordParallelChunk(chunk.UploadID, chunk.Offset, int64(len(chunkData))) < chunk.FileSize {
+			return nil
+		}
+		forgetParallelChunks(chunk.UploadID)
+	} else {
+		if stat, statErr := part.Stat(); statErr != nil {
+			return statErr
+		} else if chunk.Offset > stat.Size() {
+			return invalidChunkUploadError(fmt.Sprintf("unexpected upload offset %d, current size is %d", chunk.Offset, stat.Size()))
+		} else if chunk.Offset < stat.Size() && chunkEnd > stat.Size() {
+			if err = part.Truncate(chunk.Offset); err != nil {
+				return err
+			}
+		}
+		if _, err = part.WriteAt(chunkData, chunk.Offset); err != nil {
+			return err
+		}
 
-	if chunk.ChunkIndex+1 != chunk.ChunkCount {
-		return nil
+		if chunk.ChunkIndex+1 != chunk.ChunkCount {
+			return nil
+		}
 	}
 	partInfo, err := part.Stat()
 	if err != nil {
@@ -1344,6 +1388,7 @@ func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
 		if ow := c.PostForm("overwrite"); ow != "" {
 			overwrite, _ = strconv.ParseBool(ow)
 		}
+		parallel := c.PostForm("parallel") == "1"
 		err = writeResumableUploadChunk(resumableUploadChunk{
 			UploadID:   uploadID,
 			Filename:   filename,
@@ -1353,6 +1398,7 @@ func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
 			Offset:     offset,
 			FileSize:   fileSize,
 			Overwrite:  overwrite,
+			Parallel:   parallel,
 		}, chunkData)
 		if err != nil {
 			uploadErr := buserr.WithMap("ErrFileUpload", map[string]interface{}{"name": filename, "detail": err.Error()}, err)
@@ -1361,10 +1407,16 @@ func (b *BaseApi) UploadChunkFiles(c *gin.Context) {
 			})
 			return
 		}
-		if chunkIndex+1 == chunkCount {
+		if chunkIndex+1 == chunkCount && !parallel {
 			cancelledChunkUploads.Lock()
 			delete(cancelledChunkUploads.ids, uploadID)
 			cancelledChunkUploads.Unlock()
+		}
+		if parallel {
+			// Tells a cluster master this agent accepts out-of-order chunks
+			// (older agents answer plain `true` and get sequential chunks).
+			helper.SuccessWithData(c, gin.H{"parallel": true})
+			return
 		}
 		helper.SuccessWithData(c, true)
 		return
@@ -1432,6 +1484,7 @@ func (b *BaseApi) StopChunkUpload(c *gin.Context) {
 		helper.InternalServer(c, err)
 		return
 	}
+	forgetParallelChunks(uploadID)
 	helper.Success(c)
 }
 

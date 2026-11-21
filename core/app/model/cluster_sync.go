@@ -36,6 +36,8 @@ const (
 	ClusterSyncTaskSuccess = "success"
 	ClusterSyncTaskPartial = "partial"
 	ClusterSyncTaskFailed  = "failed"
+	// ClusterSyncTaskCancelled: stopped by the user; temp files removed.
+	ClusterSyncTaskCancelled = "cancelled"
 )
 
 // ClusterSyncRecord is one (resource × target node) outcome of a sync task.
@@ -63,4 +65,5 @@ const (
 	ClusterSyncActionSkipSame     = "skip-same"
 	ClusterSyncActionSkipConflict = "skip-conflict"
 	ClusterSyncActionFailed       = "failed"
+	ClusterSyncActionCancelled    = "cancelled"
 )

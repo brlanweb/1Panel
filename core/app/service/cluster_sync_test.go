@@ -1,6 +1,8 @@
 package service
 
 import (
+	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/json"
 	"io"
@@ -10,6 +12,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -1072,6 +1075,12 @@ func (n *fakeImageNode) handler(t *testing.T) http.HandlerFunc {
 			paths, _ := body["paths"].([]interface{})
 			if len(paths) == 1 {
 				if data, ok := n.files[paths[0].(string)]; ok {
+					// docker load accepts gzip-compressed tarballs as-is.
+					if zr, err := gzip.NewReader(bytes.NewReader(data)); err == nil {
+						if plain, err := io.ReadAll(zr); err == nil {
+							data = plain
+						}
+					}
 					n.loaded = string(data)
 					n.tasks[id] = "Success"
 				} else {
@@ -1094,6 +1103,9 @@ func (n *fakeImageNode) handler(t *testing.T) http.HandlerFunc {
 			envelope(w, map[string]interface{}{"total": len(items), "items": items})
 		case "/api/v2/files/del":
 			envelope(w, nil)
+		case "/api/v2/files/chunkupload":
+			// Older agent without resumable upload: master falls back.
+			http.NotFound(w, r)
 		default:
 			t.Logf("unexpected request %s", r.URL.Path)
 			http.NotFound(w, r)
@@ -1158,5 +1170,101 @@ func TestSyncWaitNodeTaskFailsWhenTaskMissing(t *testing.T) {
 	}
 	if time.Since(start) > 5*time.Second {
 		t.Fatalf("waitNodeTask took %s", time.Since(start))
+	}
+}
+
+// Cancelling an image sync while the target upload is in flight ends the
+// task as "cancelled" and removes the export archive on the source.
+func TestSyncCancelImageTaskCleansUp(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	oldPoll := syncTaskPollInterval
+	syncTaskPollInterval = time.Millisecond
+	defer func() { syncTaskPollInterval = oldPoll }()
+
+	src := newFakeImageNode()
+	src.images["sha256:redis"] = []string{"redis:7.2.5"}
+	var mu sync.Mutex
+	var deleted []string
+	srcHandler := src.handler(t)
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/api/v2/files/del" {
+			var body map[string]interface{}
+			raw, _ := io.ReadAll(r.Body)
+			_ = json.Unmarshal(raw, &body)
+			mu.Lock()
+			deleted = append(deleted, body["path"].(string))
+			mu.Unlock()
+			envelope(w, nil)
+			return
+		}
+		srcHandler(w, r)
+	}))
+	// Target hangs on upload until the request is cancelled.
+	uploadStarted := make(chan struct{}, 1)
+	release := make(chan struct{})
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v2/files/chunkupload", "/api/v2/files/upload":
+			select {
+			case uploadStarted <- struct{}{}:
+			default:
+			}
+			select {
+			case <-r.Context().Done():
+				t.Logf("upload %s aborted by client (parallel=%q)", r.URL.Path, r.FormValue("parallel"))
+			case <-release:
+				t.Logf("upload %s still open at test end", r.URL.Path)
+			}
+		default:
+			envelope(w, map[string]interface{}{"total": 0, "items": []interface{}{}})
+		}
+	}))
+	defer remote.Close()
+	defer close(release) // runs before remote.Close
+	target := insertTestNode(t, "cd", remote.URL, "online")
+
+	svc := NewIClusterSyncService().(*ClusterSyncService)
+	syncExecuteAsync = true
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "image", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID}, ResourceKeys: []string{"sha256:redis"},
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	select {
+	case <-uploadStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("upload never started")
+	}
+	if err := svc.CancelTask(taskID); err != nil {
+		t.Fatalf("CancelTask: %v", err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	var task model.ClusterSyncTask
+	for time.Now().Before(deadline) {
+		_ = global.DB.First(&task, taskID).Error
+		if task.Status != model.ClusterSyncTaskRunning {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	if task.Status != model.ClusterSyncTaskCancelled {
+		t.Fatalf("status = %q, want cancelled", task.Status)
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	found := false
+	for _, p := range deleted {
+		if strings.HasPrefix(p, syncTmpDir+"/sync-image-") && strings.HasSuffix(p, ".tar") {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("source export archive not removed, deleted=%v", deleted)
+	}
+	records, _ := svc.TaskRecords(taskID)
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCancelled {
+		t.Fatalf("records = %+v, want one cancelled record", records)
 	}
 }

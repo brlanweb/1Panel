@@ -17,6 +17,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/1Panel-dev/1Panel/core/app/dto"
@@ -67,6 +68,7 @@ type IClusterSyncService interface {
 	Execute(req dto.ClusterSyncExecuteReq) (uint, error)
 	SearchTasks(req dto.ClusterSyncTaskSearch) (int64, interface{}, error)
 	TaskRecords(taskID uint) ([]dto.ClusterSyncRecordInfo, error)
+	CancelTask(taskID uint) error
 }
 
 func NewIClusterSyncService() IClusterSyncService {
@@ -601,12 +603,26 @@ type syncTransferOpts struct {
 	Step func(stage string)
 	// Progress reports byte progress of the current stage (nil = none).
 	Progress func(done, total, rate int64)
+	// Ctx is cancelled when the user cancels the task (nil = never).
+	Ctx context.Context
 }
 
 func (o syncTransferOpts) step(stage string) {
 	if o.Step != nil {
 		o.Step(stage)
 	}
+}
+
+func (o syncTransferOpts) ctx() context.Context {
+	if o.Ctx != nil {
+		return o.Ctx
+	}
+	return context.Background()
+}
+
+// cancelled reports whether the task was cancelled by the user.
+func (o syncTransferOpts) cancelled() bool {
+	return o.Ctx != nil && o.Ctx.Err() != nil
 }
 
 // Stage timeouts. A node task (export / compress / load / restore) that
@@ -652,9 +668,19 @@ var syncTaskMissingLimit = time.Minute
 // waitNodeTask polls a node's task log (POST /logs/tasks/search) until the
 // async task created with taskID succeeds or fails.
 func (s *ClusterSyncService) waitNodeTask(node model.ClusterNode, taskID string, timeout time.Duration) error {
+	return s.waitNodeTaskCtx(context.Background(), node, taskID, timeout)
+}
+
+// waitNodeTaskCtx is waitNodeTask that stops waiting when ctx is cancelled.
+// The node task itself keeps running (export / load are not interruptible
+// through the API); callers clean its output up afterwards.
+func (s *ClusterSyncService) waitNodeTaskCtx(ctx context.Context, node model.ClusterNode, taskID string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
 	missing := 0
 	for {
+		if ctx.Err() != nil {
+			return errSyncCancelled
+		}
 		var page struct {
 			Items []struct {
 				Status   string `json:"status"`
@@ -689,8 +715,47 @@ func (s *ClusterSyncService) waitNodeTask(node model.ClusterNode, taskID string,
 			}
 			return fmt.Errorf("task %s did not finish in time", taskID)
 		}
-		time.Sleep(syncTaskPollInterval)
+		select {
+		case <-ctx.Done():
+			return errSyncCancelled
+		case <-time.After(syncTaskPollInterval):
+		}
 	}
+}
+
+// errSyncCancelled marks a transfer stopped by the user.
+var errSyncCancelled = errors.New("cancelled by user")
+
+// Running task registry: cancel funcs by task id.
+var syncRunning = struct {
+	sync.Mutex
+	cancel map[uint]context.CancelFunc
+}{cancel: map[uint]context.CancelFunc{}}
+
+// CancelTask stops a running sync task. In-flight downloads / uploads are
+// aborted; every temporary archive already created (source, master,
+// target, including partially uploaded chunks) is removed by the transfer
+// as it unwinds, and the task ends with status "cancelled".
+func (s *ClusterSyncService) CancelTask(taskID uint) error {
+	syncRunning.Lock()
+	cancel, ok := syncRunning.cancel[taskID]
+	syncRunning.Unlock()
+	if ok {
+		cancel()
+		_ = s.syncRepo.UpdateTask(taskID, map[string]interface{}{"step": "cancelling, cleaning up temporary files"})
+		return nil
+	}
+	// Not running in this process (e.g. orphaned by a restart): just close it.
+	res := global.DB.Model(&model.ClusterSyncTask{}).
+		Where("id = ? AND status = ?", taskID, model.ClusterSyncTaskRunning).
+		Updates(map[string]interface{}{"status": model.ClusterSyncTaskCancelled, "step": ""})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return buserr.New("ErrRecordNotFound")
+	}
+	return nil
 }
 
 // syncTmpDir is the scratch directory used on nodes for archives.
@@ -698,6 +763,21 @@ const syncTmpDir = "/tmp/1panel-cluster-sync"
 
 func (s *ClusterSyncService) removeNodeFile(node model.ClusterNode, p string) {
 	_ = s.callNodeJSON(node, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": p, "isDir": false, "forceDelete": true}, nil, 30*time.Second)
+}
+
+// cleanupNodeOutput removes a node-task output file. When the task was
+// cancelled while the node was still producing it (docker save / tar keep
+// running server-side), the file is removed now and once more after that
+// node task ends, so a late writer cannot leave it behind.
+func (s *ClusterSyncService) cleanupNodeOutput(opts syncTransferOpts, node model.ClusterNode, p, nodeTaskID string, timeout time.Duration) {
+	s.removeNodeFile(node, p)
+	if !opts.cancelled() || nodeTaskID == "" {
+		return
+	}
+	go func() {
+		_ = s.waitNodeTask(node, nodeTaskID, timeout)
+		s.removeNodeFile(node, p)
+	}()
 }
 
 // compareOnTarget computes the preview action for one resource on one target.
@@ -896,7 +976,7 @@ func (s *ClusterSyncService) signedClient(node model.ClusterNode, timeout time.D
 	return client, timestamp, hmacToken, md5Token, nil
 }
 
-func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (tmpPath string, size int64, err error) {
+func (s *ClusterSyncService) downloadRemoteFile(ctx context.Context, node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (tmpPath string, size int64, err error) {
 	timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
 	if err != nil {
 		return "", 0, err
@@ -918,7 +998,7 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, Proxy: http.ProxyFromEnvironment},
 	}
 	doGet := func(token string) (*http.Response, error) {
-		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
+		req, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -1003,20 +1083,25 @@ var (
 // (older 1Panel); the caller falls back to a single multipart POST.
 var errChunkUnsupported = errors.New("chunk upload not supported by target")
 
-func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
-	err := s.uploadRemoteFileChunked(node, dir, fileName, tmpPath, overwrite, progress)
+func (s *ClusterSyncService) uploadRemoteFile(ctx context.Context, node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
+	err := s.uploadRemoteFileChunked(ctx, node, dir, fileName, tmpPath, overwrite, progress)
 	if !errors.Is(err, errChunkUnsupported) {
 		return err
 	}
-	return s.uploadRemoteFileSingle(node, dir, fileName, tmpPath, overwrite)
+	return s.uploadRemoteFileSingle(ctx, node, dir, fileName, tmpPath, overwrite)
 }
 
 // uploadRemoteFileChunked streams tmpPath to the target through
 // /api/v2/files/chunkupload in resumable mode (uploadID + offset + fileSize):
-// each chunk is its own short request, a failed chunk is retried at the same
-// offset (the agent truncates and rewrites it), and the file only appears in
-// dir once the final chunk lands.
-func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
+// each chunk is its own short request and a failed chunk is retried at the
+// same offset. The first chunk is sent alone; when the target agent
+// confirms it accepts out-of-order chunks ("parallel"), the rest are sent
+// by syncUploadParallel concurrent connections, which on a lossy long link
+// multiplies throughput (each TCP flow is limited by its own window).
+// Older agents get the sequential protocol. The file only appears in dir
+// once every byte has landed; on error / cancel the partial file on the
+// target is discarded.
+func (s *ClusterSyncService) uploadRemoteFileChunked(ctx context.Context, node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
 	apiBase, err := panelAPIBase(node.EntryURL)
 	if err != nil {
 		return err
@@ -1037,50 +1122,75 @@ func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir
 		return errChunkUnsupported
 	}
 	client := &http.Client{
-		Timeout:   syncChunkTimeout,
-		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, Proxy: http.ProxyFromEnvironment},
+		Timeout: syncChunkTimeout,
+		Transport: &http.Transport{
+			TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
+			Proxy:               http.ProxyFromEnvironment,
+			MaxIdleConnsPerHost: syncUploadParallel + 1,
+		},
 	}
+	defer client.CloseIdleConnections()
 	uploadID := "cluster-sync-" + strings.ReplaceAll(uuid.NewString(), "-", "")
 
-	postChunk := func(index int, offset int64, data []byte, final bool) (int, []byte, error) {
-		count := index + 2
-		if final {
-			count = index + 1
+	// Progress: bytes confirmed + bytes in flight per worker.
+	var progMu sync.Mutex
+	var confirmed int64
+	inflight := map[int]int64{}
+	report := func() {
+		if progress == nil {
+			return
 		}
-		var buf bytes.Buffer
-		mw := multipart.NewWriter(&buf)
-		fields := [][2]string{
-			{"path", dir}, {"filename", fileName}, {"uploadID", uploadID},
-			{"chunkIndex", strconv.Itoa(index)}, {"chunkCount", strconv.Itoa(count)},
-			{"offset", strconv.FormatInt(offset, 10)}, {"fileSize", strconv.FormatInt(total, 10)},
-			{"overwrite", strconv.FormatBool(overwrite)},
+		sum := confirmed
+		for _, n := range inflight {
+			sum += n
 		}
-		for _, kv := range fields {
-			if err := mw.WriteField(kv[0], kv[1]); err != nil {
-				return 0, nil, err
+		if sum > total {
+			sum = total
+		}
+		progress(sum, total)
+	}
+
+	// sendChunk uploads one chunk with retries. index/count follow the
+	// agent protocol: in parallel mode count is the real total so the agent
+	// knows the size; in sequential mode count = index+2 until the last.
+	var sendChunk syncChunkSender = func(worker, index, count int, offset int64, data []byte, parallel bool) (syncChunkResult, error) {
+		var lastErr error
+		for attempt := 0; attempt < syncChunkRetries; attempt++ {
+			if attempt > 0 {
+				select {
+				case <-ctx.Done():
+					return syncChunkResult{}, errSyncCancelled
+				case <-time.After(syncChunkRetryGap * time.Duration(attempt)):
+				}
 			}
-		}
-		part, err := mw.CreateFormFile("chunk", fileName)
-		if err != nil {
-			return 0, nil, err
-		}
-		if _, err := part.Write(data); err != nil {
-			return 0, nil, err
-		}
-		if err := mw.Close(); err != nil {
-			return 0, nil, err
-		}
-		// Fresh signature per request: a long transfer outlives one timestamp.
-		timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
-		if err != nil {
-			return 0, nil, err
-		}
-		// Report bytes as they leave so a slow chunk still shows movement.
-		overhead := int64(buf.Len() - len(data))
-		send := func(token string) (int, []byte, error) {
-			var reqBody io.Reader = bytes.NewReader(buf.Bytes())
-			if progress != nil {
-				reqBody = &countingReader{r: reqBody, onRead: func(n int64) {
+			var buf bytes.Buffer
+			mw := multipart.NewWriter(&buf)
+			fields := [][2]string{
+				{"path", dir}, {"filename", fileName}, {"uploadID", uploadID},
+				{"chunkIndex", strconv.Itoa(index)}, {"chunkCount", strconv.Itoa(count)},
+				{"offset", strconv.FormatInt(offset, 10)}, {"fileSize", strconv.FormatInt(total, 10)},
+				{"overwrite", strconv.FormatBool(overwrite)},
+			}
+			if parallel {
+				fields = append(fields, [2]string{"parallel", "1"})
+			}
+			for _, kv := range fields {
+				_ = mw.WriteField(kv[0], kv[1])
+			}
+			part, err := mw.CreateFormFile("chunk", fileName)
+			if err != nil {
+				return syncChunkResult{}, err
+			}
+			_, _ = part.Write(data)
+			_ = mw.Close()
+			// Fresh signature per request: a long transfer outlives one timestamp.
+			timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
+			if err != nil {
+				return syncChunkResult{}, err
+			}
+			overhead := int64(buf.Len() - len(data))
+			send := func(token string) (int, []byte, error) {
+				reqBody := &countingReader{r: bytes.NewReader(buf.Bytes()), onRead: func(n int64) {
 					sent := n - overhead
 					if sent < 0 {
 						sent = 0
@@ -1088,73 +1198,67 @@ func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir
 					if sent > int64(len(data)) {
 						sent = int64(len(data))
 					}
-					progress(offset+sent, total)
+					progMu.Lock()
+					inflight[worker] = sent
+					report()
+					progMu.Unlock()
 				}}
-			}
-			req, err := http.NewRequest(http.MethodPost, targetURL, reqBody)
-			if err != nil {
-				return 0, nil, err
-			}
-			req.ContentLength = int64(buf.Len())
-			req.Header.Set("Content-Type", mw.FormDataContentType())
-			req.Header.Set("1Panel-Timestamp", timestamp)
-			req.Header.Set("1Panel-Token", token)
-			resp, err := client.Do(req)
-			if err != nil {
-				return 0, nil, err
-			}
-			defer resp.Body.Close()
-			body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
-			return resp.StatusCode, body, err
-		}
-		code, body, err := send(hmacToken)
-		if err == nil && code == http.StatusUnauthorized {
-			code, body, err = send(md5Token)
-		}
-		return code, body, err
-	}
-
-	chunkSize := syncChunkStart
-	var offset int64
-	for index := 0; offset < total; index++ {
-		size := chunkSize
-		if offset+size > total {
-			size = total - offset
-		}
-		final := offset+size == total
-		data := make([]byte, size)
-		if _, err := f.ReadAt(data, offset); err != nil && !errors.Is(err, io.EOF) {
-			return err
-		}
-		var lastErr error
-		var took time.Duration
-		ok := false
-		for attempt := 0; attempt < syncChunkRetries; attempt++ {
-			if attempt > 0 {
-				time.Sleep(syncChunkRetryGap * time.Duration(attempt))
+				req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, reqBody)
+				if err != nil {
+					return 0, nil, err
+				}
+				req.ContentLength = int64(buf.Len())
+				req.Header.Set("Content-Type", mw.FormDataContentType())
+				req.Header.Set("1Panel-Timestamp", timestamp)
+				req.Header.Set("1Panel-Token", token)
+				resp, err := client.Do(req)
+				if err != nil {
+					return 0, nil, err
+				}
+				defer resp.Body.Close()
+				body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+				return resp.StatusCode, body, err
 			}
 			started := time.Now()
-			code, body, err := postChunk(index, offset, data, final)
-			took = time.Since(started)
+			code, body, err := send(hmacToken)
+			if err == nil && code == http.StatusUnauthorized {
+				code, body, err = send(md5Token)
+			}
+			took := time.Since(started)
+			progMu.Lock()
+			delete(inflight, worker)
+			progMu.Unlock()
 			if err != nil {
+				if ctx.Err() != nil {
+					return syncChunkResult{}, errSyncCancelled
+				}
 				lastErr = err
 				continue
 			}
 			if code == http.StatusNotFound && index == 0 {
-				return errChunkUnsupported
+				return syncChunkResult{}, errChunkUnsupported
 			}
 			var env struct {
-				Code    int    `json:"code"`
-				Message string `json:"message"`
-				Data    struct {
-					Retryable *bool `json:"retryable"`
-				} `json:"data"`
+				Code    int             `json:"code"`
+				Message string          `json:"message"`
+				Data    json.RawMessage `json:"data"`
 			}
 			_ = json.Unmarshal(body, &env)
 			if code == http.StatusOK && (env.Code == http.StatusOK || env.Code == 0) {
-				ok = true
-				break
+				var ack struct {
+					Parallel bool `json:"parallel"`
+				}
+				_ = json.Unmarshal(env.Data, &ack)
+				progMu.Lock()
+				confirmed += int64(len(data))
+				report()
+				progMu.Unlock()
+				return syncChunkResult{parallelOK: ack.Parallel, took: took}, nil
 			}
+			var meta struct {
+				Retryable *bool `json:"retryable"`
+			}
+			_ = json.Unmarshal(env.Data, &meta)
 			msg := strings.TrimSpace(env.Message)
 			if msg == "" {
 				msg = fmt.Sprintf("HTTP %d", code)
@@ -1163,29 +1267,181 @@ func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir
 			// 4xx (bad params, file exists, auth) and errors the agent marks
 			// as not retryable will fail the same way again.
 			if (code >= 400 && code < 500 && code != http.StatusRequestTimeout && code != http.StatusTooManyRequests) ||
-				(env.Data.Retryable != nil && !*env.Data.Retryable) {
+				(meta.Retryable != nil && !*meta.Retryable) {
 				break
 			}
 		}
-		if !ok {
-			return fmt.Errorf("chunk %d at offset %d/%d failed: %w", index, offset, total, lastErr)
+		return syncChunkResult{}, fmt.Errorf("chunk %d at offset %d/%d failed: %w", index, offset, total, lastErr)
+	}
+
+	completed := false
+	defer func() {
+		if !completed {
+			s.stopRemoteChunkUpload(node, uploadID)
 		}
-		offset += size
-		if progress != nil {
-			progress(offset, total)
+	}()
+	readChunk := func(offset, size int64) ([]byte, error) {
+		data := make([]byte, size)
+		if _, err := f.ReadAt(data, offset); err != nil && !errors.Is(err, io.EOF) {
+			return nil, err
 		}
-		switch {
-		case took < syncChunkFast && chunkSize < syncChunkMax:
-			chunkSize *= 2
-		case took > syncChunkSlow && chunkSize > syncChunkMin:
-			chunkSize /= 2
+		return data, nil
+	}
+
+	// Fixed parallel chunk size: small enough that one chunk finishes well
+	// inside the agent's 600 s request window even at ~10 KB/s per flow.
+	parallelChunk := syncChunkStart
+	if syncUploadParallel > 1 {
+		// Probe with the first chunk, asking for parallel mode.
+		first := parallelChunk
+		if first > total {
+			first = total
 		}
+		count := int((total + parallelChunk - 1) / parallelChunk)
+		data, err := readChunk(0, first)
+		if err != nil {
+			return err
+		}
+		res, err := sendChunk(0, 0, count, 0, data, true)
+		if err != nil {
+			if errors.Is(err, errChunkUnsupported) {
+				completed = true
+			}
+			return err
+		}
+		if first == total {
+			completed = true
+			return nil
+		}
+		if res.parallelOK {
+			if err := s.uploadChunksParallel(ctx, total, parallelChunk, count, readChunk, sendChunk); err != nil {
+				return err
+			}
+			completed = true
+			return nil
+		}
+		// Old agent: it treated the probe as a sequential first chunk
+		// (offset 0 written). Continue sequentially after it.
+		return s.uploadChunksSequential(ctx, total, first, 1, readChunk, sendChunk, &completed)
+	}
+	return s.uploadChunksSequential(ctx, total, 0, 0, readChunk, sendChunk, &completed)
+}
+
+// syncChunkResult is the outcome of one uploaded chunk.
+type syncChunkResult struct {
+	parallelOK bool
+	took       time.Duration
+}
+
+// syncChunkSender uploads one chunk (with retries).
+type syncChunkSender func(worker, index, count int, offset int64, data []byte, parallel bool) (syncChunkResult, error)
+
+// uploadChunksParallel sends chunks 1..count-1 with syncUploadParallel
+// workers. Any chunk failing (after its own retries) or a cancel stops all.
+func (s *ClusterSyncService) uploadChunksParallel(ctx context.Context, total, chunkSize int64, count int,
+	readChunk func(offset, size int64) ([]byte, error),
+	send syncChunkSender) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+	jobs := make(chan int)
+	var wg sync.WaitGroup
+	var errMu sync.Mutex
+	var firstErr error
+	for w := 0; w < syncUploadParallel; w++ {
+		wg.Add(1)
+		go func(worker int) {
+			defer wg.Done()
+			for index := range jobs {
+				offset := int64(index) * chunkSize
+				size := chunkSize
+				if offset+size > total {
+					size = total - offset
+				}
+				data, err := readChunk(offset, size)
+				if err == nil {
+					_, err = send(worker, index, count, offset, data, true)
+				}
+				if err != nil {
+					errMu.Lock()
+					if firstErr == nil {
+						firstErr = err
+					}
+					errMu.Unlock()
+					cancel()
+					return
+				}
+			}
+		}(w)
+	}
+feed:
+	for index := 1; index < count; index++ {
+		select {
+		case jobs <- index:
+		case <-ctx.Done():
+			break feed
+		}
+	}
+	close(jobs)
+	wg.Wait()
+	if firstErr != nil {
+		return firstErr
+	}
+	if ctx.Err() != nil {
+		return errSyncCancelled
 	}
 	return nil
 }
 
+// uploadChunksSequential is the original one-request-at-a-time protocol
+// with adaptive chunk sizing, starting at offset / index.
+func (s *ClusterSyncService) uploadChunksSequential(ctx context.Context, total, offset int64, index int,
+	readChunk func(offset, size int64) ([]byte, error),
+	send syncChunkSender, completed *bool) error {
+	chunkSize := syncChunkStart
+	for ; offset < total; index++ {
+		if ctx.Err() != nil {
+			return errSyncCancelled
+		}
+		size := chunkSize
+		if offset+size > total {
+			size = total - offset
+		}
+		final := offset+size == total
+		count := index + 2
+		if final {
+			count = index + 1
+		}
+		data, err := readChunk(offset, size)
+		if err != nil {
+			return err
+		}
+		res, err := send(0, index, count, offset, data, false)
+		if err != nil {
+			if errors.Is(err, errChunkUnsupported) {
+				*completed = true
+			}
+			return err
+		}
+		offset += size
+		switch {
+		case res.took < syncChunkFast && chunkSize < syncChunkMax:
+			chunkSize *= 2
+		case res.took > syncChunkSlow && chunkSize > syncChunkMin:
+			chunkSize /= 2
+		}
+	}
+	*completed = true
+	return nil
+}
+
+// stopRemoteChunkUpload asks the target to discard a resumable upload
+// (its .part file). Uses its own context: it runs after a cancel.
+func (s *ClusterSyncService) stopRemoteChunkUpload(node model.ClusterNode, uploadID string) {
+	_ = s.callNodeJSON(node, http.MethodPost, "/api/v2/files/chunkupload/stop", map[string]interface{}{"key": uploadID}, nil, 30*time.Second)
+}
+
 // uploadRemoteFileSingle is the legacy single-request multipart upload.
-func (s *ClusterSyncService) uploadRemoteFileSingle(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
+func (s *ClusterSyncService) uploadRemoteFileSingle(ctx context.Context, node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
 	timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
 	if err != nil {
 		return err
@@ -1226,7 +1482,7 @@ func (s *ClusterSyncService) uploadRemoteFileSingle(node model.ClusterNode, dir,
 			}
 			_ = pw.CloseWithError(err)
 		}()
-		req, err := http.NewRequest(http.MethodPost, targetURL, pr)
+		req, err := http.NewRequestWithContext(ctx, http.MethodPost, targetURL, pr)
 		if err != nil {
 			_ = pr.Close()
 			return 0, nil, err
@@ -1267,18 +1523,18 @@ func (s *ClusterSyncService) uploadRemoteFileSingle(node model.ClusterNode, dir,
 // downloadNodeFile / uploadNodeFile dispatch file transfers by node: the
 // local panel goes over the unix socket, registered nodes use the signed
 // remote calls.
-func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (string, int64, error) {
+func (s *ClusterSyncService) downloadNodeFile(ctx context.Context, node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (string, int64, error) {
 	if isLocalNode(node) {
-		return s.downloadLocalFile(remotePath, maxBytes)
+		return s.downloadLocalFile(ctx, remotePath, maxBytes)
 	}
-	return s.downloadRemoteFile(node, remotePath, maxBytes, progress)
+	return s.downloadRemoteFile(ctx, node, remotePath, maxBytes, progress)
 }
 
-func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
+func (s *ClusterSyncService) uploadNodeFile(ctx context.Context, node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
 	if isLocalNode(node) {
-		return s.uploadLocalFile(dir, fileName, tmpPath, overwrite)
+		return s.uploadLocalFile(ctx, dir, fileName, tmpPath, overwrite)
 	}
-	return s.uploadRemoteFile(node, dir, fileName, tmpPath, overwrite, progress)
+	return s.uploadRemoteFile(ctx, node, dir, fileName, tmpPath, overwrite, progress)
 }
 
 // byteProgress returns a throttled byte-progress callback for a transfer
@@ -1349,7 +1605,7 @@ func (p *progressWriter) Write(b []byte) (int, error) {
 // socket and streams it to a temp file (same 200 MB cap as the remote path).
 // The agent answers errors as a JSON envelope even with HTTP 200, so a JSON
 // content type is parsed as an error instead of being saved as file bytes.
-func (s *ClusterSyncService) downloadLocalFile(remotePath string, maxBytes int64) (string, int64, error) {
+func (s *ClusterSyncService) downloadLocalFile(ctx context.Context, remotePath string, maxBytes int64) (string, int64, error) {
 	tmp, err := os.CreateTemp("", "cluster-sync-*")
 	if err != nil {
 		return "", 0, err
@@ -1357,7 +1613,12 @@ func (s *ClusterSyncService) downloadLocalFile(remotePath string, maxBytes int64
 	tmpPath := tmp.Name()
 	_ = tmp.Close()
 	targetURL := "http://localhost/api/v2/files/download?path=" + url.QueryEscape(remotePath)
-	resp, err := localAgentHTTPClient(2 * time.Hour).Get(targetURL)
+	getReq, err := http.NewRequestWithContext(ctx, http.MethodGet, targetURL, nil)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return "", 0, err
+	}
+	resp, err := localAgentHTTPClient(2 * time.Hour).Do(getReq)
 	if err != nil {
 		_ = os.Remove(tmpPath)
 		return "", 0, err
@@ -1396,7 +1657,7 @@ func (s *ClusterSyncService) downloadLocalFile(remotePath string, maxBytes int64
 
 // uploadLocalFile uploads a temp file to this panel's own agent over the
 // unix socket (multipart, streamed — the file is never buffered in memory).
-func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, overwrite bool) error {
+func (s *ClusterSyncService) uploadLocalFile(ctx context.Context, dir, fileName, tmpPath string, overwrite bool) error {
 	f, err := os.Open(tmpPath)
 	if err != nil {
 		return err
@@ -1413,7 +1674,7 @@ func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, over
 		}
 		_ = mw.Close()
 	}()
-	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "http://localhost/api/v2/files/upload", pr)
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost/api/v2/files/upload", pr)
 	if err != nil {
 		return err
 	}
@@ -1449,14 +1710,14 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 			return s.transferDir(source, target, res, opts)
 		}
 		opts.step("download from " + source.Name)
-		tmpPath, _, err := s.downloadNodeFile(source, res.Key, maxSyncFileBytes, opts.byteProgress())
+		tmpPath, _, err := s.downloadNodeFile(opts.ctx(), source, res.Key, maxSyncFileBytes, opts.byteProgress())
 		if err != nil {
 			return model.ClusterSyncActionFailed, "download from source failed: " + truncateErr(err.Error())
 		}
 		defer os.Remove(tmpPath)
 		dir := opts.fileTargetDir(res)
 		opts.step("upload to " + target.Name)
-		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite, opts.byteProgress()); err != nil {
+		if err := s.uploadNodeFile(opts.ctx(), target, dir, path.Base(res.Key), tmpPath, opts.Overwrite, opts.byteProgress()); err != nil {
 			return model.ClusterSyncActionFailed, "upload to target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -1556,15 +1817,36 @@ func (s *ClusterSyncService) ensureNodeDir(node model.ClusterNode, dir string) e
 // moveArchive downloads an archive from one node and uploads it into
 // syncTmpDir on another, removing the master's temp copy.
 func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPath string, opts syncTransferOpts) (string, error) {
+	return s.moveArchiveWith(source, target, srcPath, opts, false)
+}
+
+// moveArchiveWith optionally gzips the archive on the master before the
+// upload (used for docker save tarballs: uncompressed layers usually shrink
+// 50-70%, and `docker load` reads gzip directly, so the slow master→target
+// leg carries far fewer bytes and the target needs no extra step).
+func (s *ClusterSyncService) moveArchiveWith(source, target model.ClusterNode, srcPath string, opts syncTransferOpts, compress bool) (string, error) {
 	opts.step("download from " + source.Name)
-	tmpPath, _, err := s.downloadNodeFile(source, srcPath, maxSyncArchiveBytes, opts.byteProgress())
+	tmpPath, _, err := s.downloadNodeFile(opts.ctx(), source, srcPath, maxSyncArchiveBytes, opts.byteProgress())
 	if err != nil {
 		return "", fmt.Errorf("download from source failed: %s", truncateErr(err.Error()))
 	}
 	defer os.Remove(tmpPath)
 	name := path.Base(srcPath)
+	if compress {
+		opts.step("compress on master")
+		gzPath, gzErr := gzipFile(opts.ctx(), tmpPath, opts.byteProgress())
+		if gzErr != nil {
+			if opts.cancelled() {
+				return "", errSyncCancelled
+			}
+			return "", fmt.Errorf("compress on master failed: %s", truncateErr(gzErr.Error()))
+		}
+		defer os.Remove(gzPath)
+		tmpPath = gzPath
+		name += ".gz"
+	}
 	opts.step("upload to " + target.Name)
-	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true, opts.byteProgress()); err != nil {
+	if err := s.uploadNodeFile(opts.ctx(), target, syncTmpDir, name, tmpPath, true, opts.byteProgress()); err != nil {
 		return "", fmt.Errorf("upload to target failed: %s", truncateErr(err.Error()))
 	}
 	return path.Join(syncTmpDir, name), nil
@@ -1587,8 +1869,9 @@ func (s *ClusterSyncService) transferDir(source, target model.ClusterNode, res d
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
 	}
-	defer s.removeNodeFile(source, srcArchive)
-	if err := s.waitNodeTask(source, taskID, syncLongTaskTimeout); err != nil {
+	compressTask := taskID
+	defer s.cleanupNodeOutput(opts, source, srcArchive, compressTask, syncLongTaskTimeout)
+	if err := s.waitNodeTaskCtx(opts.ctx(), source, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
 	}
 	dstArchive, err := s.moveArchive(source, target, srcArchive, opts)
@@ -1604,7 +1887,7 @@ func (s *ClusterSyncService) transferDir(source, target model.ClusterNode, res d
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
+	if err := s.waitNodeTaskCtx(opts.ctx(), target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
 	}
 	return model.ClusterSyncActionCreate, ""
@@ -1631,11 +1914,12 @@ func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "image export on source failed: " + truncateErr(err.Error())
 	}
-	defer s.removeNodeFile(source, srcTar)
-	if err := s.waitNodeTask(source, taskID, syncShortTaskTimeout); err != nil {
+	exportTask := taskID
+	defer s.cleanupNodeOutput(opts, source, srcTar, exportTask, syncShortTaskTimeout)
+	if err := s.waitNodeTaskCtx(opts.ctx(), source, taskID, syncShortTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "image export on source failed: " + truncateErr(err.Error())
 	}
-	dstTar, err := s.moveArchive(source, target, srcTar, opts)
+	dstTar, err := s.moveArchiveWith(source, target, srcTar, opts, syncCompressImages)
 	if err != nil {
 		return model.ClusterSyncActionFailed, err.Error()
 	}
@@ -1647,7 +1931,7 @@ func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "image import on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, syncShortTaskTimeout); err != nil {
+	if err := s.waitNodeTaskCtx(opts.ctx(), target, taskID, syncShortTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "image import on target failed: " + truncateErr(err.Error())
 	}
 	if len(tags) > 1 {
@@ -1726,7 +2010,7 @@ func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res d
 	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 5*time.Minute); err != nil {
 		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
+	if err := s.waitNodeTaskCtx(opts.ctx(), target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
 	}
 	// Data: back up on the source and restore on the target.
@@ -1769,7 +2053,7 @@ func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res d
 	}, nil, 5*time.Minute); err != nil {
 		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
+	if err := s.waitNodeTaskCtx(opts.ctx(), target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
 	}
 	return model.ClusterSyncActionCreate, ""
@@ -1838,8 +2122,18 @@ func (s *ClusterSyncService) failStaleTasks() {
 var syncExecuteAsync = true
 
 func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.ClusterSyncExecuteReq, source model.ClusterNode, byKey map[string]dto.ClusterSyncResource) {
-	opts := syncTransferOpts{Path: req.Path, TargetPath: req.TargetPath, Overwrite: req.OverwriteConflicts, AppDBHost: req.AppDBHost}
-	succeeded, skipped, failed := 0, 0, 0
+	ctx, cancel := context.WithCancel(context.Background())
+	syncRunning.Lock()
+	syncRunning.cancel[task.ID] = cancel
+	syncRunning.Unlock()
+	defer func() {
+		syncRunning.Lock()
+		delete(syncRunning.cancel, task.ID)
+		syncRunning.Unlock()
+		cancel()
+	}()
+	opts := syncTransferOpts{Path: req.Path, TargetPath: req.TargetPath, Overwrite: req.OverwriteConflicts, AppDBHost: req.AppDBHost, Ctx: ctx}
+	succeeded, skipped, failed, cancelledItems := 0, 0, 0, 0
 	var itemLabel string
 	opts.Step = func(stage string) {
 		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
@@ -1866,6 +2160,11 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 		failedBefore := failed
 		for _, key := range req.ResourceKeys {
 			start := time.Now()
+			if opts.cancelled() {
+				_ = s.record(task.ID, req.Kind, key, byKey[key].Name, source.ID, targetID, target.Name, model.ClusterSyncActionCancelled, "cancelled by user", 0)
+				cancelledItems++
+				continue
+			}
 			res, ok := byKey[key]
 			if !ok {
 				_ = s.record(task.ID, req.Kind, key, "", source.ID, targetID, target.Name, model.ClusterSyncActionFailed, "resource not found on source node", time.Since(start).Milliseconds())
@@ -1889,11 +2188,16 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 			}
 			itemLabel = res.Name + " → " + target.Name
 			action, reason = s.transferOne(req.Kind, source, target, res, opts)
+			if action == model.ClusterSyncActionFailed && opts.cancelled() {
+				action, reason = model.ClusterSyncActionCancelled, "cancelled by user; temporary files removed"
+			}
 			switch action {
 			case model.ClusterSyncActionCreate:
 				succeeded++
 			case model.ClusterSyncActionSkipSame, model.ClusterSyncActionSkipConflict:
 				skipped++
+			case model.ClusterSyncActionCancelled:
+				cancelledItems++
 			default:
 				failed++
 			}
@@ -1910,12 +2214,14 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 		}
 	}
 	status := model.ClusterSyncTaskSuccess
-	if failed > 0 && (succeeded > 0 || skipped > 0) {
+	if cancelledItems > 0 {
+		status = model.ClusterSyncTaskCancelled
+	} else if failed > 0 && (succeeded > 0 || skipped > 0) {
 		status = model.ClusterSyncTaskPartial
 	} else if failed > 0 {
 		status = model.ClusterSyncTaskFailed
 	}
-	task.Total = succeeded + skipped + failed
+	task.Total = succeeded + skipped + failed + cancelledItems
 	_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
 		"status": status, "total": task.Total, "step": "",
 		"progress_done": 0, "progress_total": 0, "progress_rate": 0,

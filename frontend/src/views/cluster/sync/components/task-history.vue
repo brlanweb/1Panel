@@ -33,10 +33,18 @@
             <el-table-column :label="$t('cluster.createdAt')" width="170">
                 <template #default="{ row }">{{ row.createdAt ? dateFormatSimple(row.createdAt) : '—' }}</template>
             </el-table-column>
-            <el-table-column :label="$t('commons.table.operate')" width="90" fixed="right">
+            <el-table-column :label="$t('commons.table.operate')" width="150" fixed="right">
                 <template #default="{ row }">
                     <el-button link type="primary" @click="progressRef.open(row.id, row)">
                         {{ $t('cluster.taskDetail') }}
+                    </el-button>
+                    <el-button
+                        v-if="row.status === 'running' && ['file', 'image'].includes(row.kind)"
+                        link
+                        type="danger"
+                        @click="onCancel(row)"
+                    >
+                        {{ $t('cluster.cancelTask') }}
                     </el-button>
                 </template>
             </el-table-column>
@@ -48,10 +56,24 @@
 <script lang="ts" setup>
 import { onBeforeUnmount, reactive, ref, watch } from 'vue';
 import i18n from '@/lang';
-import { searchClusterSyncTasks } from '@/api/modules/cluster';
+import { cancelClusterSyncTask, searchClusterSyncTasks } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
 import { dateFormatSimple } from '@/utils/date';
+import { ElMessageBox } from 'element-plus';
+import { MsgSuccess } from '@/utils/message';
 import TaskProgress from './task-progress.vue';
+
+const onCancel = (row: Cluster.SyncTask) => {
+    ElMessageBox.confirm(i18n.global.t('cluster.cancelTaskConfirm'), i18n.global.t('cluster.cancelTask'), {
+        confirmButtonText: i18n.global.t('commons.button.confirm'),
+        cancelButtonText: i18n.global.t('commons.button.cancel'),
+        type: 'warning',
+    }).then(async () => {
+        await cancelClusterSyncTask(row.id);
+        MsgSuccess(i18n.global.t('cluster.cancelTaskSubmitted'));
+        search(true);
+    });
+};
 
 const visible = ref(false);
 const loading = ref(false);

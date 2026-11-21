@@ -116,6 +116,27 @@ func (b *BaseApi) ListClusterSyncTaskRecords(c *gin.Context) {
 }
 
 // @Tags Cluster Sync
+// @Summary Cancel a running sync task and remove its temporary files
+// @Accept json
+// @Param request body dto.OperateByID true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/tasks/cancel [post]
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"取消资源同步任务 [id]","formatEN":"cancel resource sync task [id]"}
+func (b *BaseApi) CancelClusterSyncTask(c *gin.Context) {
+	var req dto.OperateByID
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	if err := clusterSyncService.CancelTask(req.ID); err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.Success(c)
+}
+
+// @Tags Cluster Sync
 // @Summary List database services available on every given node (app transfer)
 // @Accept json
 // @Param request body dto.ClusterSyncAppDBReq true "request"

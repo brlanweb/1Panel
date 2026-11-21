@@ -59,6 +59,10 @@ export const executeClusterSync = (req: Cluster.SyncExecuteReq) => {
     return http.postLocalNode<Cluster.SyncExecuteRes>(`/core/cluster/sync/execute`, req, 60000);
 };
 
+export const cancelClusterSyncTask = (id: number) => {
+    return http.postLocalNode(`/core/cluster/sync/tasks/cancel`, { id });
+};
+
 export const searchClusterSyncTasks = (req: Cluster.SyncTaskSearch) => {
     return http.postLocalNode<ResPage<Cluster.SyncTask>>(`/core/cluster/sync/tasks/search`, req);
 };

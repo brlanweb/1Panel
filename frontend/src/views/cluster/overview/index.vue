@@ -94,47 +94,19 @@
                     <!-- Right: summary cards of the selected node -->
                     <el-col :span="18">
                         <div v-if="selectedNode">
-                            <el-row :gutter="12" class="mb-4">
-                                <el-col :span="8">
-                                    <el-card shadow="hover">
-                                        <el-statistic :title="$t('cluster.agent')" :value="0" />
-                                        <el-text type="info" size="small">
-                                            {{ $t('cluster.agentNoData') }}
-                                        </el-text>
-                                    </el-card>
-                                </el-col>
-                                <el-col :span="8">
-                                    <el-card shadow="hover">
-                                        <!-- Header counts come from the same live queries as
-                                        the tables below (res.data.total), never from the
-                                        aggregate snapshot, which can be stale or 0 for
-                                        the master node. null = this batch failed to
-                                        refresh: show —, not a stale-looking number. -->
-                                        <el-statistic
-                                            :title="$t('cluster.appCount')"
-                                            :value="selectedNode.appCount ?? '—'"
-                                        />
-                                        <el-text v-if="selectedNode.appCount === null" type="warning" size="small">
-                                            {{ $t('cluster.countsNotRefreshed') }}
-                                        </el-text>
-                                    </el-card>
-                                </el-col>
-                                <el-col :span="8">
-                                    <el-card shadow="hover">
-                                        <el-statistic
-                                            :title="$t('cluster.websiteCount')"
-                                            :value="selectedNode.websiteCount ?? '—'"
-                                        />
-                                        <el-text
-                                            v-if="selectedNode.websiteCount === null"
-                                            type="warning"
-                                            size="small"
-                                        >
-                                            {{ $t('cluster.countsNotRefreshed') }}
-                                        </el-text>
-                                    </el-card>
-                                </el-col>
-                            </el-row>
+                            <!-- Three equal-height stat cards: every card has the same
+                            title / number / note structure, and the note line is
+                            always rendered (empty or not) so a hint under one
+                            number can never make that card taller than the rest. -->
+                            <div class="stat-cards mb-4">
+                                <el-card v-for="stat in statCards" :key="stat.key" shadow="hover" class="stat-card">
+                                    <div class="stat-title">{{ stat.title }}</div>
+                                    <div class="stat-value">{{ stat.value }}</div>
+                                    <div class="stat-note" :class="{ 'stat-note-warn': stat.warn }">
+                                        {{ stat.note || '\u00a0' }}
+                                    </div>
+                                </el-card>
+                            </div>
 
                             <el-card shadow="never" class="mb-4">
                                 <template #header>{{ $t('menu.app') }}</template>
@@ -150,7 +122,10 @@
                                         </template>
                                     </el-table-column>
                                 </el-table>
-                                <el-empty v-if="!apps.length && !appsLoading" :description="$t('commons.msg.noneData')" />
+                                <el-empty
+                                    v-if="!apps.length && !appsLoading"
+                                    :description="$t('commons.msg.noneData')"
+                                />
                             </el-card>
 
                             <el-card shadow="never" class="mb-4">
@@ -197,7 +172,10 @@
                                         </template>
                                     </el-table-column>
                                 </el-table>
-                                <el-empty v-if="!certs.length && !certsLoading" :description="$t('commons.msg.noneData')" />
+                                <el-empty
+                                    v-if="!certs.length && !certsLoading"
+                                    :description="$t('commons.msg.noneData')"
+                                />
                             </el-card>
 
                             <el-card shadow="never" class="mb-4">
@@ -369,6 +347,7 @@ import { searchWebsites } from '@/api/modules/website';
 import { searchSSL } from '@/api/modules/website';
 import { searchMysqlDBs, searchPostgresqlDBs, listDatabases } from '@/api/modules/database';
 import { searchCronjobPage, handleOnce } from '@/api/modules/cronjob';
+import { pageAgents } from '@/api/modules/ai';
 import { listRunningServices, readSystemLogs } from '@/api/modules/log';
 import { loadCurrentInfo } from '@/api/modules/dashboard';
 import { App } from '@/api/interface/app';
@@ -399,6 +378,7 @@ interface OverviewNode {
     memTotal: number;
     appCount: number | null;
     websiteCount: number | null;
+    agentCount: number | null;
     groupId: number;
     fetchError: string;
 }
@@ -450,6 +430,32 @@ const containerLogNode = ref('');
 const backupRef = ref();
 
 const selectedNode = computed(() => nodes.value.find((item) => item.key === selectedKey.value));
+const countText = (value: number | null) => (value === null || value < 0 ? '—' : String(value));
+const statCards = computed(() => {
+    const node = selectedNode.value;
+    const t = (key: string) => i18n.global.t(key);
+    const notRefreshed = t('cluster.countsNotRefreshed');
+    const counts = [node?.agentCount ?? null, node?.appCount ?? null, node?.websiteCount ?? null];
+    return [
+        { key: 'agent', title: t('cluster.agent'), value: countText(counts[0]) },
+        { key: 'app', title: t('cluster.appCount'), value: countText(counts[1]) },
+        { key: 'website', title: t('cluster.websiteCount'), value: countText(counts[2]) },
+    ].map((card, idx) => {
+        const failed = counts[idx] === null || (counts[idx] as number) < 0;
+        return { ...card, warn: failed, note: failed ? notRefreshed : '' };
+    });
+});
+// The aggregate's master-panel counts (null when the aggregate failed).
+const localSnap = (aggRes: PromiseSettledResult<any>) => {
+    if (aggRes.status !== 'fulfilled' || aggRes.value?.data?.localError) {
+        return { appCount: null as number | null, websiteCount: null as number | null };
+    }
+    const local = aggRes.value?.data?.local;
+    return {
+        appCount: typeof local?.appCount === 'number' && local.appCount >= 0 ? local.appCount : null,
+        websiteCount: typeof local?.websiteCount === 'number' && local.websiteCount >= 0 ? local.websiteCount : null,
+    };
+};
 const filteredNodes = computed(() => {
     return nodes.value.filter((item) => {
         if (groupFilter.value && item.groupId !== groupFilter.value) return false;
@@ -519,8 +525,9 @@ const loadAll = async () => {
                 // and a failed refresh kept a stale number). They are
                 // filled by loadSelectedNodeData from the same live
                 // queries as the tables below; null means not refreshed.
-                appCount: null,
-                websiteCount: null,
+                appCount: localSnap(aggRes).appCount,
+                websiteCount: localSnap(aggRes).websiteCount,
+                agentCount: null,
                 groupId: 0,
                 fetchError: '',
             });
@@ -535,8 +542,9 @@ const loadAll = async () => {
                 cpuTotal: 0,
                 memUsedPercent: 0,
                 memTotal: 0,
-                appCount: null,
-                websiteCount: null,
+                appCount: localSnap(aggRes).appCount,
+                websiteCount: localSnap(aggRes).websiteCount,
+                agentCount: null,
                 groupId: 0,
                 fetchError: '',
             });
@@ -553,12 +561,14 @@ const loadAll = async () => {
                     cpuTotal: snap.cpuTotal || 0,
                     memUsedPercent: snap.memUsedPercent || 0,
                     memTotal: snap.memTotal || 0,
-                    // Snapshot counts are not displayed: they come from a
-                    // different query path (all:true / persisted row) than
-                    // the tables below, so they can disagree with them.
-                    // loadSelectedNodeData fills them from the live totals.
-                    appCount: null,
-                    websiteCount: null,
+                    // Server-side counts from the aggregate refresh (same
+                    // query bodies as the tables below). The live totals
+                    // in loadSelectedNodeData overwrite them when they
+                    // succeed; a failed live query keeps these instead of
+                    // falling back to 0.
+                    appCount: snap.fetchError ? null : snap.appCount,
+                    websiteCount: snap.fetchError ? null : snap.websiteCount,
+                    agentCount: null,
                     groupId: groupIds[snap.nodeId] || 0,
                     fetchError: snap.fetchError || '',
                 });
@@ -592,7 +602,7 @@ const loadSelectedNodeData = async () => {
     databasesLoading.value = true;
     cronjobsLoading.value = true;
     try {
-        const [appsRes, sitesRes, certsRes, cronRes] = await Promise.allSettled([
+        const [appsRes, sitesRes, certsRes, cronRes, agentsRes] = await Promise.allSettled([
             searchAppInstalled({ page: 1, pageSize: 8 }, param),
             searchWebsites(
                 { page: 1, pageSize: 8, name: '', orderBy: 'created_at', order: 'descending', websiteGroupId: 0 },
@@ -603,6 +613,7 @@ const loadSelectedNodeData = async () => {
                 { page: 1, pageSize: 8, info: '', groupIDs: [], orderBy: 'createdAt', order: 'null' },
                 param,
             ),
+            pageAgents({ page: 1, pageSize: 1, info: '' }, param),
         ]);
         apps.value = appsRes.status === 'fulfilled' ? appsRes.value.data.items || [] : [];
         websites.value = sitesRes.status === 'fulfilled' ? sitesRes.value.data.items || [] : [];
@@ -611,8 +622,13 @@ const loadSelectedNodeData = async () => {
         // Header counts use the totals of this same batch of live queries,
         // so the number always matches the tables below. A failed query
         // leaves null ("—" + 未刷新) instead of a stale snapshot value.
-        node.appCount = appsRes.status === 'fulfilled' ? appsRes.value.data.total : null;
-        node.websiteCount = sitesRes.status === 'fulfilled' ? sitesRes.value.data.total : null;
+        // A successful live total wins; a failed one keeps the server-side
+        // aggregate count (never silently 0).
+        const liveTotal = (res: PromiseSettledResult<any>) =>
+            res.status === 'fulfilled' && typeof res.value?.data?.total === 'number' ? res.value.data.total : null;
+        node.appCount = liveTotal(appsRes) ?? node.appCount;
+        node.websiteCount = liveTotal(sitesRes) ?? node.websiteCount;
+        node.agentCount = liveTotal(agentsRes);
         await loadDatabases();
     } finally {
         appsLoading.value = false;
@@ -634,8 +650,7 @@ const loadDatabases = async () => {
             dbOptions.value = [];
             dbInstance.value = '';
             try {
-                const type =
-                    dbType.value === 'mysql' ? 'mysql,mariadb,mysql-cluster' : 'postgresql,postgresql-cluster';
+                const type = dbType.value === 'mysql' ? 'mysql,mariadb,mysql-cluster' : 'postgresql,postgresql-cluster';
                 const res = await listDatabases(type, param);
                 dbOptions.value = res.data || [];
             } catch {
@@ -806,6 +821,40 @@ onMounted(() => {
 
 .mt-2 {
     margin-top: 8px;
+}
+
+.stat-cards {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+    align-items: stretch;
+}
+
+.stat-card {
+    height: 100%;
+}
+
+.stat-title {
+    font-size: 13px;
+    color: var(--el-text-color-secondary);
+}
+
+.stat-value {
+    font-size: 26px;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-top: 6px;
+}
+
+.stat-note {
+    font-size: 12px;
+    line-height: 18px;
+    min-height: 18px;
+    color: var(--el-text-color-secondary);
+}
+
+.stat-note-warn {
+    color: var(--el-color-warning);
 }
 
 .node-list-card {

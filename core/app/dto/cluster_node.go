@@ -92,4 +92,8 @@ type ClusterAggregateOverview struct {
 	TotalApps     int                   `json:"totalApps"`
 	TotalWebsites int                   `json:"totalWebsites"`
 	Nodes         []ClusterNodeSnapshot `json:"nodes"`
+	// Local is the master panel itself, counted through its own agent
+	// socket. LocalError is set when that count failed (-1 counts).
+	Local      ClusterNodeSnapshot `json:"local"`
+	LocalError string              `json:"localError"`
 }

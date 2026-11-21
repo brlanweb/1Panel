@@ -495,8 +495,6 @@ const message = {
         clusterOverview: 'Cluster Overview',
         clusterNodes: 'Node Management',
         clusterPanels: 'Panel Management',
-        clusterWaf: 'WAF Overview',
-        clusterWafWebsites: 'WAF Website Settings',
         clusterSync: 'Resource Sync',
         clusterMonitor: 'Website Monitor',
         clusterDbReplication: 'Database Sync',
@@ -574,7 +572,7 @@ const message = {
         type: 'Type',
         jumpToRemote: 'Open Remote WAF Page',
         schemaPendingAlert:
-            'WAF mode / strength / rate-limit field names are pending confirmation against a real node\'s 1pwaf config; settings are read-only here.',
+            "WAF mode / strength / rate-limit field names are pending confirmation against a real node's 1pwaf config; settings are read-only here.",
         disabled: 'Disabled',
         syncKindFile: 'File',
         syncKindImage: 'Image',
@@ -633,10 +631,12 @@ const message = {
         dbReplReplicaDatabase: 'Replica Database',
         dbReplMasterHost: 'Master Host',
         dbReplMasterPort: 'Master Port',
-        dbReplMasterHostHelper: 'Address the replica uses to reach the master database (hostname or IP of the master panel address); the port is the published database port.',
+        dbReplMasterHostHelper:
+            'Address the replica uses to reach the master database (hostname or IP of the master panel address); the port is the published database port.',
         dbReplUsername: 'Replication User',
         dbReplPassword: 'Replication Password',
-        dbReplPasswordHelper: 'Create this account manually on the master first (see manual steps on the detail page), then enter the same password here.',
+        dbReplPasswordHelper:
+            'Create this account manually on the master first (see manual steps on the detail page), then enter the same password here.',
         dbReplAsyncNote:
             'One-way master → replica async replication: the replica lags the master by seconds; it is not strongly consistent, and reading the replica may return stale data. The panel cannot read replica replication status, so lag shows as —; verify with SHOW REPLICA STATUS / pg_stat_subscription.',
         dbReplStatus: 'Status',
@@ -645,7 +645,8 @@ const message = {
         dbReplDelay: 'Lag',
         dbReplDelayUnknown: 'no panel API can read replica replication status',
         dbReplDetail: 'Detail',
-        dbReplDeleteHelper: 'Delete topology ({0})? Only the panel-side registration is removed; master/replica data and replication config are untouched.',
+        dbReplDeleteHelper:
+            'Delete topology ({0})? Only the panel-side registration is removed; master/replica data and replication config are untouched.',
         dbReplPreflight: 'Preflight',
         dbReplRunPreflight: 'Run Preflight',
         dbReplConfigure: 'Configure Master',
@@ -653,19 +654,24 @@ const message = {
             'Writes replication startup parameters and restarts the master and replica instances (MySQL: server-id / binlog / GTID; PostgreSQL: wal_level=logical). Expect a brief outage; use a maintenance window.',
         dbReplConfigureConfirm: 'Write replication config and restart the master and replica database instances?',
         dbReplSnapshotStart: 'Start Snapshot',
-        dbReplSnapshotHelper: 'Backs up on the master, transfers to the replica, restores, and flips the replica to read-only. Large databases take a while; keep the page open.',
+        dbReplSnapshotHelper:
+            'Backs up on the master, transfers to the replica, restores, and flips the replica to read-only. Large databases take a while; keep the page open.',
         dbReplManualSteps: 'Manual Steps',
-        dbReplManualStepsHelper: 'The panel cannot run these steps (no matching API). Run them in order by hand, then tick each one off.',
+        dbReplManualStepsHelper:
+            'The panel cannot run these steps (no matching API). Run them in order by hand, then tick each one off.',
         dbReplStartReplication: 'Start Replication',
         dbReplConfirmStarted: 'I ran it and replication is up',
         dbReplConfirmStartedHelper:
             'Run the SQL above on the replica first, verify with SHOW REPLICA STATUS (MySQL) or pg_stat_subscription (PostgreSQL), then click this button. The panel cannot verify it automatically.',
         dbReplRefresh: 'Refresh Status',
         dbReplFailover: 'Failover',
-        dbReplFailoverHelper: 'Manually promote the replica to master and re-point other replicas of the same old master at the new master. Manual promotion only; no automatic switchover.',
-        dbReplFailoverConfirm: 'Promote replica ({0}) to master? The old master becomes a replica afterwards and needs replication rebuilt.',
+        dbReplFailoverHelper:
+            'Manually promote the replica to master and re-point other replicas of the same old master at the new master. Manual promotion only; no automatic switchover.',
+        dbReplFailoverConfirm:
+            'Promote replica ({0}) to master? The old master becomes a replica afterwards and needs replication rebuilt.',
         dbReplFailoverReason: 'Reason',
-        dbReplFailoverSuggested: 'Master is unreachable; failover is suggested. The panel only detects and alerts; it never switches automatically.',
+        dbReplFailoverSuggested:
+            'Master is unreachable; failover is suggested. The panel only detects and alerts; it never switches automatically.',
         dbReplLastError: 'Last Error',
         dbReplLastChecked: 'Last Checked',
         dbReplLastConfirmed: 'Last Confirmed Running',
@@ -689,10 +695,12 @@ const message = {
         cores: 'cores',
         restartUnsupported:
             'There is no public API in the open-source build to restart a remote panel; use the node itself to restart it.',
-        terminalNodeOffline: 'This node is currently offline; the terminal may fail to connect. Switch back to the master node to check.',
+        terminalNodeOffline:
+            'This node is currently offline; the terminal may fail to connect. Switch back to the master node to check.',
         terminalDisconnected: 'Terminal connection lost',
         terminalReconnect: 'Reconnect',
-        terminalReconnectHelper: 'If it keeps dropping, check the node is online and the remote panel is not too old, or switch back to the master node.',
+        terminalReconnectHelper:
+            'If it keeps dropping, check the node is online and the remote panel is not too old, or switch back to the master node.',
         websiteType: 'Type',
         sslProvider: 'Issuer',
         dbUsername: 'Username',
@@ -703,6 +711,9 @@ const message = {
         selectWebsite: 'Select a website',
         monitorNotEnabled: 'Website monitoring is not enabled. Enable it now.',
         monitorEnableNow: 'Access logs start recording after enabling; statistics are built from the logs.',
+        monitorClearConfirm:
+            'Clear the access log of {0}? All statistics of this site will be lost and cannot be recovered.',
+        monitorNoWebsite: 'This node has no website yet. Create a website on this node first.',
         monitorDataWindow:
             'Statistics are based on the latest {0} access-log lines (the site log has {1} lines in total) and only cover the recent period, not the full history.',
         monitorOverview: 'Overview',
@@ -732,11 +743,13 @@ const message = {
         monitorAvgResp: 'Avg Response Time',
         monitorErrors: 'Error Requests',
         monitorCount: 'Count',
-        monitorLoadError: 'Failed to load monitoring data. Check the node connection and whether the website log is enabled.',
+        monitorLoadError:
+            'Failed to load monitoring data. Check the node connection and whether the website log is enabled.',
         monitorLoadErrorTitle: 'Failed to load monitoring data',
         monitorRealtimeReqs: 'Realtime Requests (1 min)',
         monitorRealtimeTraffic: 'Realtime Traffic (1 min)',
-        monitorRealtimeNote: 'Realtime figures come from log lines loaded within the last minute, within the 2000-line window only.',
+        monitorRealtimeNote:
+            'Realtime figures come from log lines loaded within the last minute, within the 2000-line window only.',
         monitorRankUrl: 'URL Ranking',
         monitorRankReferer: 'Referer Ranking',
         monitorRankSource: 'Source',

@@ -13,24 +13,18 @@
                 <el-card shadow="never" class="mb-4">
                     <el-form :inline="true">
                         <el-form-item :label="$t('cluster.sourceNode')">
-                            <el-select
-                                v-model="sourceNodeId"
-                                class="p-w-200"
-                                :placeholder="$t('cluster.sourceNode')"
-                                @change="onSourceChange"
-                                clearable
-                            >
+                            <el-select v-model="sourceKey" class="p-w-200" :placeholder="$t('cluster.sourceNode')">
                                 <el-option
                                     v-for="item in onlineNodes"
-                                    :key="item.id"
+                                    :key="nodeKey(item.id)"
                                     :label="item.name"
-                                    :value="item.id"
+                                    :value="nodeKey(item.id)"
                                 />
                             </el-select>
                         </el-form-item>
                         <el-form-item :label="$t('cluster.targetNodes')">
                             <el-select
-                                v-model="targetNodeIds"
+                                v-model="targetKeys"
                                 class="p-w-300"
                                 multiple
                                 collapse-tags
@@ -39,9 +33,9 @@
                             >
                                 <el-option
                                     v-for="item in targetOptions"
-                                    :key="item.id"
+                                    :key="nodeKey(item.id)"
                                     :label="item.name"
-                                    :value="item.id"
+                                    :value="nodeKey(item.id)"
                                 />
                             </el-select>
                         </el-form-item>
@@ -88,10 +82,23 @@
                         <el-table-column type="selection" width="48" :selectable="(row) => !isDirRow(row)" />
                         <el-table-column :label="$t('cluster.resourceName')" prop="name" min-width="200px">
                             <template #default="{ row }">
-                                <el-link v-if="isDirRow(row)" type="primary" :underline="false" @click="openDir(row)">
-                                    📁 {{ row.name }}
-                                </el-link>
-                                <span v-else>{{ row.name }}</span>
+                                <div class="resource-name">
+                                    <el-icon v-if="isDirRow(row)" class="resource-icon resource-icon-dir">
+                                        <Folder />
+                                    </el-icon>
+                                    <el-icon v-else-if="activeKind === 'file'" class="resource-icon">
+                                        <Document />
+                                    </el-icon>
+                                    <el-link
+                                        v-if="isDirRow(row)"
+                                        type="primary"
+                                        underline="never"
+                                        @click="openDir(row)"
+                                    >
+                                        {{ row.name }}
+                                    </el-link>
+                                    <span v-else>{{ row.name }}</span>
+                                </div>
                             </template>
                         </el-table-column>
                         <el-table-column :label="$t('cluster.resourceDetail')" prop="detail" min-width="200px" />
@@ -219,7 +226,8 @@
 </template>
 
 <script lang="ts" setup>
-import { computed, onMounted, ref } from 'vue';
+import { computed, onMounted, ref, watch } from 'vue';
+import { Document, Folder } from '@element-plus/icons-vue';
 import i18n from '@/lang';
 import {
     executeClusterSync,
@@ -242,8 +250,23 @@ const recordLoading = ref(false);
 
 const activeKind = ref<Cluster.SyncKind>('file');
 const allNodes = ref<Cluster.NodeInfo[]>([]);
-const sourceNodeId = ref<number | undefined>(undefined);
-const targetNodeIds = ref<number[]>([]);
+// Node selection uses string keys ('local', 'node-3'), never the raw ids:
+// the master node's id is 0, and a numeric 0 is falsy everywhere (v-if,
+// `|| undefined`, clearable selects), which is how the master node kept
+// disappearing from / failing to stick in the source selector.
+const LOCAL_KEY = 'local';
+const nodeKey = (id: number) => (id === 0 ? LOCAL_KEY : `node-${id}`);
+const keyToId = (key: string): number | undefined => {
+    if (key === LOCAL_KEY) return 0;
+    const id = Number(String(key || '').replace(/^node-/, ''));
+    return Number.isInteger(id) && id > 0 ? id : undefined;
+};
+const sourceKey = ref<string>(LOCAL_KEY);
+const targetKeys = ref<string[]>([]);
+const sourceNodeId = computed(() => keyToId(sourceKey.value));
+const targetNodeIds = computed(() =>
+    targetKeys.value.map((key) => keyToId(key)).filter((id): id is number => id !== undefined),
+);
 const dirPath = ref('/');
 const resources = ref<Cluster.SyncResource[]>([]);
 const selectedResources = ref<Cluster.SyncResource[]>([]);
@@ -294,7 +317,7 @@ const goParentDir = () => {
     dirPath.value = idx <= 0 ? '/' : trimmed.slice(0, idx);
     searchResources();
 };
-const targetOptions = computed(() => onlineNodes.value.filter((node) => node.id !== sourceNodeId.value));
+const targetOptions = computed(() => onlineNodes.value.filter((node) => nodeKey(node.id) !== sourceKey.value));
 const canPreview = computed(
     () => sourceNodeId.value !== undefined && targetNodeIds.value.length > 0 && selectedResources.value.length > 0,
 );
@@ -347,15 +370,20 @@ const onKindChange = () => {
     }
 };
 
-const onSourceChange = () => {
-    targetNodeIds.value = targetNodeIds.value.filter((id) => id !== sourceNodeId.value);
+// Every source change (dropdown, default selection on mount, programmatic)
+// reloads that node's resources. A watcher instead of @change: @change does
+// not fire for the initial / programmatic value, which left the list empty
+// until the "load" button was clicked.
+watch(sourceKey, () => {
+    targetKeys.value = targetKeys.value.filter((key) => key !== sourceKey.value);
     clearStepResults();
-    // Selecting a source node loads its resources immediately; the search
-    // button remains as a manual refresh.
+    if (activeKind.value === 'file') {
+        dirPath.value = '/';
+    }
     if (sourceNodeId.value !== undefined) {
         searchResources();
     }
-};
+});
 
 const onResourceSelect = (selection: Cluster.SyncResource[]) => {
     selectedResources.value = selection.filter((item) => !isDirRow(item));
@@ -407,6 +435,8 @@ const loadNodes = async () => {
     }
 };
 
+let resourceRequestId = 0;
+
 const searchResources = async () => {
     if (sourceNodeId.value === undefined) {
         MsgError(i18n.global.t('cluster.selectSourceFirst'));
@@ -419,6 +449,9 @@ const searchResources = async () => {
     if (activeKind.value === 'file' && !dirPath.value.trim()) {
         dirPath.value = '/';
     }
+    // Ignore a response that arrives after the user already picked another
+    // node / kind / directory.
+    const requestId = ++resourceRequestId;
     await searchClusterSyncResources({
         kind: activeKind.value,
         sourceNodeId: sourceNodeId.value,
@@ -427,16 +460,20 @@ const searchResources = async () => {
         pageSize: 500,
     })
         .then((res) => {
+            if (requestId !== resourceRequestId) return;
             resources.value = res.data || [];
         })
         .catch((err: any) => {
+            if (requestId !== resourceRequestId) return;
             // Surface the failure in-page (which endpoint, what the panel
             // said) instead of silently leaving an empty table.
             resources.value = [];
             resourceError.value = err?.message || i18n.global.t('cluster.fetchError');
         })
         .finally(() => {
-            resourceLoading.value = false;
+            if (requestId === resourceRequestId) {
+                resourceLoading.value = false;
+            }
         });
 };
 
@@ -543,9 +580,14 @@ const taskButtons = [
     },
 ];
 
-onMounted(() => {
-    loadNodes();
+onMounted(async () => {
     searchTasks();
+    await loadNodes();
+    // The master node is the default source and its list loads right away
+    // (the watcher does not fire for the initial value).
+    if (sourceNodeId.value !== undefined) {
+        searchResources();
+    }
 });
 </script>
 
@@ -560,6 +602,21 @@ onMounted(() => {
     gap: 12px;
     margin-top: 16px;
     flex-wrap: wrap;
+}
+
+.resource-name {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.resource-icon {
+    font-size: 16px;
+    color: var(--el-text-color-secondary);
+}
+
+.resource-icon-dir {
+    color: var(--el-color-warning);
 }
 
 .task-header {

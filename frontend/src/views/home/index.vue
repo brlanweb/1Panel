@@ -532,6 +532,7 @@ import {
     getSettingBaseInfo,
     getAgentSettingInfo,
     listAllSimpleNodes,
+    loadUpgradeInfo,
     getMemo,
     updateMemo,
     updateSetting,
@@ -1254,12 +1255,15 @@ const hideEntrance = () => {
 };
 
 const loadUpgradeStatus = async () => {
-    // Cluster fork: automatic update checks are disabled on purpose (see
-    // DESIGN.md §14). The panel must never offer or run an automatic
-    // update that would replace the cluster build with an upstream
-    // release, so hasNewVersion stays false and no /core/settings/upgrade
-    // request is made. The footer "update" link is hidden as well.
-    hasNewVersion.value = false;
+    if (!isAdmin.value || isEnterprise.value) {
+        return;
+    }
+    const res = await loadUpgradeInfo();
+    if (res && (res.data.testVersion || res.data.newVersion || res.data.latestVersion)) {
+        hasNewVersion.value = true;
+    } else {
+        hasNewVersion.value = false;
+    }
 };
 
 const loadSettingInfo = async () => {

@@ -9,7 +9,6 @@ func commonGroups() []CommonRouter {
 		&CommandRouter{},
 		&GroupRouter{},
 		&ClusterNodeRouter{},
-		&ClusterWafRouter{},
 		&ClusterSyncRouter{},
 		&ClusterDbReplicationRouter{},
 		&ScriptRouter{},

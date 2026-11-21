@@ -367,7 +367,7 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 				snap.MemTotal = current.MemoryTotal
 			}
 			if snap.FetchError == "" {
-				if total, err := u.remotePageTotal(node, "/api/v2/apps/installed/search", map[string]interface{}{"page": 1, "pageSize": 1, "all": true}); err != nil {
+				if total, err := u.remotePageTotal(node, "/api/v2/apps/installed/search", map[string]interface{}{"page": 1, "pageSize": 1}); err != nil {
 					snap.FetchError = truncateErr(err.Error())
 				} else {
 					snap.AppCount = total
@@ -402,7 +402,37 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 		return dto.ClusterAggregateOverview{}, err
 	}
 	sort.SliceStable(result.Nodes, func(i, j int) bool { return result.Nodes[i].NodeID < result.Nodes[j].NodeID })
+	result.Local, result.LocalError = localNodeCounts()
+	if result.LocalError == "" {
+		result.TotalApps += result.Local.AppCount
+		result.TotalWebsites += result.Local.WebsiteCount
+	}
 	return result, nil
+}
+
+// localNodeCounts counts the master panel's own installed apps and
+// websites over its agent socket, with the same query bodies as the
+// remote nodes. The master is not a cluster_nodes row, so without this
+// the overview had no server-side count for it at all and showed 0.
+func localNodeCounts() (dto.ClusterNodeSnapshot, string) {
+	snap := dto.ClusterNodeSnapshot{NodeID: 0, Name: "local", Status: model.ClusterNodeStatusOnline, RefreshedAt: time.Now().Format(time.RFC3339)}
+	sync := &ClusterSyncService{}
+	var page struct {
+		Total int64 `json:"total"`
+	}
+	ctx := context.Background()
+	if err := sync.callLocalJSON(ctx, http.MethodPost, "/api/v2/apps/installed/search", map[string]interface{}{"page": 1, "pageSize": 1}, &page, 10*time.Second); err != nil {
+		snap.AppCount, snap.WebsiteCount = -1, -1
+		return snap, truncateErr(err.Error())
+	}
+	snap.AppCount = int(page.Total)
+	page.Total = 0
+	if err := sync.callLocalJSON(ctx, http.MethodPost, "/api/v2/websites/search", map[string]interface{}{"page": 1, "pageSize": 1, "orderBy": "created_at", "order": "descending"}, &page, 10*time.Second); err != nil {
+		snap.WebsiteCount = -1
+		return snap, truncateErr(err.Error())
+	}
+	snap.WebsiteCount = int(page.Total)
+	return snap, ""
 }
 
 // probeNode checks the remote panel's API auth using the same path the

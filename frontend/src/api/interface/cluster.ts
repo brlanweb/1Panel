@@ -82,37 +82,9 @@ export namespace Cluster {
         totalApps: number;
         totalWebsites: number;
         nodes: NodeSnapshot[];
-    }
-
-    export interface WafOverview {
-        totalNodes: number;
-        totalWebsites: number;
-        nodes: WafNodeStatus[];
-    }
-
-    export interface WafNodeStatus {
-        nodeId: number;
-        name: string;
-        websiteCount: number;
-        fetchError: string;
-    }
-
-    export interface WafWebsite {
-        nodeId: number;
-        nodeName: string;
-        domain: string;
-        type: string;
-        status: string;
-        enabled: boolean | null;
-        mode: string;
-        strength: string;
-        rateLimit: boolean | null;
-        schemaPending: boolean;
-        jumpUrl: string;
-    }
-
-    export interface WafWebsiteSearch extends ReqPage {
-        nodeId?: number;
+        // The master panel itself (counts from its own agent; -1 = failed).
+        local?: NodeSnapshot;
+        localError?: string;
     }
 
     export type SyncKind = 'file' | 'image' | 'app' | 'cert' | 'php';

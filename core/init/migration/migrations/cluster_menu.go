@@ -16,10 +16,35 @@ var clusterMenuChildren = []dto.ShowMenu{
 	{ID: "1241", Disabled: false, Title: "menu.clusterOverview", IsShow: true, Label: "ClusterOverview", Path: "/cluster/overview", Sort: 10},
 	{ID: "1242", Disabled: false, Title: "menu.clusterNodes", IsShow: true, Label: "ClusterNodes", Path: "/cluster/nodes", Sort: 20},
 	{ID: "1243", Disabled: false, Title: "menu.clusterPanels", IsShow: true, Label: "ClusterPanels", Path: "/cluster/panels", Sort: 30},
-	{ID: "1244", Disabled: false, Title: "menu.clusterWaf", IsShow: true, Label: "ClusterWaf", Path: "/cluster/waf", Sort: 40},
 	{ID: "1245", Disabled: false, Title: "menu.clusterSync", IsShow: true, Label: "ClusterSync", Path: "/cluster/sync", Sort: 50},
 	{ID: "1246", Disabled: false, Title: "menu.clusterMonitor", IsShow: true, Label: "ClusterMonitor", Path: "/cluster/monitor", Sort: 60},
 	{ID: "1247", Disabled: false, Title: "menu.clusterDbReplication", IsShow: true, Label: "ClusterDbReplication", Path: "/cluster/db-replication", Sort: 70},
+}
+
+// RemoveClusterWafMenu drops the "WAF overview" child from the cluster
+// menu on existing installs. The cluster WAF pages only listed websites
+// read-only and could not change any WAF setting, so the feature was
+// removed (routes, API and service included) instead of shipping a stub.
+var RemoveClusterWafMenu = &gormigrate.Migration{
+	ID: "20261121-remove-cluster-waf-menu",
+	Migrate: func(tx *gorm.DB) error {
+		return helper.UpdateHideMenu(tx, func(menus []dto.ShowMenu) []dto.ShowMenu {
+			for i := range menus {
+				if menus[i].Label != "Cluster-Menu" && menus[i].Label != "ClusterNodes" {
+					continue
+				}
+				kept := make([]dto.ShowMenu, 0, len(menus[i].Children))
+				for _, child := range menus[i].Children {
+					if child.Label == "ClusterWaf" || child.Label == "ClusterWafWebsites" {
+						continue
+					}
+					kept = append(kept, child)
+				}
+				menus[i].Children = kept
+			}
+			return menus
+		})
+	},
 }
 
 // ExpandClusterMenu fixes the sidebar entry for Cluster Management.

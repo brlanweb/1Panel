@@ -85,5 +85,7 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.ExpandClusterMenu,
 		migrations.AddClusterDbReplicationTables,
 		migrations.AddClusterDbReplicationMenu,
+		migrations.RemoveClusterWafMenu,
+		migrations.AddForkReleaseSettings,
 	}
 }

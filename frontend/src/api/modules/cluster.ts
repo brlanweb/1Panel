@@ -39,14 +39,6 @@ export const getClusterAggregateOverview = () => {
     return http.get<Cluster.AggregateOverview>(`/core/cluster/nodes/overview/aggregate`);
 };
 
-export const getClusterWafOverview = () => {
-    return http.get<Cluster.WafOverview>(`/core/cluster/waf/overview`);
-};
-
-export const searchClusterWafWebsites = (req: Cluster.WafWebsiteSearch) => {
-    return http.postLocalNode<ResPage<Cluster.WafWebsite>>(`/core/cluster/waf/websites/search`, req);
-};
-
 export const searchClusterSyncResources = (req: Cluster.SyncResourceSearch) => {
     return http.postLocalNode<Cluster.SyncResource[]>(`/core/cluster/sync/resources/search`, req, 60000);
 };

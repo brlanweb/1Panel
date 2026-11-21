@@ -475,8 +475,6 @@ const message = {
         clusterOverview: '集群概览',
         clusterNodes: '节点管理',
         clusterPanels: '面板管理',
-        clusterWaf: 'WAF 总览',
-        clusterWafWebsites: 'WAF 网站设置',
         clusterSync: '资源同步',
         clusterMonitor: '网站监控',
         clusterDbReplication: '数据库同步',
@@ -491,7 +489,8 @@ const message = {
         nodeName: '节点名称',
         entryUrl: '面板地址',
         entryUrlPlaceholder: '例如 https://192.168.1.10:12345',
-        entryUrlHelper: '仅添加受信任的节点；自签名证书可正常使用。此处添加的是面板型节点（面板地址 + API Key），底部切换后全站操作该面板；与需要 SSH 装机的节点类型不同。',
+        entryUrlHelper:
+            '仅添加受信任的节点；自签名证书可正常使用。此处添加的是面板型节点（面板地址 + API Key），底部切换后全站操作该面板；与需要 SSH 装机的节点类型不同。',
         switchAdminOnly: '只有主节点管理员才能切换节点',
         switchTestFailed: '节点连接测试失败，无法切换',
         terminalStaysLocal:
@@ -537,8 +536,7 @@ const message = {
         deleteNode: '删除节点',
         deleteNodeHelper: '确定删除节点（{0}）吗？该操作不可恢复。',
         entryUrlInvalid: '请输入以 http:// 或 https:// 开头的地址',
-        wafNotImplemented:
-            '流量、拦截、攻击地图与趋势数据暂未实现（依赖 WAF 日志后端），此处不展示任何相关数字。',
+        wafNotImplemented: '流量、拦截、攻击地图与趋势数据暂未实现（依赖 WAF 日志后端），此处不展示任何相关数字。',
         wafTotalWebsites: '网站总数',
         wafPerNode: '各节点网站数',
         websiteSettings: '网站设置',
@@ -550,8 +548,7 @@ const message = {
         domain: '域名',
         type: '类型',
         jumpToRemote: '跳转到远程 WAF 页面',
-        schemaPendingAlert:
-            'WAF 模式 / 强度 / 限流字段名尚待与真实节点的 1pwaf 配置核对，本页设置仅可查看，不可编辑。',
+        schemaPendingAlert: 'WAF 模式 / 强度 / 限流字段名尚待与真实节点的 1pwaf 配置核对，本页设置仅可查看，不可编辑。',
         disabled: '已禁用',
         syncKindFile: '文件',
         syncKindImage: '镜像',
@@ -678,6 +675,8 @@ const message = {
         selectWebsite: '选择网站',
         monitorNotEnabled: '当前网站监控未开启，立即开启',
         monitorEnableNow: '开启后开始记录访问日志，统计基于日志生成。',
+        monitorClearConfirm: '确认清空网站 {0} 的访问日志？清空后该站点所有统计数据将无法恢复。',
+        monitorNoWebsite: '该节点上没有网站，请先在该节点创建网站。',
         monitorDataWindow: '基于最近 {0} 行访问日志统计（该站日志共 {1} 行），仅覆盖最近时段，不是全量。',
         monitorOverview: '概览',
         monitorVisits: '访问统计',

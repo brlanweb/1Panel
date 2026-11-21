@@ -73,12 +73,18 @@
                         <el-row :gutter="12" class="mb-4">
                             <el-col :span="6">
                                 <el-card shadow="hover">
-                                    <el-statistic :title="$t('cluster.monitorRealtimeReqs')" :value="realtimeAgg.reqs" />
+                                    <el-statistic
+                                        :title="$t('cluster.monitorRealtimeReqs')"
+                                        :value="realtimeAgg.reqs"
+                                    />
                                 </el-card>
                             </el-col>
                             <el-col :span="6">
                                 <el-card shadow="hover">
-                                    <el-statistic :title="$t('cluster.monitorRealtimeTraffic')" :value="realtimeAgg.traffic" />
+                                    <el-statistic
+                                        :title="$t('cluster.monitorRealtimeTraffic')"
+                                        :value="realtimeAgg.traffic"
+                                    />
                                 </el-card>
                             </el-col>
                             <el-col :span="12">
@@ -111,7 +117,12 @@
                                     <template #header>{{ card.title }}</template>
                                     <el-table :data="card.rows" size="small" max-height="320">
                                         <el-table-column :label="card.colLabel" prop="label" show-overflow-tooltip />
-                                        <el-table-column :label="$t('cluster.monitorCount')" prop="count" width="80px" align="right" />
+                                        <el-table-column
+                                            :label="$t('cluster.monitorCount')"
+                                            prop="count"
+                                            width="80px"
+                                            align="right"
+                                        />
                                     </el-table>
                                     <el-empty v-if="!card.rows.length" :description="$t('commons.msg.noneData')" />
                                 </el-card>
@@ -163,7 +174,12 @@
                                 />
                             </el-form-item>
                             <el-form-item>
-                                <el-select v-model="logFilterMethod" class="p-w-150" clearable :placeholder="$t('cluster.monitorMethod')">
+                                <el-select
+                                    v-model="logFilterMethod"
+                                    class="p-w-150"
+                                    clearable
+                                    :placeholder="$t('cluster.monitorMethod')"
+                                >
                                     <el-option label="GET" value="GET" />
                                     <el-option label="POST" value="POST" />
                                     <el-option label="PUT" value="PUT" />
@@ -172,7 +188,12 @@
                                 </el-select>
                             </el-form-item>
                             <el-form-item>
-                                <el-select v-model="logFilterStatus" class="p-w-150" clearable :placeholder="$t('cluster.monitorStatus')">
+                                <el-select
+                                    v-model="logFilterStatus"
+                                    class="p-w-150"
+                                    clearable
+                                    :placeholder="$t('cluster.monitorStatus')"
+                                >
                                     <el-option label="2xx" value="2" />
                                     <el-option label="3xx" value="3" />
                                     <el-option label="4xx" value="4" />
@@ -180,13 +201,23 @@
                                 </el-select>
                             </el-form-item>
                             <el-form-item>
-                                <el-select v-model="logFilterSpider" class="p-w-150" clearable :placeholder="$t('cluster.monitorSpiders')">
+                                <el-select
+                                    v-model="logFilterSpider"
+                                    class="p-w-150"
+                                    clearable
+                                    :placeholder="$t('cluster.monitorSpiders')"
+                                >
                                     <el-option :label="$t('cluster.monitorSpiderOnly')" :value="true" />
                                     <el-option :label="$t('cluster.monitorNonSpider')" :value="false" />
                                 </el-select>
                             </el-form-item>
                             <el-form-item>
-                                <el-input v-model="logFilterUrl" class="p-w-200" clearable :placeholder="$t('cluster.monitorUrlSearch')" />
+                                <el-input
+                                    v-model="logFilterUrl"
+                                    class="p-w-200"
+                                    clearable
+                                    :placeholder="$t('cluster.monitorUrlSearch')"
+                                />
                             </el-form-item>
                             <el-form-item>
                                 <el-input v-model="logFilterIp" class="p-w-150" clearable placeholder="IP" />
@@ -222,7 +253,12 @@
                             <el-table-column :label="$t('cluster.monitorTraffic')" sortable align="right">
                                 <template #default="{ row }">{{ formatBytes(row.trafficBytes) }}</template>
                             </el-table-column>
-                            <el-table-column :label="$t('cluster.monitorSpiders')" prop="spiders" sortable align="right" />
+                            <el-table-column
+                                :label="$t('cluster.monitorSpiders')"
+                                prop="spiders"
+                                sortable
+                                align="right"
+                            />
                             <el-table-column :label="$t('cluster.monitorReqs')" prop="reqs" sortable align="right" />
                             <el-table-column :label="$t('cluster.monitor4xx')" prop="e4xx" sortable align="right" />
                             <el-table-column :label="$t('cluster.monitor5xx')" prop="e5xx" sortable align="right" />
@@ -271,6 +307,7 @@ import { readByLine } from '@/api/modules/files';
 import { Website } from '@/api/interface/website';
 import { Cluster } from '@/api/interface/cluster';
 import { MsgError, MsgSuccess } from '@/utils/message';
+import { ElMessageBox } from 'element-plus';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
 const { globalStore } = useGlobalStore();
@@ -278,11 +315,20 @@ const masterAlias = globalStore.getMasterAlias();
 
 // --- Access-log parsing (nginx combined format) ---
 // 1.2.3.4 - - [20/Nov/2026:10:11:12 +0800] "GET /path HTTP/1.1" 200 1234 "https://ref" "UA"
-const LOG_RE =
-    /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]*) \S*" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)"/;
+const LOG_RE = /^(\S+) \S+ \S+ \[([^\]]+)\] "(\S+) ([^"]*) \S*" (\d{3}) (\d+|-) "([^"]*)" "([^"]*)"/;
 const MONTHS: Record<string, number> = {
-    Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
-    Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+    Jan: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    May: 4,
+    Jun: 5,
+    Jul: 6,
+    Aug: 7,
+    Sep: 8,
+    Oct: 9,
+    Nov: 10,
+    Dec: 11,
 };
 const SPIDER_RE = /bot|spider|crawl|slurp|baidu|googlebot|bingbot|sogou|360spider|yandex|duckduck/i;
 
@@ -499,9 +545,10 @@ const hourlyRows = computed(() => {
     for (const row of reqRows.value) {
         if (row.time < cutoff) continue;
         const d = new Date(row.time);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(
-            d.getDate(),
-        ).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:00`;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(
+            2,
+            '0',
+        )} ${String(d.getHours()).padStart(2, '0')}:00`;
         const list = byHour.get(key) || [];
         list.push(row);
         byHour.set(key, list);
@@ -543,7 +590,9 @@ const buildTrend = () => {
 const loadNodes = async () => {
     try {
         const res = await searchClusterNodes({ page: 1, pageSize: 500 });
-        onlineNodes.value = (res.data.items || []).filter((item) => item.status === 'online');
+        // Only nodes whose last check failed are hidden; a freshly added
+        // node is "unknown" until the first check and must still be usable.
+        onlineNodes.value = (res.data.items || []).filter((item) => item.status !== 'offline');
     } catch {
         onlineNodes.value = [];
     }
@@ -553,9 +602,15 @@ const onNodeChange = async () => {
     websiteId.value = undefined;
     websites.value = [];
     reqRows.value = [];
+    siteRows.value = [];
     parsedLines.value = 0;
+    totalLines.value = 0;
+    logEnabled.value = false;
+    logEnabledSwitch.value = false;
+    errorLogSwitch.value = false;
     loadError.value = '';
     await loadWebsites();
+    buildTrend();
 };
 
 const loadWebsites = async () => {
@@ -566,7 +621,7 @@ const loadWebsites = async () => {
             param,
         );
         websites.value = res.data.items || [];
-        loadError.value = '';
+        loadError.value = websites.value.length ? '' : i18n.global.t('cluster.monitorNoWebsite');
         if (websites.value.length && !websiteId.value) {
             websiteId.value = websites.value[0].id;
             await loadSite();
@@ -581,6 +636,12 @@ const loadSite = async () => {
     const site = selectedWebsite.value;
     if (!site) return;
     loading.value = true;
+    logFilterStatus.value = '';
+    logFilterSpider.value = undefined;
+    logFilterUrl.value = '';
+    logFilterIp.value = '';
+    logFilterMethod.value = '';
+    logFilterRange.value = null;
     reqRows.value = [];
     parsedLines.value = 0;
     totalLines.value = 0;
@@ -623,6 +684,10 @@ const loadSite = async () => {
         loadError.value = e?.message || i18n.global.t('cluster.monitorLoadError');
     } finally {
         loading.value = false;
+        buildTrend();
+        if (activeTab.value === 'sites') {
+            loadSiteRows();
+        }
     }
 };
 
@@ -664,11 +729,19 @@ const onToggleErrorLog = async () => {
 const clearSiteLog = async () => {
     const site = selectedWebsite.value;
     if (!site) return;
+    // Deleting the access log is irreversible and wipes every statistic on
+    // this page for the site: always confirm first.
     try {
-        await opWebsiteLog(
-            { id: site.id, operate: 'delete', logType: 'access.log' },
-            nodeName.value,
+        await ElMessageBox.confirm(
+            i18n.global.t('cluster.monitorClearConfirm', [site.primaryDomain]),
+            i18n.global.t('commons.button.clean'),
+            { type: 'warning' },
         );
+    } catch {
+        return;
+    }
+    try {
+        await opWebsiteLog({ id: site.id, operate: 'delete', logType: 'access.log' }, nodeName.value);
         MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
         await loadSite();
     } catch {
@@ -680,7 +753,16 @@ const exportLogCsv = () => {
     const header = 'ip,domain,url,method,status,bytes,spider,time\n';
     const body = filteredReqRows.value
         .map((row) =>
-            [row.ip, row.domain, `"${row.url.replace(/"/g, '""')}"`, row.method, row.status, row.bytes, row.spider, row.timeLabel].join(','),
+            [
+                row.ip,
+                row.domain,
+                `"${row.url.replace(/"/g, '""')}"`,
+                row.method,
+                row.status,
+                row.bytes,
+                row.spider,
+                row.timeLabel,
+            ].join(','),
         )
         .join('\n');
     const blob = new Blob([header + body], { type: 'text/csv;charset=utf-8' });
@@ -700,7 +782,10 @@ const loadSiteRows = async () => {
         const results = await Promise.all(
             list.map(async (site) => {
                 try {
-                    const meta = await getWebsiteLog({ id: site.id, logType: 'access.log', page: 1, pageSize: 1 }, param);
+                    const meta = await getWebsiteLog(
+                        { id: site.id, logType: 'access.log', page: 1, pageSize: 1 },
+                        param,
+                    );
                     if (!meta.data?.enable) {
                         return { id: site.id, domain: site.primaryDomain, ...aggregateRows([]) };
                     }

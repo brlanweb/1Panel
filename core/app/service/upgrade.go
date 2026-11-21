@@ -25,7 +25,6 @@ import (
 	"github.com/1Panel-dev/1Panel/core/utils/files"
 	"github.com/1Panel-dev/1Panel/core/utils/req_helper"
 	upgradeUtil "github.com/1Panel-dev/1Panel/core/utils/upgrade"
-	"github.com/1Panel-dev/1Panel/core/utils/xpack"
 	"golang.org/x/net/html"
 )
 
@@ -92,7 +91,6 @@ func (u *UpgradeService) SearchUpgrade() (*dto.UpgradeInfo, error) {
 	if global.CONF.Base.IsOffline {
 		return &dto.UpgradeInfo{}, nil
 	}
-	var upgrade dto.UpgradeInfo
 	currentVersion, err := settingRepo.Get(repo.WithByKey("SystemVersion"))
 	if err != nil {
 		return nil, err
@@ -101,46 +99,26 @@ func (u *UpgradeService) SearchUpgrade() (*dto.UpgradeInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	upgrade.TestVersion, upgrade.NewVersion, upgrade.LatestVersion = u.loadVersionByMode(DeveloperMode.Value, currentVersion.Value)
-	var itemVersion string
-	if len(upgrade.NewVersion) != 0 {
-		itemVersion = upgrade.NewVersion
-	}
-	if (global.CONF.Base.Mode == "dev" || DeveloperMode.Value == constant.StatusEnable) && len(upgrade.TestVersion) != 0 {
-		itemVersion = upgrade.TestVersion
-	}
-	if len(upgrade.LatestVersion) != 0 {
-		itemVersion = upgrade.LatestVersion
-	}
-	if len(itemVersion) == 0 {
-		return &upgrade, nil
-	}
-	mode := global.CONF.Base.Mode
-	if strings.Contains(itemVersion, "beta") {
-		mode = "beta"
-	}
-	if strings.HasPrefix(upgrade.TestVersion, upgrade.LatestVersion+"-beta") {
-		upgrade.TestVersion = ""
-	}
-	notes, err := u.loadReleaseNotes(fmt.Sprintf("%s/%s/%s/release/1panel-%s-release-notes", global.RepoURL(), mode, itemVersion, itemVersion))
+	// Fork build: only the fork's own release channel is consulted (see
+	// fork_release.go). The upstream latest / latest.current lookup is
+	// never used, so an upstream release can never be offered here.
+	developer := global.CONF.Base.Mode == "dev" || DeveloperMode.Value == constant.StatusEnable
+	info, err := forkUpgradeInfo(currentVersion.Value, developer)
 	if err != nil {
-		return nil, fmt.Errorf("load releases-notes of version %s failed, err: %v", itemVersion, err)
+		// An unreachable release channel is "no update", not an error
+		// popup on every dashboard load.
+		logForkReleaseError(err)
+		return &dto.UpgradeInfo{}, nil
 	}
-	upgrade.ReleaseNote = notes
-	return &upgrade, nil
+	return info, nil
 }
 
 func (u *UpgradeService) LoadNotes(req dto.Upgrade) (string, error) {
-	mode := global.CONF.Base.Mode
-	if strings.Contains(req.Version, "beta") {
-		mode = "beta"
-	}
-	notes, err := u.loadReleaseNotes(fmt.Sprintf("%s/%s/%s/release/1panel-%s-release-notes", global.RepoURL(), mode, req.Version, req.Version))
+	release, err := findForkRelease(req.Version)
 	if err != nil {
 		return "", fmt.Errorf("load releases-notes of version %s failed, err: %v", req.Version, err)
 	}
-	return notes, nil
+	return release.Body, nil
 }
 
 func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
@@ -168,16 +146,16 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		return err
 	}
 
-	mode := global.CONF.Base.Mode
-	if strings.Contains(req.Version, "beta") {
-		mode = "beta"
+	// Fork build: the package comes from the fork's own release assets,
+	// never from the upstream package repository.
+	downloadURL, fileName, err := forkPackageURL(req.Version, itemArch)
+	if err != nil {
+		return err
 	}
-	downloadPath := fmt.Sprintf("%s/%s/%s/release", global.RepoURL(), mode, req.Version)
-	fileName := fmt.Sprintf("1panel-%s-%s-%s.tar.gz", req.Version, "linux", itemArch)
 	_ = settingRepo.Update("SystemStatus", "Upgrading")
 	go func() {
 		oldLang := ctl_conf.Load("LANGUAGE")
-		if err := files.DownloadFileWithProxyStream(downloadPath+"/"+fileName, downloadDir+"/"+fileName); err != nil {
+		if err := files.DownloadFileWithProxyStream(downloadURL, downloadDir+"/"+fileName); err != nil {
 			global.LOG.Errorf("download service file failed, err: %v", err)
 			_ = settingRepo.Update("SystemStatus", "Free")
 			return
@@ -232,6 +210,16 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 			u.handleRollback(originalDir, 2, svcInfo)
 			return
 		}
+		// The panel reads its version from ORIGINAL_VERSION in 1pctl at
+		// startup (init/viper) and the startup hook syncs SystemVersion to
+		// it. Pin it to the installed fork tag, otherwise a package whose
+		// 1pctl carries another version would make the panel report (and
+		// keep offering) the wrong version after the restart.
+		if err := ctl_conf.UpdateInFile("/usr/local/bin/1pctl", "ORIGINAL_VERSION", req.Version); err != nil {
+			global.LOG.Errorf("upgrade version in 1pctl failed, err: %v", err)
+			u.handleRollback(originalDir, 2, svcInfo)
+			return
+		}
 		initScriptPath := path.Join(tmpDir, "initscript")
 
 		if err := files.CopyItem(false, true, path.Join(initScriptPath, svcInfo.selCoreName), svcInfo.basePath); err != nil {
@@ -262,8 +250,9 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 
 		global.LOG.Info("upgrade successful!")
 		dropBackupCopies()
-		xpack.MultiNodeProvider.AutoUpgradeWithMaster()
-		go writeLogs(req.Version)
+		// No upstream node auto-upgrade and no upstream install-statistics
+		// script: both would pull upstream packages / scripts.
+		resetForkReleaseCache()
 		_ = settingRepo.Update("SystemVersion", req.Version)
 		_ = global.AgentDB.Model(&model.Setting{}).Where("key = ?", "SystemVersion").Updates(map[string]interface{}{"value": req.Version}).Error
 		global.CONF.Base.Version = req.Version
@@ -298,50 +287,8 @@ type noteDetailHelper struct {
 }
 
 func (u *UpgradeService) LoadRelease() ([]dto.ReleasesNotes, error) {
-	docSource, _ := settingRepo.GetValueByKey("DocSource")
-	lang, _ := settingRepo.GetValueByKey("Language")
-	var notes []dto.ReleasesNotes
-	url := "https://docs.fit2cloud.com/1panel/changelog/"
-	useIntlDocs := false
-	lang = strings.ToLower(strings.TrimSpace(lang))
-	if docSource == "withByRegion" {
-		useIntlDocs = global.CONF.Base.Edition == "intl"
-	} else {
-		useIntlDocs = lang != "zh"
-	}
-	if useIntlDocs {
-		url = "https://docs.1panel.pro/v2/search/search_index.json"
-	}
-	resp, err := req_helper.HandleGet(url)
-	if err != nil {
-		return notes, err
-	}
-	defer resp.Body.Close()
-	if !useIntlDocs {
-		if resp.StatusCode != http.StatusOK {
-			return notes, fmt.Errorf("load release notes failed: HTTP %d", resp.StatusCode)
-		}
-		return parseReleaseHTML(resp.Body)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return notes, err
-	}
-	var nodeItem noteHelper
-	if err := json.Unmarshal(body, &nodeItem); err != nil {
-		return notes, err
-	}
-	for _, item := range nodeItem.Docs {
-		if !strings.HasPrefix(item.Location, "changelog/#v") {
-			continue
-		}
-		itemNote := analyzeDoc(item.Title, item.Text)
-		if len(itemNote.CreatedAt) != 0 {
-			notes = append(notes, analyzeDoc(item.Title, item.Text))
-		}
-	}
-
-	return notes, nil
+	// Fork build: the changelog is the fork's GitHub release list.
+	return forkReleaseNotesList()
 }
 
 func parseReleaseHTML(reader io.Reader) ([]dto.ReleasesNotes, error) {

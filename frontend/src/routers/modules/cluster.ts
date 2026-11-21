@@ -40,26 +40,6 @@ const clusterRouter = {
             },
         },
         {
-            path: '/cluster/waf',
-            name: 'ClusterWaf',
-            component: () => import('@/views/cluster/waf/index.vue'),
-            meta: {
-                title: 'menu.clusterWaf',
-                permission: 'cluster_node_view',
-            },
-        },
-        {
-            path: '/cluster/waf/websites',
-            name: 'ClusterWafWebsites',
-            component: () => import('@/views/cluster/waf/websites/index.vue'),
-            hidden: true,
-            meta: {
-                activeMenu: '/cluster/waf',
-                title: 'menu.clusterWafWebsites',
-                permission: 'cluster_node_view',
-            },
-        },
-        {
             path: '/cluster/sync',
             name: 'ClusterSync',
             component: () => import('@/views/cluster/sync/index.vue'),

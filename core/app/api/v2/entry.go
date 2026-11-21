@@ -17,7 +17,6 @@ var (
 	upgradeService              = service.NewIUpgradeService()
 	groupService                = service.NewIGroupService()
 	clusterNodeService          = service.NewIClusterNodeService()
-	clusterWafService           = service.NewIClusterWafService()
 	clusterSyncService          = service.NewIClusterSyncService()
 	clusterDbReplicationService = service.NewIClusterDbReplicationService()
 	commandService              = service.NewICommandService()

@@ -41,6 +41,38 @@ const aiRouter = {
             },
         },
         {
+            path: '/ai/vllm',
+            name: 'AIModel',
+            redirect: '/ai/vllm/models',
+            meta: {
+                icon: 'p-moxing-menu',
+                title: 'aiTools.model.vllmManagement',
+                permission: 'ai_model_view',
+            },
+        },
+        {
+            path: '/ai/vllm/models',
+            name: 'VllmModels',
+            hidden: true,
+            component: () => import('@/views/ai/vllm/models/index.vue'),
+            meta: {
+                title: 'vllm.modelPrepare',
+                activeMenu: '/ai/vllm',
+                permission: 'ai_model_view',
+            },
+        },
+        {
+            path: '/ai/vllm/deployments',
+            name: 'VllmDeployments',
+            hidden: true,
+            component: () => import('@/views/ai/vllm/deployments/index.vue'),
+            meta: {
+                title: 'vllm.deployment',
+                activeMenu: '/ai/vllm',
+                permission: 'ai_model_view',
+            },
+        },
+        {
             path: '/ai/model-services',
             name: 'ModelServices',
             component: () => import('@/views/ai/model/index.vue'),

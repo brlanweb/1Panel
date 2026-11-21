@@ -21,6 +21,7 @@ var (
 
 	aiToolService    = service.NewIAIToolService()
 	mcpServerService = service.NewIMcpServerService()
+	vllmService      = service.NewIVllmService()
 	agentService     = service.NewIAgentService()
 
 	containerService       = service.NewIContainerService()

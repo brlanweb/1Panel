@@ -108,6 +108,7 @@ func agentDBMigrations() []*gormigrate.Migration {
 		migrations.NormalizeFirewallBackendSelections,
 		migrations.MigrateFirewallDescriptions,
 		migrations.MigrateFirewallPortWhitelistSources,
+		migrations.AddVllmTables,
 		migrations.AddAcceleratorMetrics,
 		migrations.AddMonitorSettings,
 		migrations.AddNativeAgentInstalls,

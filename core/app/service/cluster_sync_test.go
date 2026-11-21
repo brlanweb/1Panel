@@ -36,9 +36,56 @@ func setupSyncTestDB(t *testing.T) func() {
 	}
 	global.DB = db
 	global.CONF.Base.EncryptKey = "test-encrypt-key-for-cluster-sync"
+	oldAsync := syncExecuteAsync
+	syncExecuteAsync = false
 	return func() {
 		global.DB = oldDB
 		global.CONF.Base.EncryptKey = oldKey
+		syncExecuteAsync = oldAsync
+	}
+}
+
+// The agent only lists directory children when "expand" is true; this
+// fake answers exactly like the real agent (empty items otherwise), so a
+// missing flag fails the test instead of passing on a too-friendly mock.
+func TestSyncFileListSendsExpandAndReturnsDirs(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		_ = json.NewDecoder(r.Body).Decode(&body)
+		if expand, _ := body["expand"].(bool); !expand {
+			envelope(w, map[string]interface{}{"path": "/data", "isDir": true, "items": nil})
+			return
+		}
+		envelope(w, map[string]interface{}{"path": "/data", "isDir": true, "items": []map[string]interface{}{
+			{"name": "a.txt", "isDir": false, "size": 10},
+			{"name": "sub", "isDir": true},
+		}})
+	}))
+	res, err := NewIClusterSyncService().ListResources(dto.ClusterSyncResourceSearch{Kind: "file", SourceNodeID: 0, Path: "/data"})
+	if err != nil {
+		t.Fatalf("ListResources: %v", err)
+	}
+	if len(res) != 2 || res[0].Key != "/data/sub" || res[0].Extra != syncResourceDir || res[1].Key != "/data/a.txt" {
+		t.Fatalf("resources = %+v, want dir /data/sub then file /data/a.txt", res)
+	}
+}
+
+func TestSyncAppListReadsAgentAppDetailID(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		envelope(w, map[string]interface{}{"total": 1, "items": []map[string]interface{}{
+			{"id": 7, "name": "redis", "appKey": "redis", "version": "7.2.5", "appDetailID": 42},
+		}})
+	}))
+	res, err := NewIClusterSyncService().ListResources(dto.ClusterSyncResourceSearch{Kind: "app", SourceNodeID: 0})
+	if err != nil {
+		t.Fatalf("ListResources: %v", err)
+	}
+	if len(res) != 1 || res[0].Extra != "42" {
+		t.Fatalf("resources = %+v, want appDetailID 42 in Extra", res)
 	}
 }
 
@@ -362,8 +409,8 @@ func TestSyncLocalNodeListsFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListResources local file: %v", err)
 	}
-	if len(res) != 1 || res[0].Key != "/data/a.txt" {
-		t.Fatalf("resources = %+v, want one file /data/a.txt (dirs skipped)", res)
+	if len(res) != 2 || res[0].Extra != syncResourceDir || res[1].Key != "/data/a.txt" {
+		t.Fatalf("resources = %+v, want dir first then file /data/a.txt", res)
 	}
 }
 
@@ -547,8 +594,9 @@ func TestSyncFileListParsesRealAgentShape(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListResources local file: %v", err)
 	}
-	if len(res) != 2 || res[0].Key != "/data/a.txt" || res[0].Size != 11 || res[1].Key != "/data/b.log" || res[1].Size != 5 {
-		t.Fatalf("resources = %+v, want /data/a.txt (11) and /data/b.log (5), dirs skipped", res)
+	if len(res) != 3 || res[0].Key != "/data/sub" || res[0].Extra != syncResourceDir ||
+		res[1].Key != "/data/a.txt" || res[1].Size != 11 || res[2].Key != "/data/b.log" || res[2].Size != 5 {
+		t.Fatalf("resources = %+v, want dir /data/sub, /data/a.txt (11), /data/b.log (5)", res)
 	}
 }
 

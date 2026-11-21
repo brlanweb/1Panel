@@ -46,7 +46,19 @@
                             </el-select>
                         </el-form-item>
                         <el-form-item v-if="activeKind === 'file'" :label="$t('cluster.dirPath')">
-                            <el-input v-model="dirPath" class="p-w-200" />
+                            <el-input v-model="dirPath" class="p-w-200" @keyup.enter="searchResources">
+                                <template #prepend>
+                                    <el-button :disabled="dirPath === '/'" @click="goParentDir">..</el-button>
+                                </template>
+                            </el-input>
+                        </el-form-item>
+                        <el-form-item>
+                            <el-input
+                                v-model="keyword"
+                                class="p-w-200"
+                                clearable
+                                :placeholder="$t('commons.button.search')"
+                            />
                         </el-form-item>
                         <el-form-item>
                             <el-button type="primary" :disabled="sourceNodeId === undefined" @click="searchResources">
@@ -67,14 +79,21 @@
                         @close="resourceError = ''"
                     />
                     <el-table
-                        :data="resources"
+                        :data="filteredResources"
                         style="width: 100%"
                         @selection-change="onResourceSelect"
                         v-loading="resourceLoading"
                         row-key="key"
                     >
-                        <el-table-column type="selection" width="48" />
-                        <el-table-column :label="$t('cluster.resourceName')" prop="name" min-width="200px" />
+                        <el-table-column type="selection" width="48" :selectable="(row) => !isDirRow(row)" />
+                        <el-table-column :label="$t('cluster.resourceName')" prop="name" min-width="200px">
+                            <template #default="{ row }">
+                                <el-link v-if="isDirRow(row)" type="primary" :underline="false" @click="openDir(row)">
+                                    📁 {{ row.name }}
+                                </el-link>
+                                <span v-else>{{ row.name }}</span>
+                            </template>
+                        </el-table-column>
                         <el-table-column :label="$t('cluster.resourceDetail')" prop="detail" min-width="200px" />
                         <el-table-column :label="$t('cluster.resourceSize')" prop="size" width="120px" align="right">
                             <template #default="{ row }">
@@ -82,14 +101,12 @@
                             </template>
                         </el-table-column>
                     </el-table>
-                    <el-empty v-if="!resources.length && !resourceLoading" :description="$t('commons.msg.noneData')" />
+                    <el-empty
+                        v-if="!filteredResources.length && !resourceLoading"
+                        :description="$t('commons.msg.noneData')"
+                    />
                     <div class="sync-actions">
-                        <el-button
-                            type="primary"
-                            :disabled="!canPreview"
-                            :loading="previewLoading"
-                            @click="runPreview"
-                        >
+                        <el-button type="primary" :disabled="!canPreview" :loading="previewLoading" @click="runPreview">
                             {{ $t('cluster.preview') }}
                         </el-button>
                     </div>
@@ -150,7 +167,12 @@
                                 <el-tag :type="taskTagType(row.status)" size="small">{{ row.status }}</el-tag>
                             </template>
                         </el-table-column>
-                        <el-table-column :label="$t('cluster.succeeded')" prop="succeeded" width="90px" align="center" />
+                        <el-table-column
+                            :label="$t('cluster.succeeded')"
+                            prop="succeeded"
+                            width="90px"
+                            align="center"
+                        />
                         <el-table-column :label="$t('cluster.skipped')" prop="skipped" width="90px" align="center" />
                         <el-table-column :label="$t('cluster.failed')" prop="failed" width="90px" align="center" />
                         <el-table-column :label="$t('cluster.createdAt')" prop="createdAt" width="170px">
@@ -243,10 +265,36 @@ const pageState = usePageState(() => ({
 }));
 const taskPagination = pageState.taskPagination;
 
-const onlineNodes = computed(() => allNodes.value.filter((node) => node.status === 'online'));
-const targetOptions = computed(() =>
-    onlineNodes.value.filter((node) => node.id !== sourceNodeId.value),
-);
+const keyword = ref('');
+
+// Only nodes whose last check failed are excluded. A freshly added node is
+// "unknown" until the first health check; filtering on === 'online' hid it
+// from both dropdowns, so a cluster with unchecked nodes showed nothing to
+// sync to.
+const onlineNodes = computed(() => allNodes.value.filter((node) => node.status !== 'offline'));
+
+const isDirRow = (row: Cluster.SyncResource) => activeKind.value === 'file' && row.extra === 'dir';
+
+const filteredResources = computed(() => {
+    const kw = keyword.value.trim().toLowerCase();
+    if (!kw) return resources.value;
+    return resources.value.filter(
+        (item) => item.name.toLowerCase().includes(kw) || (item.detail || '').toLowerCase().includes(kw),
+    );
+});
+
+const openDir = (row: Cluster.SyncResource) => {
+    dirPath.value = row.key;
+    searchResources();
+};
+
+const goParentDir = () => {
+    const trimmed = dirPath.value.replace(/\/+$/, '');
+    const idx = trimmed.lastIndexOf('/');
+    dirPath.value = idx <= 0 ? '/' : trimmed.slice(0, idx);
+    searchResources();
+};
+const targetOptions = computed(() => onlineNodes.value.filter((node) => node.id !== sourceNodeId.value));
 const canPreview = computed(
     () => sourceNodeId.value !== undefined && targetNodeIds.value.length > 0 && selectedResources.value.length > 0,
 );
@@ -283,6 +331,7 @@ const taskTagType = (status: string) => {
 };
 
 const clearStepResults = () => {
+    keyword.value = '';
     resources.value = [];
     selectedResources.value = [];
     previewItems.value = [];
@@ -309,7 +358,7 @@ const onSourceChange = () => {
 };
 
 const onResourceSelect = (selection: Cluster.SyncResource[]) => {
-    selectedResources.value = selection;
+    selectedResources.value = selection.filter((item) => !isDirRow(item));
     previewItems.value = [];
 };
 
@@ -366,12 +415,16 @@ const searchResources = async () => {
     resourceError.value = '';
     resourceLoading.value = true;
     previewItems.value = [];
+    selectedResources.value = [];
+    if (activeKind.value === 'file' && !dirPath.value.trim()) {
+        dirPath.value = '/';
+    }
     await searchClusterSyncResources({
         kind: activeKind.value,
         sourceNodeId: sourceNodeId.value,
         path: activeKind.value === 'file' ? dirPath.value : undefined,
         page: 1,
-        pageSize: 100,
+        pageSize: 500,
     })
         .then((res) => {
             resources.value = res.data || [];
@@ -446,7 +499,7 @@ const runExecute = async () => {
         .then((res) => {
             MsgSuccess(i18n.global.t('cluster.executeSuccess', [res.data.taskId]));
             previewItems.value = [];
-            pollTask(res.data.taskId, 10);
+            pollTask(res.data.taskId, 200);
         })
         .finally(() => {
             executeLoading.value = false;

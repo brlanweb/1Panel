@@ -48,15 +48,15 @@ export const searchClusterWafWebsites = (req: Cluster.WafWebsiteSearch) => {
 };
 
 export const searchClusterSyncResources = (req: Cluster.SyncResourceSearch) => {
-    return http.postLocalNode<Cluster.SyncResource[]>(`/core/cluster/sync/resources/search`, req);
+    return http.postLocalNode<Cluster.SyncResource[]>(`/core/cluster/sync/resources/search`, req, 60000);
 };
 
 export const previewClusterSync = (req: Cluster.SyncPreviewReq) => {
-    return http.postLocalNode<Cluster.SyncPreviewItem[]>(`/core/cluster/sync/preview`, req);
+    return http.postLocalNode<Cluster.SyncPreviewItem[]>(`/core/cluster/sync/preview`, req, 120000);
 };
 
 export const executeClusterSync = (req: Cluster.SyncExecuteReq) => {
-    return http.postLocalNode<Cluster.SyncExecuteRes>(`/core/cluster/sync/execute`, req);
+    return http.postLocalNode<Cluster.SyncExecuteRes>(`/core/cluster/sync/execute`, req, 60000);
 };
 
 export const searchClusterSyncTasks = (req: Cluster.SyncTaskSearch) => {

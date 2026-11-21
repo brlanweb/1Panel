@@ -175,6 +175,9 @@ func (s *ClusterSyncService) callNodeJSON(node model.ClusterNode, method, path s
 	return s.nodes.callRemoteJSON(node, method, path, body, out, timeout)
 }
 
+// syncResourceDir marks a file-kind resource that is a directory (Extra).
+const syncResourceDir = "dir"
+
 func validSyncKind(kind string) bool {
 	switch kind {
 	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert, dto.ClusterSyncKindPhp:
@@ -244,22 +247,33 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 		var data struct {
 			Items []map[string]interface{} `json:"items"`
 		}
-		body := map[string]interface{}{"path": dir, "page": page, "pageSize": pageSize, "sortBy": "name", "sortOrder": "ascending", "isDetail": true}
+		// "expand": true is mandatory: without it the agent only stats the
+		// directory itself (files.NewFileInfo skips handleExpansion) and
+		// "items" is always empty — this was the real reason the file list
+		// stayed empty for every node, local or remote.
+		body := map[string]interface{}{"path": dir, "expand": true, "showHidden": true, "page": page, "pageSize": pageSize, "sortBy": "name", "sortOrder": "ascending", "isDetail": true}
 		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/files/search", body, &data, 15*time.Second); err != nil {
 			return nil, 0, err
 		}
-		var out []dto.ClusterSyncResource
+		// Directories are returned too (Extra = "dir") so the UI can browse
+		// into them; they are never transferred (see transferOne).
+		var dirs, files []dto.ClusterSyncResource
 		for _, f := range data.Items {
-			if toBool(f["isDir"]) {
+			name := toString(f["name"])
+			if name == "" {
 				continue
 			}
-			name := toString(f["name"])
 			fullPath := path.Join(dir, name)
-			out = append(out, dto.ClusterSyncResource{
+			if toBool(f["isDir"]) {
+				dirs = append(dirs, dto.ClusterSyncResource{Key: fullPath, Name: name, Detail: dir, Extra: syncResourceDir})
+				continue
+			}
+			files = append(files, dto.ClusterSyncResource{
 				Key: fullPath, Name: name,
-				Detail: fmt.Sprintf("%s", dir), Size: int64(toFloat(f["size"])),
+				Detail: dir, Size: int64(toFloat(f["size"])),
 			})
 		}
+		out := append(dirs, files...)
 		return out, int64(len(out)), nil
 	case dto.ClusterSyncKindImage:
 		var result remotePage
@@ -309,10 +323,17 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 			}
 			name := toString(item["name"])
 			version := toString(item["version"])
+			// The agent's AppInstallDTO serializes the detail id as
+			// "appDetailID" (capital ID). Reading "appDetailId" always
+			// produced "" and every app sync failed with "no appDetailId".
+			detailID := toString(item["appDetailID"])
+			if detailID == "" {
+				detailID = toString(item["appDetailId"])
+			}
 			out = append(out, dto.ClusterSyncResource{
 				Key: id, Name: name,
 				Detail: key + " " + version,
-				Extra:  toString(item["appDetailId"]),
+				Extra:  detailID,
 			})
 		}
 		return out, result.Total, nil
@@ -753,6 +774,9 @@ func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, over
 func (s *ClusterSyncService) transferOne(kind string, source, target model.ClusterNode, res dto.ClusterSyncResource, reqPath string, overwrite bool) (string, string) {
 	switch kind {
 	case dto.ClusterSyncKindFile:
+		if res.Extra == syncResourceDir {
+			return model.ClusterSyncActionFailed, "directories are not synced; open the directory and select files"
+		}
 		tmpPath, _, err := s.downloadNodeFile(source, res.Key)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "download from source failed: " + truncateErr(err.Error())
@@ -816,15 +840,18 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/websites/ssl/"+res.Key, nil, &cert, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "could not read source certificate: " + truncateErr(err.Error())
 		}
-		if cert.AutoRenew || strings.Contains(strings.ToLower(cert.Provider), "acme") {
-			return model.ClusterSyncActionFailed, "ACME auto-renew certificates are not synced (the target renews on its own)"
-		}
+		// ACME / auto-renew certificates used to be rejected outright,
+		// which made certificate sync fail for almost every real panel
+		// (most certificates are ACME). They are now copied as a static
+		// pasted certificate; renewal stays with the source panel, so the
+		// copy must be re-synced after the source renews (noted in the
+		// description on the target).
 		if strings.TrimSpace(cert.PrivateKey) == "" || strings.TrimSpace(cert.Pem) == "" {
 			return model.ClusterSyncActionFailed, "source panel did not return the certificate content"
 		}
 		body := map[string]interface{}{
 			"type": "paste", "privateKey": cert.PrivateKey, "certificate": cert.Pem,
-			"description": "synced from cluster node " + source.Name,
+			"description": syncCertDescription(source.Name, cert.AutoRenew),
 		}
 		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/websites/ssl/upload", body, nil, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "certificate upload on target failed: " + truncateErr(err.Error())
@@ -874,6 +901,14 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 	return model.ClusterSyncActionFailed, "unknown resource kind"
 }
 
+func syncCertDescription(sourceName string, autoRenew bool) string {
+	desc := "synced from cluster node " + sourceName
+	if autoRenew {
+		desc += " (auto-renewed on source; re-sync after renewal)"
+	}
+	return desc
+}
+
 func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error) {
 	if !validSyncKind(req.Kind) {
 		return 0, buserr.New("ErrInvalidParams")
@@ -899,6 +934,31 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 	if err := s.syncRepo.CreateTask(task); err != nil {
 		return 0, err
 	}
+	if syncExecuteAsync {
+		// Image pulls and app installs take minutes; running them inside
+		// the HTTP request made the browser time out (20s) and report a
+		// failure while the transfer was still running. The task id is
+		// returned at once and the page polls the task list.
+		go func() {
+			defer func() {
+				if r := recover(); r != nil {
+					global.LOG.Errorf("cluster sync task %d panicked: %v", task.ID, r)
+					_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{"status": model.ClusterSyncTaskFailed})
+				}
+			}()
+			s.runTask(task, req, source, byKey)
+		}()
+		return task.ID, nil
+	}
+	s.runTask(task, req, source, byKey)
+	return task.ID, nil
+}
+
+// syncExecuteAsync runs Execute's transfers in the background. Tests turn
+// it off to assert the finished task synchronously.
+var syncExecuteAsync = true
+
+func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.ClusterSyncExecuteReq, source model.ClusterNode, byKey map[string]dto.ClusterSyncResource) {
 	succeeded, skipped, failed := 0, 0, 0
 	finishTask := func() {
 		status := model.ClusterSyncTaskSuccess
@@ -925,6 +985,7 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 			}
 			continue
 		}
+		failedBefore := failed
 		for _, key := range req.ResourceKeys {
 			start := time.Now()
 			res, ok := byKey[key]
@@ -961,16 +1022,20 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 			_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
 		}
 		// Per-node settlement: record the target's last sync outcome.
+		// Only this target's failures count (the old code used the running
+		// total, marking every later target partial), and the local
+		// pseudo-node (id 0) has no cluster_nodes row to update.
 		nodeStatus := model.ClusterSyncTaskSuccess
-		if failed > 0 {
+		if failed > failedBefore {
 			nodeStatus = model.ClusterSyncTaskPartial
 		}
-		_ = clusterNodeRepo.Update(targetID, map[string]interface{}{
-			"last_sync_status": nodeStatus, "last_sync_at": time.Now(),
-		})
+		if targetID != 0 {
+			_ = clusterNodeRepo.Update(targetID, map[string]interface{}{
+				"last_sync_status": nodeStatus, "last_sync_at": time.Now(),
+			})
+		}
 	}
 	finishTask()
-	return task.ID, nil
 }
 
 func (s *ClusterSyncService) record(taskID uint, kind, key, name string, sourceID, targetID uint, targetName, action, reason string, durationMs int64) error {

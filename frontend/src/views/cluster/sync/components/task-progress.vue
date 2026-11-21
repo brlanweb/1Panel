@@ -18,6 +18,14 @@
             <span>{{ $t('cluster.skipped') }}：{{ task.skipped }}</span>
             <span>{{ $t('cluster.failed') }}：{{ task.failed }}</span>
         </div>
+        <el-alert
+            v-if="task && task.status === 'running' && task.step"
+            :title="task.step"
+            type="info"
+            :closable="false"
+            show-icon
+            class="mt-3"
+        />
         <el-table :data="records" class="mt-4" v-loading="loading && !records.length">
             <el-table-column :label="$t('cluster.resourceName')" min-width="180">
                 <template #default="{ row }">{{ row.resourceName || row.resourceKey }}</template>

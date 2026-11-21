@@ -35,3 +35,11 @@ var AddClusterNodeGroup = &gormigrate.Migration{
 		return tx.Create(&model.Group{Name: "Default", Type: "cluster_node", IsDefault: true}).Error
 	},
 }
+
+// AddClusterSyncTaskStep adds the "step" column (current transfer stage).
+var AddClusterSyncTaskStep = &gormigrate.Migration{
+	ID: "20261121-add-cluster-sync-task-step",
+	Migrate: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.ClusterSyncTask{})
+	},
+}

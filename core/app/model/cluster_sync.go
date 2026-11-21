@@ -19,6 +19,9 @@ type ClusterSyncTask struct {
 	// OverwriteConflicts records the user's explicit choice at execution
 	// time. Default false: conflicting items are skipped and reported.
 	OverwriteConflicts bool `json:"overwriteConflicts"`
+	// Step is the stage currently running (e.g. "redis:7 → uk01: export
+	// on source"), shown while the task runs so a slow stage is visible.
+	Step string `json:"step"`
 }
 
 func (ClusterSyncTask) TableName() string { return "cluster_sync_tasks" }

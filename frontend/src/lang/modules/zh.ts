@@ -654,7 +654,7 @@ const message = {
         dbReplManual: '需手动确认',
         dbReplSameNode: '主库节点与从库节点不能相同',
         dbReplSshTunnel:
-            '若节点间数据库端口不通，需手动建立 SSH 隧道（例如在从库节点执行 ssh -N -L 3306:主库内网地址:3306 用户@主库地址），再把主库地址填为 127.0.0.1。',
+            "若节点间数据库端口不通，需手动建立 SSH 隧道（例如在从库节点执行 ssh -N -L 3306:主库内网地址:3306 用户{'@'}主库地址），再把主库地址填为 127.0.0.1。",
         dbReplStatusDraft: '草稿',
         dbReplStatusReady: '就绪',
         dbReplStatusConfiguring: '配置中',

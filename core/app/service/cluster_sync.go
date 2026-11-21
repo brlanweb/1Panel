@@ -596,7 +596,23 @@ type syncTransferOpts struct {
 	TargetPath string // file: target directory ("" = same as source)
 	Overwrite  bool
 	AppDBHost  string // app: database service name on the target
+	// Step reports the stage being run (nil = no reporting).
+	Step func(stage string)
 }
+
+func (o syncTransferOpts) step(stage string) {
+	if o.Step != nil {
+		o.Step(stage)
+	}
+}
+
+// Stage timeouts. A node task (export / compress / load / restore) that
+// does not finish in time fails the item instead of keeping the sync task
+// "running" for hours; tests shorten them.
+var (
+	syncShortTaskTimeout = 30 * time.Minute
+	syncLongTaskTimeout  = 2 * time.Hour
+)
 
 func (o syncTransferOpts) fileTargetDir(res dto.ClusterSyncResource) string {
 	if dir := strings.TrimSpace(o.TargetPath); dir != "" {
@@ -627,10 +643,14 @@ func imageTags(res dto.ClusterSyncResource) []string {
 // syncTaskPollInterval is how often a node task is polled (tests shorten it).
 var syncTaskPollInterval = 2 * time.Second
 
+// syncTaskMissingLimit is how long a node task may stay unlisted.
+var syncTaskMissingLimit = time.Minute
+
 // waitNodeTask polls a node's task log (POST /logs/tasks/search) until the
 // async task created with taskID succeeds or fails.
 func (s *ClusterSyncService) waitNodeTask(node model.ClusterNode, taskID string, timeout time.Duration) error {
 	deadline := time.Now().Add(timeout)
+	missing := 0
 	for {
 		var page struct {
 			Items []struct {
@@ -639,6 +659,15 @@ func (s *ClusterSyncService) waitNodeTask(node model.ClusterNode, taskID string,
 			} `json:"items"`
 		}
 		err := s.callNodeJSON(node, http.MethodPost, "/api/v2/logs/tasks/search", map[string]interface{}{"taskID": taskID, "page": 1, "pageSize": 1}, &page, 15*time.Second)
+		if err == nil && len(page.Items) == 0 {
+			// The task row is created synchronously by the node before
+			// it answers; still missing after a minute means the request
+			// never started a task (or the node cannot list it).
+			missing++
+			if time.Duration(missing)*syncTaskPollInterval > syncTaskMissingLimit {
+				return fmt.Errorf("task %s not found on node %s", taskID, node.Name)
+			}
+		}
 		if err == nil && len(page.Items) > 0 {
 			switch page.Items[0].Status {
 			case "Success":
@@ -865,7 +894,7 @@ func (s *ClusterSyncService) signedClient(node model.ClusterNode, timeout time.D
 }
 
 func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string, maxBytes int64) (tmpPath string, size int64, err error) {
-	client, timestamp, hmacToken, md5Token, err := s.signedClient(node, 10*time.Minute)
+	client, timestamp, hmacToken, md5Token, err := s.signedClient(node, 2*time.Hour)
 	if err != nil {
 		return "", 0, err
 	}
@@ -926,44 +955,76 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 }
 
 func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
-	client, timestamp, hmacToken, md5Token, err := s.signedClient(node, 10*time.Minute)
+	timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(tmpPath)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
 	apiBase, err := panelAPIBase(node.EntryURL)
 	if err != nil {
 		return err
 	}
 	targetURL := apiBase + "/api/v2/files/upload"
-	doPost := func(token string) (*resty.Response, error) {
-		if _, err := f.Seek(0, io.SeekStart); err != nil {
-			return nil, err
-		}
-		return client.R().
-			SetHeader("1Panel-Timestamp", timestamp).
-			SetHeader("1Panel-Token", token).
-			SetMultipartField("path", "", "", strings.NewReader(dir)).
-			SetMultipartField("overwrite", "", "", strings.NewReader(strconv.FormatBool(overwrite))).
-			SetFileReader("file", fileName, f).
-			Post(targetURL)
+	client := &http.Client{
+		Timeout:   2 * time.Hour,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, Proxy: http.ProxyFromEnvironment},
 	}
-	resp, err := doPost(hmacToken)
-	if err == nil && resp.StatusCode() == http.StatusUnauthorized {
-		resp, err = doPost(md5Token)
+	// Stream the multipart body from the temp file through a pipe. resty
+	// builds multipart bodies in memory (and copies them once more), which
+	// for an image tarball exhausted RAM on small (1 GB) panels.
+	doPost := func(token string) (int, []byte, error) {
+		f, err := os.Open(tmpPath)
+		if err != nil {
+			return 0, nil, err
+		}
+		defer f.Close()
+		pr, pw := io.Pipe()
+		mw := multipart.NewWriter(pw)
+		go func() {
+			err := mw.WriteField("path", dir)
+			if err == nil {
+				err = mw.WriteField("overwrite", strconv.FormatBool(overwrite))
+			}
+			if err == nil {
+				var part io.Writer
+				if part, err = mw.CreateFormFile("file", fileName); err == nil {
+					_, err = io.Copy(part, f)
+				}
+			}
+			if err == nil {
+				err = mw.Close()
+			}
+			_ = pw.CloseWithError(err)
+		}()
+		req, err := http.NewRequest(http.MethodPost, targetURL, pr)
+		if err != nil {
+			_ = pr.Close()
+			return 0, nil, err
+		}
+		req.Header.Set("Content-Type", mw.FormDataContentType())
+		req.Header.Set("1Panel-Timestamp", timestamp)
+		req.Header.Set("1Panel-Token", token)
+		resp, err := client.Do(req)
+		if err != nil {
+			_ = pr.Close()
+			return 0, nil, err
+		}
+		defer resp.Body.Close()
+		_ = pr.Close()
+		body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+		return resp.StatusCode, body, err
+	}
+	code, body, err := doPost(hmacToken)
+	if err == nil && code == http.StatusUnauthorized {
+		code, body, err = doPost(md5Token)
 	}
 	if err != nil {
 		return err
 	}
-	if resp.StatusCode() != http.StatusOK {
-		return fmt.Errorf("target panel returned HTTP %d while uploading the file", resp.StatusCode())
+	if code != http.StatusOK {
+		return fmt.Errorf("target panel returned HTTP %d while uploading the file", code)
 	}
 	var env remoteEnvelope
-	if err := json.Unmarshal(resp.Body(), &env); err == nil && env.Code != http.StatusOK && env.Code != 0 {
+	if err := json.Unmarshal(body, &env); err == nil && env.Code != http.StatusOK && env.Code != 0 {
 		if strings.TrimSpace(env.Message) != "" {
 			return fmt.Errorf("target panel error: %s", truncateErr(env.Message))
 		}
@@ -1001,7 +1062,7 @@ func (s *ClusterSyncService) downloadLocalFile(remotePath string, maxBytes int64
 	tmpPath := tmp.Name()
 	_ = tmp.Close()
 	targetURL := "http://localhost/api/v2/files/download?path=" + url.QueryEscape(remotePath)
-	resp, err := localAgentHTTPClient(10 * time.Minute).Get(targetURL)
+	resp, err := localAgentHTTPClient(2 * time.Hour).Get(targetURL)
 	if err != nil {
 		_ = os.Remove(tmpPath)
 		return "", 0, err
@@ -1062,7 +1123,7 @@ func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, over
 		return err
 	}
 	req.Header.Set("Content-Type", mw.FormDataContentType())
-	resp, err := localAgentHTTPClient(10 * time.Minute).Do(req)
+	resp, err := localAgentHTTPClient(2 * time.Hour).Do(req)
 	if err != nil {
 		return err
 	}
@@ -1103,7 +1164,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		}
 		return model.ClusterSyncActionCreate, ""
 	case dto.ClusterSyncKindImage:
-		return s.transferImage(source, target, res)
+		return s.transferImage(source, target, res, opts)
 	case dto.ClusterSyncKindApp:
 		return s.transferApp(source, target, res, opts)
 	case dto.ClusterSyncKindCert:
@@ -1180,19 +1241,32 @@ const maxSyncArchiveBytes = 20 * 1024 * 1024 * 1024
 
 func newSyncTaskID() string { return uuid.NewString() }
 
-func (s *ClusterSyncService) ensureNodeDir(node model.ClusterNode, dir string) {
-	_ = s.callNodeJSON(node, http.MethodPost, "/api/v2/files", map[string]interface{}{"path": dir, "isDir": true, "mode": 0700}, nil, 15*time.Second)
+func (s *ClusterSyncService) ensureNodeDir(node model.ClusterNode, dir string) error {
+	if item, ok, err := s.lookupFile(node, dir); err == nil && ok && item.Extra == syncResourceDir {
+		return nil
+	}
+	err := s.callNodeJSON(node, http.MethodPost, "/api/v2/files", map[string]interface{}{"path": dir, "isDir": true, "mode": 0755}, nil, 15*time.Second)
+	if err != nil {
+		// Created concurrently by another transfer: fine if it exists now.
+		if item, ok, lookErr := s.lookupFile(node, dir); lookErr == nil && ok && item.Extra == syncResourceDir {
+			return nil
+		}
+		return fmt.Errorf("could not create %s on %s: %s", dir, node.Name, truncateErr(err.Error()))
+	}
+	return nil
 }
 
 // moveArchive downloads an archive from one node and uploads it into
 // syncTmpDir on another, removing the master's temp copy.
-func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPath string) (string, error) {
+func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPath string, opts syncTransferOpts) (string, error) {
+	opts.step("download from " + source.Name)
 	tmpPath, _, err := s.downloadNodeFile(source, srcPath, maxSyncArchiveBytes)
 	if err != nil {
 		return "", fmt.Errorf("download from source failed: %s", truncateErr(err.Error()))
 	}
 	defer os.Remove(tmpPath)
 	name := path.Base(srcPath)
+	opts.step("upload to " + target.Name)
 	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true); err != nil {
 		return "", fmt.Errorf("upload to target failed: %s", truncateErr(err.Error()))
 	}
@@ -1204,31 +1278,36 @@ func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPa
 // directory (files/decompress). Existing target files are kept unless
 // overwrite is requested.
 func (s *ClusterSyncService) transferDir(source, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (string, string) {
+	if err := s.ensureNodeDir(source, syncTmpDir); err != nil {
+		return model.ClusterSyncActionFailed, err.Error()
+	}
 	archive := "sync-" + common.RandStrAndNum(12) + ".tar.gz"
 	taskID := newSyncTaskID()
 	srcArchive := path.Join(syncTmpDir, archive)
+	opts.step("compress on " + source.Name)
 	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/files/compress", map[string]interface{}{
 		"files": []string{res.Key}, "dst": syncTmpDir, "type": "tar.gz", "name": archive, "replace": true, "taskID": taskID,
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
 	}
 	defer s.removeNodeFile(source, srcArchive)
-	if err := s.waitNodeTask(source, taskID, 2*time.Hour); err != nil {
+	if err := s.waitNodeTask(source, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
 	}
-	dstArchive, err := s.moveArchive(source, target, srcArchive)
+	dstArchive, err := s.moveArchive(source, target, srcArchive, opts)
 	if err != nil {
 		return model.ClusterSyncActionFailed, err.Error()
 	}
 	defer s.removeNodeFile(target, dstArchive)
 	overwrite := opts.Overwrite
 	taskID = newSyncTaskID()
+	opts.step("decompress on " + target.Name)
 	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/files/decompress", map[string]interface{}{
 		"path": dstArchive, "dst": opts.fileTargetDir(res), "type": "tar.gz", "overwrite": &overwrite, "taskID": taskID,
 	}, nil, 30*time.Second); err != nil {
 		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
+	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
 	}
 	return model.ClusterSyncActionCreate, ""
@@ -1237,40 +1316,45 @@ func (s *ClusterSyncService) transferDir(source, target model.ClusterNode, res d
 // transferImage copies one image (with all its tags) without a registry:
 // docker save on the source, transit through the master, docker load on
 // the target, then re-tag so every source tag exists on the target.
-func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res dto.ClusterSyncResource) (string, string) {
+func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (string, string) {
 	tags := imageTags(res)
 	ref := res.Key
 	if len(tags) > 0 {
 		ref = tags[0]
 	}
+	if err := s.ensureNodeDir(source, syncTmpDir); err != nil {
+		return model.ClusterSyncActionFailed, "image export on source failed: " + err.Error()
+	}
 	name := "sync-image-" + common.RandStrAndNum(12)
 	srcTar := path.Join(syncTmpDir, name+".tar")
-	s.ensureNodeDir(source, syncTmpDir)
 	taskID := newSyncTaskID()
+	opts.step("export " + ref + " on " + source.Name)
 	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/containers/image/save", map[string]interface{}{
 		"tagName": ref, "path": syncTmpDir, "name": name, "taskID": taskID,
 	}, nil, 30*time.Second); err != nil {
-		return model.ClusterSyncActionFailed, "image save on source failed: " + truncateErr(err.Error())
+		return model.ClusterSyncActionFailed, "image export on source failed: " + truncateErr(err.Error())
 	}
 	defer s.removeNodeFile(source, srcTar)
-	if err := s.waitNodeTask(source, taskID, 2*time.Hour); err != nil {
-		return model.ClusterSyncActionFailed, "image save on source failed: " + truncateErr(err.Error())
+	if err := s.waitNodeTask(source, taskID, syncShortTaskTimeout); err != nil {
+		return model.ClusterSyncActionFailed, "image export on source failed: " + truncateErr(err.Error())
 	}
-	dstTar, err := s.moveArchive(source, target, srcTar)
+	dstTar, err := s.moveArchive(source, target, srcTar, opts)
 	if err != nil {
 		return model.ClusterSyncActionFailed, err.Error()
 	}
 	defer s.removeNodeFile(target, dstTar)
 	taskID = newSyncTaskID()
+	opts.step("import on " + target.Name)
 	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/load", map[string]interface{}{
 		"paths": []string{dstTar}, "taskID": taskID,
 	}, nil, 30*time.Second); err != nil {
-		return model.ClusterSyncActionFailed, "image load on target failed: " + truncateErr(err.Error())
+		return model.ClusterSyncActionFailed, "image import on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
-		return model.ClusterSyncActionFailed, "image load on target failed: " + truncateErr(err.Error())
+	if err := s.waitNodeTask(target, taskID, syncShortTaskTimeout); err != nil {
+		return model.ClusterSyncActionFailed, "image import on target failed: " + truncateErr(err.Error())
 	}
 	if len(tags) > 1 {
+		opts.step("tag on " + target.Name)
 		// Keep any tags the target already had on this image.
 		all := append([]string{}, tags...)
 		if items, _, err := s.listRemoteResources(dto.ClusterSyncKindImage, target, "", 1, 500); err == nil {
@@ -1289,7 +1373,7 @@ func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res
 			}
 		}
 		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/tag", map[string]interface{}{"sourceID": res.Key, "tags": uniq}, nil, 60*time.Second); err != nil {
-			return model.ClusterSyncActionFailed, "image loaded but tagging on target failed: " + truncateErr(err.Error())
+			return model.ClusterSyncActionFailed, "image imported but tagging on target failed: " + truncateErr(err.Error())
 		}
 	}
 	return model.ClusterSyncActionCreate, ""
@@ -1345,7 +1429,7 @@ func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res d
 	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 5*time.Minute); err != nil {
 		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, time.Hour); err != nil {
+	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
 	}
 	// Data: back up on the source and restore on the target.
@@ -1377,7 +1461,7 @@ func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res d
 		}
 		return model.ClusterSyncActionFailed, msg
 	}
-	dstBackup, err := s.moveArchive(source, target, backupPath)
+	dstBackup, err := s.moveArchive(source, target, backupPath, opts)
 	if err != nil {
 		return model.ClusterSyncActionFailed, "app installed on target, but moving the backup failed (data not migrated): " + err.Error()
 	}
@@ -1388,7 +1472,7 @@ func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res d
 	}, nil, 5*time.Minute); err != nil {
 		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
 	}
-	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
+	if err := s.waitNodeTask(target, taskID, syncLongTaskTimeout); err != nil {
 		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
 	}
 	return model.ClusterSyncActionCreate, ""
@@ -1441,6 +1525,17 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 	return task.ID, nil
 }
 
+// failStaleTasks marks tasks that stopped reporting as failed: a task whose
+// goroutine died with the panel (restart, OOM kill) would otherwise stay
+// "running" forever. Running tasks bump updated_at at every stage, and no
+// stage waits longer than syncLongTaskTimeout.
+func (s *ClusterSyncService) failStaleTasks() {
+	cutoff := time.Now().Add(-(syncLongTaskTimeout + 15*time.Minute))
+	_ = global.DB.Model(&model.ClusterSyncTask{}).
+		Where("status = ? AND updated_at < ?", model.ClusterSyncTaskRunning, cutoff).
+		Updates(map[string]interface{}{"status": model.ClusterSyncTaskFailed, "step": "interrupted (panel restarted or task stalled)"}).Error
+}
+
 // syncExecuteAsync runs Execute's transfers in the background. Tests turn
 // it off to assert the finished task synchronously.
 var syncExecuteAsync = true
@@ -1448,6 +1543,10 @@ var syncExecuteAsync = true
 func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.ClusterSyncExecuteReq, source model.ClusterNode, byKey map[string]dto.ClusterSyncResource) {
 	opts := syncTransferOpts{Path: req.Path, TargetPath: req.TargetPath, Overwrite: req.OverwriteConflicts, AppDBHost: req.AppDBHost}
 	succeeded, skipped, failed := 0, 0, 0
+	var itemLabel string
+	opts.Step = func(stage string) {
+		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{"step": truncateErr(itemLabel + ": " + stage)})
+	}
 	for _, targetID := range req.TargetNodeIDs {
 		if targetID == req.SourceNodeID {
 			continue
@@ -1484,6 +1583,7 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 				skipped++
 				continue
 			}
+			itemLabel = res.Name + " → " + target.Name
 			action, reason = s.transferOne(req.Kind, source, target, res, opts)
 			switch action {
 			case model.ClusterSyncActionCreate:
@@ -1513,7 +1613,7 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 	}
 	task.Total = succeeded + skipped + failed
 	_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
-		"status": status, "total": task.Total,
+		"status": status, "total": task.Total, "step": "",
 		"succeeded": succeeded, "skipped": skipped, "failed": failed,
 	})
 }
@@ -1527,6 +1627,7 @@ func (s *ClusterSyncService) record(taskID uint, kind, key, name string, sourceI
 }
 
 func (s *ClusterSyncService) SearchTasks(req dto.ClusterSyncTaskSearch) (int64, interface{}, error) {
+	s.failStaleTasks()
 	var opts []global.DBOption
 	if req.Kind != "" {
 		kind := req.Kind

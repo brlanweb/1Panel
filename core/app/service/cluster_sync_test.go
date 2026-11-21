@@ -890,6 +890,8 @@ func TestSyncDirectoryTransferUsesCompressAndDecompress(t *testing.T) {
 		switch r.URL.Path {
 		case "/api/v2/files/search":
 			envelope(w, map[string]interface{}{"items": []map[string]interface{}{{"name": "site", "isDir": true}}})
+		case "/api/v2/files":
+			envelope(w, nil)
 		case "/api/v2/files/compress":
 			compressBody = body
 			srcLog.note(body)
@@ -1001,5 +1003,160 @@ func TestSyncAppUnsupportedReason(t *testing.T) {
 		if got := appUnsupportedReason(c.res) != ""; got != c.want {
 			t.Errorf("appUnsupportedReason(%+v) unsupported = %v, want %v", c.res, got, c.want)
 		}
+	}
+}
+
+// fakeImageNode emulates the agent endpoints used by an image transfer:
+// file search / mkdir, image save (writes <path>/<name>.tar as a task),
+// download, upload, image load (as a task), image search and task search.
+type fakeImageNode struct {
+	files  map[string][]byte
+	images map[string][]string // id -> tags
+	tasks  map[string]string   // taskID -> status
+	saved  string
+	loaded string
+}
+
+func newFakeImageNode() *fakeImageNode {
+	return &fakeImageNode{files: map[string][]byte{}, images: map[string][]string{}, tasks: map[string]string{}}
+}
+
+func (n *fakeImageNode) handler(t *testing.T) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if strings.HasPrefix(r.Header.Get("Content-Type"), "application/json") {
+			_ = json.NewDecoder(r.Body).Decode(&body)
+		}
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			dir, _ := body["path"].(string)
+			items := []map[string]interface{}{}
+			if dir == "/tmp" {
+				items = append(items, map[string]interface{}{"name": "1panel-cluster-sync", "isDir": true})
+			}
+			envelope(w, map[string]interface{}{"items": items, "itemTotal": len(items)})
+		case "/api/v2/files":
+			envelope(w, nil)
+		case "/api/v2/containers/image/save":
+			id, _ := body["taskID"].(string)
+			p := body["path"].(string) + "/" + body["name"].(string) + ".tar"
+			n.files[p] = []byte("image-tar:" + body["tagName"].(string))
+			n.saved = body["tagName"].(string)
+			n.tasks[id] = "Success"
+			envelope(w, nil)
+		case "/api/v2/files/download":
+			data, ok := n.files[r.URL.Query().Get("path")]
+			if !ok {
+				w.Header().Set("Content-Type", "application/json")
+				_ = json.NewEncoder(w).Encode(map[string]interface{}{"code": 400, "message": "ErrFileNotFound"})
+				return
+			}
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write(data)
+		case "/api/v2/files/upload":
+			if err := r.ParseMultipartForm(32 << 20); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			f, hdr, err := r.FormFile("file")
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			raw, _ := io.ReadAll(f)
+			_ = f.Close()
+			n.files[r.FormValue("path")+"/"+hdr.Filename] = raw
+			envelope(w, nil)
+		case "/api/v2/containers/image/load":
+			id, _ := body["taskID"].(string)
+			paths, _ := body["paths"].([]interface{})
+			if len(paths) == 1 {
+				if data, ok := n.files[paths[0].(string)]; ok {
+					n.loaded = string(data)
+					n.tasks[id] = "Success"
+				} else {
+					n.tasks[id] = "Failed"
+				}
+			}
+			envelope(w, nil)
+		case "/api/v2/containers/image/search":
+			items := []map[string]interface{}{}
+			for id, tags := range n.images {
+				items = append(items, map[string]interface{}{"id": id, "tags": tags, "size": 10})
+			}
+			envelope(w, map[string]interface{}{"total": len(items), "items": items})
+		case "/api/v2/logs/tasks/search":
+			id, _ := body["taskID"].(string)
+			items := []map[string]interface{}{}
+			if st, ok := n.tasks[id]; ok {
+				items = append(items, map[string]interface{}{"id": id, "status": st})
+			}
+			envelope(w, map[string]interface{}{"total": len(items), "items": items})
+		case "/api/v2/files/del":
+			envelope(w, nil)
+		default:
+			t.Logf("unexpected request %s", r.URL.Path)
+			http.NotFound(w, r)
+		}
+	}
+}
+
+func TestSyncImageTransferSaveMoveLoad(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	oldPoll := syncTaskPollInterval
+	syncTaskPollInterval = time.Millisecond
+	defer func() { syncTaskPollInterval = oldPoll }()
+
+	src := newFakeImageNode()
+	src.images["sha256:redis"] = []string{"redis:7.2.5"}
+	startLocalAgentTestServer(t, src.handler(t))
+	dst := newFakeImageNode()
+	remote := httptest.NewServer(dst.handler(t))
+	defer remote.Close()
+	target := insertTestNode(t, "uk01", remote.URL, "online")
+
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "image", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID}, ResourceKeys: []string{"sha256:redis"},
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	records, _ := svc.TaskRecords(taskID)
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCreate {
+		t.Fatalf("records = %+v, want one create record", records)
+	}
+	if src.saved != "redis:7.2.5" || dst.loaded != "image-tar:redis:7.2.5" {
+		t.Errorf("saved %q loaded %q, want the source tarball loaded on the target", src.saved, dst.loaded)
+	}
+	var task model.ClusterSyncTask
+	_ = global.DB.First(&task, taskID).Error
+	if task.Status != model.ClusterSyncTaskSuccess || task.Step != "" {
+		t.Errorf("task status %q step %q, want success and cleared step", task.Status, task.Step)
+	}
+}
+
+func TestSyncWaitNodeTaskFailsWhenTaskMissing(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	oldPoll := syncTaskPollInterval
+	oldLimit := syncTaskMissingLimit
+	syncTaskPollInterval = 10 * time.Millisecond
+	syncTaskMissingLimit = 50 * time.Millisecond
+	defer func() { syncTaskPollInterval = oldPoll; syncTaskMissingLimit = oldLimit }()
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		envelope(w, map[string]interface{}{"total": 0, "items": []interface{}{}})
+	}))
+	defer remote.Close()
+	node := insertTestNode(t, "n", remote.URL, "online")
+	svc := NewIClusterSyncService().(*ClusterSyncService)
+	start := time.Now()
+	err := svc.waitNodeTask(node, "nope", 10*time.Minute)
+	if err == nil || !strings.Contains(err.Error(), "not found") {
+		t.Fatalf("waitNodeTask = %v, want a not-found error", err)
+	}
+	if time.Since(start) > 5*time.Second {
+		t.Fatalf("waitNodeTask took %s", time.Since(start))
 	}
 }

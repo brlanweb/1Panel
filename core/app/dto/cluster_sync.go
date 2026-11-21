@@ -127,6 +127,7 @@ type ClusterSyncTaskInfo struct {
 	Skipped            int       `json:"skipped"`
 	Failed             int       `json:"failed"`
 	OverwriteConflicts bool      `json:"overwriteConflicts"`
+	Step               string    `json:"step"`
 	CreatedAt          time.Time `json:"createdAt"`
 	UpdatedAt          time.Time `json:"updatedAt"`
 }

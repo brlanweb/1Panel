@@ -171,6 +171,7 @@ export namespace Cluster {
         overwriteConflicts: boolean;
         createdAt: string;
         updatedAt: string;
+        step?: string;
     }
 
     export interface SyncTaskSearch extends ReqPage {

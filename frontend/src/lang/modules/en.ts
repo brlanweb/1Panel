@@ -687,7 +687,7 @@ const message = {
         dbReplManual: 'Manual Check',
         dbReplSameNode: 'Master and replica must be different nodes',
         dbReplSshTunnel:
-            'If the database port is not reachable between nodes, set up an SSH tunnel manually (e.g. on the replica node run ssh -N -L 3306:<master internal host>:3306 user@master), then set the master host to 127.0.0.1.',
+            "If the database port is not reachable between nodes, set up an SSH tunnel manually (e.g. on the replica node run ssh -N -L 3306:<master internal host>:3306 user{'@'}master), then set the master host to 127.0.0.1.",
         dbReplStatusDraft: 'Draft',
         dbReplStatusReady: 'Ready',
         dbReplStatusConfiguring: 'Configuring',

@@ -18,14 +18,38 @@
             <span>{{ $t('cluster.skipped') }}：{{ task.skipped }}</span>
             <span>{{ $t('cluster.failed') }}：{{ task.failed }}</span>
         </div>
-        <el-alert
-            v-if="task && task.status === 'running' && task.step"
-            :title="task.step"
-            type="info"
-            :closable="false"
-            show-icon
-            class="mt-3"
-        />
+        <div v-if="task && task.status === 'running'" class="progress-box mt-3">
+            <div class="flx-align-center">
+                <el-icon class="is-loading mr-1"><Loading /></el-icon>
+                <span class="font-medium">{{ task.step || $t('cluster.progressWaiting') }}</span>
+            </div>
+            <template v-if="hasBytes">
+                <el-progress
+                    class="mt-2"
+                    :percentage="percent"
+                    :stroke-width="16"
+                    text-inside
+                    :status="stalledSeconds >= 60 ? 'warning' : undefined"
+                />
+                <div class="progress-meta mt-1">
+                    <span>{{ computeSize(task.progressDone || 0) }} / {{ computeSize(task.progressTotal || 0) }}</span>
+                    <span>{{ $t('cluster.progressSpeed') }}：{{ speedText }}</span>
+                    <span>{{ $t('cluster.progressEta') }}：{{ etaText }}</span>
+                </div>
+            </template>
+            <div v-else class="progress-meta mt-1">{{ $t('cluster.progressWaiting') }}</div>
+            <div class="progress-meta mt-1">
+                <span>{{ $t('cluster.progressUpdated') }}：{{ updatedText }}</span>
+            </div>
+            <el-alert
+                v-if="hasBytes && stalledSeconds >= 60"
+                class="mt-2"
+                type="warning"
+                :closable="false"
+                show-icon
+                :title="$t('cluster.progressStalled', [stalledSeconds])"
+            />
+        </div>
         <el-table :data="records" class="mt-4" v-loading="loading && !records.length">
             <el-table-column :label="$t('cluster.resourceName')" min-width="180">
                 <template #default="{ row }">{{ row.resourceName || row.resourceKey }}</template>
@@ -51,6 +75,8 @@ import { Loading } from '@element-plus/icons-vue';
 import i18n from '@/lang';
 import { listClusterSyncTaskRecords, searchClusterSyncTasks } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
+import { computeSize } from '@/utils/size';
+import { dateFormatSimple } from '@/utils/date';
 
 const emit = defineEmits(['finished']);
 
@@ -60,6 +86,47 @@ const taskId = ref(0);
 const task = ref<Cluster.SyncTask | null>(null);
 const records = ref<Cluster.SyncTaskRecord[]>([]);
 let timer: ReturnType<typeof setTimeout> | undefined;
+
+// Stall detection: when progressDone last changed (client clock).
+const lastDone = ref(-1);
+const lastMoveAt = ref(Date.now());
+const now = ref(Date.now());
+
+const hasBytes = computed(() => (task.value?.progressTotal || 0) > 0);
+const percent = computed(() => {
+    const total = task.value?.progressTotal || 0;
+    if (!total) return 0;
+    return Math.min(100, Math.floor(((task.value?.progressDone || 0) * 1000) / total) / 10);
+});
+const stalledSeconds = computed(() => Math.max(0, Math.floor((now.value - lastMoveAt.value) / 1000)));
+const formatSeconds = (sec: number) => {
+    if (!isFinite(sec) || sec <= 0) return '—';
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = Math.floor(sec % 60);
+    if (h) return `${h}h ${m}m`;
+    if (m) return `${m}m ${s}s`;
+    return `${s}s`;
+};
+const speedText = computed(() => {
+    const rate = task.value?.progressRate || 0;
+    return rate > 0 ? computeSize(rate) + '/s' : '—';
+});
+const etaText = computed(() => {
+    const rate = task.value?.progressRate || 0;
+    const left = (task.value?.progressTotal || 0) - (task.value?.progressDone || 0);
+    return rate > 0 ? formatSeconds(left / rate) : '—';
+});
+const updatedText = computed(() => (task.value?.updatedAt ? dateFormatSimple(task.value.updatedAt) : '—'));
+
+const trackMovement = () => {
+    now.value = Date.now();
+    const done = task.value?.progressDone || 0;
+    if (done !== lastDone.value) {
+        lastDone.value = done;
+        lastMoveAt.value = now.value;
+    }
+};
 
 const runningHint = computed(() =>
     task.value?.status === 'running'
@@ -118,6 +185,7 @@ const refresh = async () => {
         if (id !== taskId.value) return;
         task.value = (taskRes.data.items || []).find((item) => item.id === id) || task.value;
         records.value = recordRes.data || [];
+        trackMovement();
     } catch {
         // reported by the interceptor
     } finally {
@@ -135,6 +203,8 @@ const open = (id: number, initial?: Cluster.SyncTask) => {
     taskId.value = id;
     task.value = initial || null;
     records.value = [];
+    lastDone.value = -1;
+    lastMoveAt.value = Date.now();
     visible.value = true;
     refresh();
 };
@@ -150,6 +220,18 @@ defineExpose({ open });
 </script>
 
 <style scoped>
+.progress-box {
+    padding: 12px 16px;
+    border-radius: 6px;
+    background: var(--el-fill-color-light);
+}
+.progress-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
+}
 .task-summary {
     display: flex;
     flex-wrap: wrap;

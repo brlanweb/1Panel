@@ -165,3 +165,26 @@ func TestSyncChunkUploadFallsBackWhenUnsupported(t *testing.T) {
 		t.Fatalf("fallback upload content mismatch (%d bytes)", len(got))
 	}
 }
+
+func TestSyncByteProgressReportsDoneTotalAndRate(t *testing.T) {
+	var gotDone, gotTotal, gotRate int64
+	calls := 0
+	opts := syncTransferOpts{Progress: func(done, total, rate int64) {
+		calls++
+		gotDone, gotTotal, gotRate = done, total, rate
+	}}
+	cb := opts.byteProgress()
+	cb(10, 1000) // first call always reported (no previous report)
+	cb(20, 1000) // throttled
+	time.Sleep(5 * time.Millisecond)
+	cb(1000, 1000) // completion is always reported
+	if calls != 2 {
+		t.Fatalf("progress reported %d times, want 2 (throttled)", calls)
+	}
+	if gotDone != 1000 || gotTotal != 1000 || gotRate <= 0 {
+		t.Fatalf("final progress = %d/%d rate %d", gotDone, gotTotal, gotRate)
+	}
+	if (syncTransferOpts{}).byteProgress() != nil {
+		t.Fatalf("no Progress sink must yield a nil callback")
+	}
+}

@@ -16,9 +16,15 @@
                 <template #default="{ row }">{{ kindLabel(row.kind) }}</template>
             </el-table-column>
             <el-table-column :label="$t('cluster.sourceNode')" prop="sourceName" min-width="120" />
-            <el-table-column :label="$t('cluster.taskStatus')" width="100">
+            <el-table-column :label="$t('cluster.taskStatus')" min-width="160">
                 <template #default="{ row }">
                     <el-tag :type="taskTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+                    <el-progress
+                        v-if="row.status === 'running' && row.progressTotal > 0"
+                        class="mt-1"
+                        :percentage="Math.min(100, Math.floor((row.progressDone * 100) / row.progressTotal))"
+                        :stroke-width="6"
+                    />
                 </template>
             </el-table-column>
             <el-table-column :label="$t('cluster.succeeded')" prop="succeeded" width="70" align="center" />
@@ -40,7 +46,7 @@
 </template>
 
 <script lang="ts" setup>
-import { reactive, ref } from 'vue';
+import { onBeforeUnmount, reactive, ref, watch } from 'vue';
 import i18n from '@/lang';
 import { searchClusterSyncTasks } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
@@ -80,8 +86,17 @@ const statusLabel = (status: string) => {
     return text === key ? status : text;
 };
 
-const search = async () => {
-    loading.value = true;
+let timer: ReturnType<typeof setTimeout> | undefined;
+const stopPolling = () => {
+    if (timer) {
+        clearTimeout(timer);
+        timer = undefined;
+    }
+};
+
+const search = async (silent = false) => {
+    stopPolling();
+    if (!silent) loading.value = true;
     try {
         const res = await searchClusterSyncTasks({ page: pagination.currentPage, pageSize: pagination.pageSize });
         tasks.value = res.data.items || [];
@@ -91,12 +106,21 @@ const search = async () => {
     } finally {
         loading.value = false;
     }
+    // Keep running tasks' progress fresh while the drawer is open.
+    if (visible.value && tasks.value.some((t) => t.status === 'running')) {
+        timer = setTimeout(() => search(true), 5000);
+    }
 };
 
 const open = () => {
     visible.value = true;
     search();
 };
+
+watch(visible, (val) => {
+    if (!val) stopPolling();
+});
+onBeforeUnmount(stopPolling);
 
 defineExpose({ open });
 </script>

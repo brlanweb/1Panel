@@ -128,6 +128,9 @@ type ClusterSyncTaskInfo struct {
 	Failed             int       `json:"failed"`
 	OverwriteConflicts bool      `json:"overwriteConflicts"`
 	Step               string    `json:"step"`
+	ProgressDone       int64     `json:"progressDone"`
+	ProgressTotal      int64     `json:"progressTotal"`
+	ProgressRate       int64     `json:"progressRate"`
 	CreatedAt          time.Time `json:"createdAt"`
 	UpdatedAt          time.Time `json:"updatedAt"`
 }

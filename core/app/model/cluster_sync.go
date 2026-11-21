@@ -22,6 +22,11 @@ type ClusterSyncTask struct {
 	// Step is the stage currently running (e.g. "redis:7 → uk01: export
 	// on source"), shown while the task runs so a slow stage is visible.
 	Step string `json:"step"`
+	// Byte progress of the running transfer stage (download / upload);
+	// all zero when the current stage has no measurable progress.
+	ProgressDone  int64 `json:"progressDone"`
+	ProgressTotal int64 `json:"progressTotal"`
+	ProgressRate  int64 `json:"progressRate"` // bytes per second
 }
 
 func (ClusterSyncTask) TableName() string { return "cluster_sync_tasks" }

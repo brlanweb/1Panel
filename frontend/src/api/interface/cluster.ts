@@ -172,6 +172,9 @@ export namespace Cluster {
         createdAt: string;
         updatedAt: string;
         step?: string;
+        progressDone?: number;
+        progressTotal?: number;
+        progressRate?: number;
     }
 
     export interface SyncTaskSearch extends ReqPage {

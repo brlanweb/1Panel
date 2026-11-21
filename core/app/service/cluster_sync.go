@@ -596,8 +596,11 @@ type syncTransferOpts struct {
 	TargetPath string // file: target directory ("" = same as source)
 	Overwrite  bool
 	AppDBHost  string // app: database service name on the target
-	// Step reports the stage being run (nil = no reporting).
+	// Step reports the stage being run (nil = no reporting); it also
+	// clears any byte progress of the previous stage.
 	Step func(stage string)
+	// Progress reports byte progress of the current stage (nil = none).
+	Progress func(done, total, rate int64)
 }
 
 func (o syncTransferOpts) step(stage string) {
@@ -893,8 +896,8 @@ func (s *ClusterSyncService) signedClient(node model.ClusterNode, timeout time.D
 	return client, timestamp, hmacToken, md5Token, nil
 }
 
-func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string, maxBytes int64) (tmpPath string, size int64, err error) {
-	client, timestamp, hmacToken, md5Token, err := s.signedClient(node, 2*time.Hour)
+func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (tmpPath string, size int64, err error) {
+	timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
 	if err != nil {
 		return "", 0, err
 	}
@@ -906,34 +909,60 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 	_ = tmp.Close()
 	apiBase, err := panelAPIBase(node.EntryURL)
 	if err != nil {
+		_ = os.Remove(tmpPath)
 		return "", 0, err
 	}
-	targetURL := apiBase + "/api/v2/files/download"
-	doGet := func(token string) (*resty.Response, error) {
-		return client.R().
-			SetHeader("1Panel-Timestamp", timestamp).
-			SetHeader("1Panel-Token", token).
-			SetQueryParam("path", remotePath).
-			SetOutput(tmpPath).
-			Get(targetURL)
+	targetURL := apiBase + "/api/v2/files/download?path=" + url.QueryEscape(remotePath)
+	client := &http.Client{
+		Timeout:   2 * time.Hour,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, Proxy: http.ProxyFromEnvironment},
+	}
+	doGet := func(token string) (*http.Response, error) {
+		req, err := http.NewRequest(http.MethodGet, targetURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("1Panel-Timestamp", timestamp)
+		req.Header.Set("1Panel-Token", token)
+		return client.Do(req)
 	}
 	resp, err := doGet(hmacToken)
-	if err == nil && resp.StatusCode() == http.StatusUnauthorized {
+	if err == nil && resp.StatusCode == http.StatusUnauthorized {
+		resp.Body.Close()
 		resp, err = doGet(md5Token)
 	}
 	if err != nil {
 		_ = os.Remove(tmpPath)
 		return "", 0, err
 	}
-	if resp.StatusCode() != http.StatusOK {
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
 		_ = os.Remove(tmpPath)
-		return "", 0, fmt.Errorf("source panel returned HTTP %d while downloading the file", resp.StatusCode())
+		return "", 0, fmt.Errorf("source panel returned HTTP %d while downloading the file", resp.StatusCode)
+	}
+	out, err := os.OpenFile(tmpPath, os.O_WRONLY|os.O_TRUNC, 0o600)
+	if err != nil {
+		_ = os.Remove(tmpPath)
+		return "", 0, err
+	}
+	pw := &progressWriter{w: out, total: resp.ContentLength, progress: progress}
+	if pw.total < 0 {
+		pw.total = 0
+	}
+	_, copyErr := io.Copy(pw, io.LimitReader(resp.Body, maxBytes+1))
+	closeErr := out.Close()
+	if copyErr != nil || closeErr != nil {
+		_ = os.Remove(tmpPath)
+		if copyErr != nil {
+			return "", 0, copyErr
+		}
+		return "", 0, closeErr
 	}
 	// The agent answers errors as a JSON envelope with HTTP 200 (bad API
 	// key, sensitive path, missing file). Without this check the JSON
 	// error body would be saved as the file and "synced" as corrupt
 	// content; the local branch already guards the same way.
-	if strings.Contains(strings.ToLower(resp.Header().Get("Content-Type")), "application/json") {
+	if strings.Contains(strings.ToLower(resp.Header.Get("Content-Type")), "application/json") {
 		raw, _ := os.ReadFile(tmpPath)
 		_ = os.Remove(tmpPath)
 		var env remoteEnvelope
@@ -1046,11 +1075,27 @@ func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir
 		if err != nil {
 			return 0, nil, err
 		}
+		// Report bytes as they leave so a slow chunk still shows movement.
+		overhead := int64(buf.Len() - len(data))
 		send := func(token string) (int, []byte, error) {
-			req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(buf.Bytes()))
+			var reqBody io.Reader = bytes.NewReader(buf.Bytes())
+			if progress != nil {
+				reqBody = &countingReader{r: reqBody, onRead: func(n int64) {
+					sent := n - overhead
+					if sent < 0 {
+						sent = 0
+					}
+					if sent > int64(len(data)) {
+						sent = int64(len(data))
+					}
+					progress(offset+sent, total)
+				}}
+			}
+			req, err := http.NewRequest(http.MethodPost, targetURL, reqBody)
 			if err != nil {
 				return 0, nil, err
 			}
+			req.ContentLength = int64(buf.Len())
 			req.Header.Set("Content-Type", mw.FormDataContentType())
 			req.Header.Set("1Panel-Timestamp", timestamp)
 			req.Header.Set("1Panel-Token", token)
@@ -1222,11 +1267,11 @@ func (s *ClusterSyncService) uploadRemoteFileSingle(node model.ClusterNode, dir,
 // downloadNodeFile / uploadNodeFile dispatch file transfers by node: the
 // local panel goes over the unix socket, registered nodes use the signed
 // remote calls.
-func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string, maxBytes int64) (string, int64, error) {
+func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string, maxBytes int64, progress func(done, total int64)) (string, int64, error) {
 	if isLocalNode(node) {
 		return s.downloadLocalFile(remotePath, maxBytes)
 	}
-	return s.downloadRemoteFile(node, remotePath, maxBytes)
+	return s.downloadRemoteFile(node, remotePath, maxBytes, progress)
 }
 
 func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
@@ -1236,24 +1281,68 @@ func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileNam
 	return s.uploadRemoteFile(node, dir, fileName, tmpPath, overwrite, progress)
 }
 
-// uploadProgress returns a throttled progress callback that reports
-// "<stage> 12.3/54.8 MB (22%)" as the task step.
-func (o syncTransferOpts) uploadProgress(stage string) func(sent, total int64) {
-	if o.Step == nil {
+// byteProgress returns a throttled byte-progress callback for a transfer
+// stage: it writes done/total and the recent speed (bytes/s, averaged over
+// a sliding ~30 s window) to the task row at most every 2 s.
+func (o syncTransferOpts) byteProgress() func(done, total int64) {
+	if o.Progress == nil {
 		return nil
 	}
+	type sample struct {
+		at   time.Time
+		done int64
+	}
+	window := []sample{{at: time.Now()}}
 	var last time.Time
-	return func(sent, total int64) {
-		if sent < total && time.Since(last) < 3*time.Second {
+	return func(done, total int64) {
+		now := time.Now()
+		window = append(window, sample{now, done})
+		for len(window) > 2 && now.Sub(window[1].at) > 30*time.Second {
+			window = window[1:]
+		}
+		if done < total && now.Sub(last) < 2*time.Second {
 			return
 		}
-		last = time.Now()
-		pct := 0
-		if total > 0 {
-			pct = int(sent * 100 / total)
+		last = now
+		var rate int64
+		if span := now.Sub(window[0].at).Seconds(); span > 0 {
+			rate = int64(float64(done-window[0].done) / span)
 		}
-		o.Step(fmt.Sprintf("%s %.1f/%.1f MB (%d%%)", stage, float64(sent)/(1<<20), float64(total)/(1<<20), pct))
+		o.Progress(done, total, rate)
 	}
+}
+
+// countingReader reports the running byte count read through it.
+type countingReader struct {
+	r      io.Reader
+	n      int64
+	onRead func(n int64)
+}
+
+func (c *countingReader) Read(b []byte) (int, error) {
+	n, err := c.r.Read(b)
+	c.n += int64(n)
+	if n > 0 && c.onRead != nil {
+		c.onRead(c.n)
+	}
+	return n, err
+}
+
+// progressWriter counts bytes written through it (download progress).
+type progressWriter struct {
+	w        io.Writer
+	done     int64
+	total    int64
+	progress func(done, total int64)
+}
+
+func (p *progressWriter) Write(b []byte) (int, error) {
+	n, err := p.w.Write(b)
+	p.done += int64(n)
+	if p.progress != nil {
+		p.progress(p.done, p.total)
+	}
+	return n, err
 }
 
 // downloadLocalFile fetches a file from this panel's own agent over the unix
@@ -1359,13 +1448,15 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		if res.Extra == syncResourceDir {
 			return s.transferDir(source, target, res, opts)
 		}
-		tmpPath, _, err := s.downloadNodeFile(source, res.Key, maxSyncFileBytes)
+		opts.step("download from " + source.Name)
+		tmpPath, _, err := s.downloadNodeFile(source, res.Key, maxSyncFileBytes, opts.byteProgress())
 		if err != nil {
 			return model.ClusterSyncActionFailed, "download from source failed: " + truncateErr(err.Error())
 		}
 		defer os.Remove(tmpPath)
 		dir := opts.fileTargetDir(res)
-		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite, opts.uploadProgress("upload to "+target.Name)); err != nil {
+		opts.step("upload to " + target.Name)
+		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite, opts.byteProgress()); err != nil {
 			return model.ClusterSyncActionFailed, "upload to target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -1466,14 +1557,14 @@ func (s *ClusterSyncService) ensureNodeDir(node model.ClusterNode, dir string) e
 // syncTmpDir on another, removing the master's temp copy.
 func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPath string, opts syncTransferOpts) (string, error) {
 	opts.step("download from " + source.Name)
-	tmpPath, _, err := s.downloadNodeFile(source, srcPath, maxSyncArchiveBytes)
+	tmpPath, _, err := s.downloadNodeFile(source, srcPath, maxSyncArchiveBytes, opts.byteProgress())
 	if err != nil {
 		return "", fmt.Errorf("download from source failed: %s", truncateErr(err.Error()))
 	}
 	defer os.Remove(tmpPath)
 	name := path.Base(srcPath)
 	opts.step("upload to " + target.Name)
-	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true, opts.uploadProgress("upload to "+target.Name)); err != nil {
+	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true, opts.byteProgress()); err != nil {
 		return "", fmt.Errorf("upload to target failed: %s", truncateErr(err.Error()))
 	}
 	return path.Join(syncTmpDir, name), nil
@@ -1751,7 +1842,14 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 	succeeded, skipped, failed := 0, 0, 0
 	var itemLabel string
 	opts.Step = func(stage string) {
-		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{"step": truncateErr(itemLabel + ": " + stage)})
+		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
+			"step": truncateErr(itemLabel + ": " + stage), "progress_done": 0, "progress_total": 0, "progress_rate": 0,
+		})
+	}
+	opts.Progress = func(done, total, rate int64) {
+		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
+			"progress_done": done, "progress_total": total, "progress_rate": rate,
+		})
 	}
 	for _, targetID := range req.TargetNodeIDs {
 		if targetID == req.SourceNodeID {
@@ -1820,6 +1918,7 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 	task.Total = succeeded + skipped + failed
 	_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
 		"status": status, "total": task.Total, "step": "",
+		"progress_done": 0, "progress_total": 0, "progress_rate": 0,
 		"succeeded": succeeded, "skipped": skipped, "failed": failed,
 	})
 }

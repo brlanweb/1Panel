@@ -43,3 +43,11 @@ var AddClusterSyncTaskStep = &gormigrate.Migration{
 		return tx.AutoMigrate(&model.ClusterSyncTask{})
 	},
 }
+
+// AddClusterSyncTaskProgress adds byte progress columns (done/total/rate).
+var AddClusterSyncTaskProgress = &gormigrate.Migration{
+	ID: "20261121-add-cluster-sync-task-progress",
+	Migrate: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.ClusterSyncTask{})
+	},
+}

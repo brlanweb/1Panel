@@ -954,7 +954,193 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 	return tmpPath, info.Size(), nil
 }
 
-func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
+// Chunked upload tuning. The target panel's HTTP server closes any request
+// after ReadTimeout (600 s), so on a slow / lossy link one big multipart POST
+// fails with "use of closed network connection". Chunks are sized so each
+// request finishes well inside that window: start small, grow while chunks
+// are fast, shrink when they are slow.
+var (
+	syncChunkMin      int64 = 256 << 10
+	syncChunkStart    int64 = 1 << 20
+	syncChunkMax      int64 = 16 << 20
+	syncChunkFast           = 15 * time.Second
+	syncChunkSlow           = 90 * time.Second
+	syncChunkTimeout        = 5 * time.Minute
+	syncChunkRetries        = 6
+	syncChunkRetryGap       = 3 * time.Second
+)
+
+// errChunkUnsupported: the target agent has no resumable chunk upload
+// (older 1Panel); the caller falls back to a single multipart POST.
+var errChunkUnsupported = errors.New("chunk upload not supported by target")
+
+func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
+	err := s.uploadRemoteFileChunked(node, dir, fileName, tmpPath, overwrite, progress)
+	if !errors.Is(err, errChunkUnsupported) {
+		return err
+	}
+	return s.uploadRemoteFileSingle(node, dir, fileName, tmpPath, overwrite)
+}
+
+// uploadRemoteFileChunked streams tmpPath to the target through
+// /api/v2/files/chunkupload in resumable mode (uploadID + offset + fileSize):
+// each chunk is its own short request, a failed chunk is retried at the same
+// offset (the agent truncates and rewrites it), and the file only appears in
+// dir once the final chunk lands.
+func (s *ClusterSyncService) uploadRemoteFileChunked(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
+	apiBase, err := panelAPIBase(node.EntryURL)
+	if err != nil {
+		return err
+	}
+	targetURL := apiBase + "/api/v2/files/chunkupload"
+	f, err := os.Open(tmpPath)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil {
+		return err
+	}
+	total := info.Size()
+	if total == 0 {
+		// The resumable API rejects empty files.
+		return errChunkUnsupported
+	}
+	client := &http.Client{
+		Timeout:   syncChunkTimeout,
+		Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, Proxy: http.ProxyFromEnvironment},
+	}
+	uploadID := "cluster-sync-" + strings.ReplaceAll(uuid.NewString(), "-", "")
+
+	postChunk := func(index int, offset int64, data []byte, final bool) (int, []byte, error) {
+		count := index + 2
+		if final {
+			count = index + 1
+		}
+		var buf bytes.Buffer
+		mw := multipart.NewWriter(&buf)
+		fields := [][2]string{
+			{"path", dir}, {"filename", fileName}, {"uploadID", uploadID},
+			{"chunkIndex", strconv.Itoa(index)}, {"chunkCount", strconv.Itoa(count)},
+			{"offset", strconv.FormatInt(offset, 10)}, {"fileSize", strconv.FormatInt(total, 10)},
+			{"overwrite", strconv.FormatBool(overwrite)},
+		}
+		for _, kv := range fields {
+			if err := mw.WriteField(kv[0], kv[1]); err != nil {
+				return 0, nil, err
+			}
+		}
+		part, err := mw.CreateFormFile("chunk", fileName)
+		if err != nil {
+			return 0, nil, err
+		}
+		if _, err := part.Write(data); err != nil {
+			return 0, nil, err
+		}
+		if err := mw.Close(); err != nil {
+			return 0, nil, err
+		}
+		// Fresh signature per request: a long transfer outlives one timestamp.
+		timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
+		if err != nil {
+			return 0, nil, err
+		}
+		send := func(token string) (int, []byte, error) {
+			req, err := http.NewRequest(http.MethodPost, targetURL, bytes.NewReader(buf.Bytes()))
+			if err != nil {
+				return 0, nil, err
+			}
+			req.Header.Set("Content-Type", mw.FormDataContentType())
+			req.Header.Set("1Panel-Timestamp", timestamp)
+			req.Header.Set("1Panel-Token", token)
+			resp, err := client.Do(req)
+			if err != nil {
+				return 0, nil, err
+			}
+			defer resp.Body.Close()
+			body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+			return resp.StatusCode, body, err
+		}
+		code, body, err := send(hmacToken)
+		if err == nil && code == http.StatusUnauthorized {
+			code, body, err = send(md5Token)
+		}
+		return code, body, err
+	}
+
+	chunkSize := syncChunkStart
+	var offset int64
+	for index := 0; offset < total; index++ {
+		size := chunkSize
+		if offset+size > total {
+			size = total - offset
+		}
+		final := offset+size == total
+		data := make([]byte, size)
+		if _, err := f.ReadAt(data, offset); err != nil && !errors.Is(err, io.EOF) {
+			return err
+		}
+		var lastErr error
+		var took time.Duration
+		ok := false
+		for attempt := 0; attempt < syncChunkRetries; attempt++ {
+			if attempt > 0 {
+				time.Sleep(syncChunkRetryGap * time.Duration(attempt))
+			}
+			started := time.Now()
+			code, body, err := postChunk(index, offset, data, final)
+			took = time.Since(started)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			if code == http.StatusNotFound && index == 0 {
+				return errChunkUnsupported
+			}
+			var env struct {
+				Code    int    `json:"code"`
+				Message string `json:"message"`
+				Data    struct {
+					Retryable *bool `json:"retryable"`
+				} `json:"data"`
+			}
+			_ = json.Unmarshal(body, &env)
+			if code == http.StatusOK && (env.Code == http.StatusOK || env.Code == 0) {
+				ok = true
+				break
+			}
+			msg := strings.TrimSpace(env.Message)
+			if msg == "" {
+				msg = fmt.Sprintf("HTTP %d", code)
+			}
+			lastErr = fmt.Errorf("target panel error: %s", truncateErr(msg))
+			// 4xx (bad params, file exists, auth) and errors the agent marks
+			// as not retryable will fail the same way again.
+			if (code >= 400 && code < 500 && code != http.StatusRequestTimeout && code != http.StatusTooManyRequests) ||
+				(env.Data.Retryable != nil && !*env.Data.Retryable) {
+				break
+			}
+		}
+		if !ok {
+			return fmt.Errorf("chunk %d at offset %d/%d failed: %w", index, offset, total, lastErr)
+		}
+		offset += size
+		if progress != nil {
+			progress(offset, total)
+		}
+		switch {
+		case took < syncChunkFast && chunkSize < syncChunkMax:
+			chunkSize *= 2
+		case took > syncChunkSlow && chunkSize > syncChunkMin:
+			chunkSize /= 2
+		}
+	}
+	return nil
+}
+
+// uploadRemoteFileSingle is the legacy single-request multipart upload.
+func (s *ClusterSyncService) uploadRemoteFileSingle(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
 	timestamp, hmacToken, md5Token, err := s.nodes.remoteAuthHeaders(node)
 	if err != nil {
 		return err
@@ -1043,11 +1229,31 @@ func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath
 	return s.downloadRemoteFile(node, remotePath, maxBytes)
 }
 
-func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
+func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool, progress func(sent, total int64)) error {
 	if isLocalNode(node) {
 		return s.uploadLocalFile(dir, fileName, tmpPath, overwrite)
 	}
-	return s.uploadRemoteFile(node, dir, fileName, tmpPath, overwrite)
+	return s.uploadRemoteFile(node, dir, fileName, tmpPath, overwrite, progress)
+}
+
+// uploadProgress returns a throttled progress callback that reports
+// "<stage> 12.3/54.8 MB (22%)" as the task step.
+func (o syncTransferOpts) uploadProgress(stage string) func(sent, total int64) {
+	if o.Step == nil {
+		return nil
+	}
+	var last time.Time
+	return func(sent, total int64) {
+		if sent < total && time.Since(last) < 3*time.Second {
+			return
+		}
+		last = time.Now()
+		pct := 0
+		if total > 0 {
+			pct = int(sent * 100 / total)
+		}
+		o.Step(fmt.Sprintf("%s %.1f/%.1f MB (%d%%)", stage, float64(sent)/(1<<20), float64(total)/(1<<20), pct))
+	}
 }
 
 // downloadLocalFile fetches a file from this panel's own agent over the unix
@@ -1159,7 +1365,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		}
 		defer os.Remove(tmpPath)
 		dir := opts.fileTargetDir(res)
-		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite); err != nil {
+		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite, opts.uploadProgress("upload to "+target.Name)); err != nil {
 			return model.ClusterSyncActionFailed, "upload to target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -1267,7 +1473,7 @@ func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPa
 	defer os.Remove(tmpPath)
 	name := path.Base(srcPath)
 	opts.step("upload to " + target.Name)
-	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true); err != nil {
+	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true, opts.uploadProgress("upload to "+target.Name)); err != nil {
 		return "", fmt.Errorf("upload to target failed: %s", truncateErr(err.Error()))
 	}
 	return path.Join(syncTmpDir, name), nil

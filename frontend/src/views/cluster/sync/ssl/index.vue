@@ -9,6 +9,14 @@
                         <div class="sync-desc">{{ $t('xpack.sync.sslBatchDesc') }}</div>
                     </div>
                     <div class="flex items-center gap-2">
+                        <el-select v-model="source" class="p-w-200" filterable :placeholder="$t('cluster.sourceNode')">
+                            <el-option
+                                v-for="item in selectableNodes"
+                                :key="item.key"
+                                :label="item.name"
+                                :value="item.key"
+                            />
+                        </el-select>
                         <TableSearch v-model:searchName="search" @search="load(1)" />
                         <TableRefresh @search="load()" />
                     </div>
@@ -55,7 +63,7 @@
         <TargetNodes
             v-model="targets"
             :nodes="nodes"
-            :source="LOCAL_KEY"
+            :source="source"
             :has-resource="!!selected"
             :submitting="submitting"
             @handle="onHandle"
@@ -79,7 +87,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
+import { onMounted, reactive, ref, watch } from 'vue';
 import i18n from '@/lang';
 import { executeClusterSync, searchClusterSyncResources } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
@@ -93,8 +101,10 @@ import { LOCAL_KEY, useSyncNodes } from '../common';
 
 defineOptions({ name: 'ClusterSyncSsl' });
 
-// Certificates are always synced from this (master) panel.
-const { nodes, loadNodes, nodeName, nodeId } = useSyncNodes();
+// Any node (master or child) can be the certificate source, e.g. pull a
+// child node's certificate back to the master.
+const { nodes, selectableNodes, loadNodes, nodeName, nodeId } = useSyncNodes();
+const source = ref(LOCAL_KEY);
 const search = ref('');
 const rows = ref<Cluster.SyncResource[]>([]);
 const selected = ref<Cluster.SyncResource | null>(null);
@@ -121,27 +131,40 @@ const providerLabel = (provider: string) => {
     return text === key ? provider : text;
 };
 
+let requestId = 0;
 const load = async (page?: number) => {
+    const id = nodeId(source.value);
+    if (id === undefined) return;
     if (page) pagination.currentPage = page;
+    const current = ++requestId;
     loading.value = true;
     error.value = '';
     try {
         const res = await searchClusterSyncResources({
             kind: 'cert',
-            sourceNodeId: 0,
+            sourceNodeId: id,
             search: search.value,
             page: pagination.currentPage,
             pageSize: pagination.pageSize,
         });
+        if (current !== requestId) return;
         rows.value = res.data.items || [];
         pagination.total = res.data.total || 0;
     } catch (err: any) {
+        if (current !== requestId) return;
         rows.value = [];
         error.value = err?.message || i18n.global.t('cluster.fetchError');
     } finally {
-        loading.value = false;
+        if (current === requestId) loading.value = false;
     }
 };
+
+watch(source, () => {
+    selected.value = null;
+    targets.value = [];
+    search.value = '';
+    load(1);
+});
 
 const onHandle = () => {
     if (!selected.value) return;
@@ -156,7 +179,7 @@ const onConfirm = async (resourceKeys: string[], targetKeys: string[]) => {
     try {
         const res = await executeClusterSync({
             kind: 'cert',
-            sourceNodeId: 0,
+            sourceNodeId: nodeId(source.value),
             targetNodeIds: targetKeys.map((key) => nodeId(key)),
             resourceKeys,
             overwriteConflicts: false,
@@ -169,8 +192,8 @@ const onConfirm = async (resourceKeys: string[], targetKeys: string[]) => {
     }
 };
 
-onMounted(() => {
-    loadNodes();
+onMounted(async () => {
+    await loadNodes();
     load(1);
 });
 </script>

@@ -798,7 +798,7 @@ func (s *ClusterDbReplicationService) uploadSnapshot(node model.ClusterNode, dir
 	if isLocalNode(node) {
 		return s.sync.uploadLocalFile(dir, fileName, tmpPath, true)
 	}
-	return s.sync.uploadRemoteFile(node, dir, fileName, tmpPath, true)
+	return s.sync.uploadRemoteFile(node, dir, fileName, tmpPath, true, nil)
 }
 
 // ---------- CRUD ----------

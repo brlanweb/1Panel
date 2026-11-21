@@ -25,6 +25,9 @@ type ClusterSyncResource struct {
 	Detail string `json:"detail"`
 	Size   int64  `json:"size"`
 	Extra  string `json:"extra"`
+	// Meta carries display-only fields for the sync pages (file isDir /
+	// symlink, image tags, app status, certificate expiry …).
+	Meta map[string]interface{} `json:"meta,omitempty"`
 }
 
 type ClusterSyncResourceSearch struct {
@@ -32,9 +35,21 @@ type ClusterSyncResourceSearch struct {
 	SourceNodeID uint   `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	// File resources only: directory to list on the source node.
 	Path string `json:"path"`
-	Page int    `json:"page"`
+	// Search filters by name (file name, image name, app name, domain …).
+	Search string `json:"search"`
+	// SortOrder (files only): ascending | descending by name.
+	SortOrder string `json:"sortOrder"`
+	Page      int    `json:"page"`
 	// PageSize caps the listing (default 100, max 500).
 	PageSize int `json:"pageSize"`
+}
+
+// ClusterSyncResourcePage is one page of a node's resources. Path is the
+// directory actually listed for files ("" when it does not exist).
+type ClusterSyncResourcePage struct {
+	Items []ClusterSyncResource `json:"items"`
+	Total int64                 `json:"total"`
+	Path  string                `json:"path"`
 }
 
 type ClusterSyncPreviewReq struct {
@@ -44,6 +59,10 @@ type ClusterSyncPreviewReq struct {
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
 	// File resources only: directory the keys were listed from.
 	Path string `json:"path"`
+	// File resources only: directory on the target node (see ExecuteReq).
+	TargetPath string `json:"targetPath"`
+	// App resources only (see ExecuteReq).
+	AppDBHost string `json:"appDbHost"`
 }
 
 type ClusterSyncPreviewItem struct {
@@ -64,9 +83,36 @@ type ClusterSyncExecuteReq struct {
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
 	// File resources only: directory the keys were listed from.
 	Path string `json:"path"`
+	// File resources only: directory on the target node to transfer into.
+	// Empty keeps the source directory (same path on the target).
+	TargetPath string `json:"targetPath"`
+	// App resources only: database service (by name, as listed on the
+	// targets) the migrated app connects to; required for linkDB apps.
+	AppDBHost string `json:"appDbHost"`
 	// Explicit opt-in: overwrite target content that differs. Default false
 	// (conflicts are skipped and reported, never silently overwritten).
 	OverwriteConflicts bool `json:"overwriteConflicts"`
+}
+
+// ClusterSyncAppDBReq asks for the database services available on every
+// given node (app-transfer dependency selector).
+type ClusterSyncAppDBReq struct {
+	NodeIDs []uint `json:"nodeIds" validate:"required,min=1"`
+	// Types is a comma-separated list (default mysql,mariadb,postgresql).
+	Types string `json:"types"`
+}
+
+type ClusterSyncAppDB struct {
+	Type     string `json:"type"`
+	Database string `json:"database"`
+}
+
+// ClusterSyncFileDelete deletes one file / directory on a node from the
+// file-transfer page (moved to the node's recycle bin when enabled).
+type ClusterSyncFileDelete struct {
+	NodeID uint   `json:"nodeId"`
+	Path   string `json:"path" validate:"required"`
+	IsDir  bool   `json:"isDir"`
 }
 
 type ClusterSyncTaskInfo struct {

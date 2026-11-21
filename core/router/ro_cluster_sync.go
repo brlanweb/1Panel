@@ -21,5 +21,7 @@ func (a *ClusterSyncRouter) InitRouter(Router *gin.RouterGroup) {
 		clusterSyncRouter.POST("/execute", baseApi.ExecuteClusterSync)
 		clusterSyncRouter.POST("/tasks/search", baseApi.SearchClusterSyncTasks)
 		clusterSyncRouter.POST("/tasks/records", baseApi.ListClusterSyncTaskRecords)
+		clusterSyncRouter.POST("/app/databases", baseApi.ListClusterSyncAppDatabases)
+		clusterSyncRouter.POST("/files/del", baseApi.DeleteClusterSyncFile)
 	}
 }

@@ -10,7 +10,7 @@ import (
 // @Summary List resources of one kind on a source node (for sync selection)
 // @Accept json
 // @Param request body dto.ClusterSyncResourceSearch true "request"
-// @Success 200 {object} []dto.ClusterSyncResource
+// @Success 200 {object} dto.ClusterSyncResourcePage
 // @Security ApiKeyAuth
 // @Security Timestamp
 // @Router /core/cluster/sync/resources/search [post]
@@ -19,7 +19,7 @@ func (b *BaseApi) SearchClusterSyncResources(c *gin.Context) {
 	if err := helper.CheckBindAndValidate(&req, c); err != nil {
 		return
 	}
-	list, err := clusterSyncService.ListResources(req)
+	list, err := clusterSyncService.SearchResources(req)
 	if err != nil {
 		helper.InternalServer(c, err)
 		return
@@ -113,4 +113,45 @@ func (b *BaseApi) ListClusterSyncTaskRecords(c *gin.Context) {
 		return
 	}
 	helper.SuccessWithData(c, list)
+}
+
+// @Tags Cluster Sync
+// @Summary List database services available on every given node (app transfer)
+// @Accept json
+// @Param request body dto.ClusterSyncAppDBReq true "request"
+// @Success 200 {object} []dto.ClusterSyncAppDB
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/app/databases [post]
+func (b *BaseApi) ListClusterSyncAppDatabases(c *gin.Context) {
+	var req dto.ClusterSyncAppDBReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	list, err := clusterSyncService.AppDatabases(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, list)
+}
+
+// @Tags Cluster Sync
+// @Summary Delete a file or directory on a node (file transfer page)
+// @Accept json
+// @Param request body dto.ClusterSyncFileDelete true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/sync/files/del [post]
+func (b *BaseApi) DeleteClusterSyncFile(c *gin.Context) {
+	var req dto.ClusterSyncFileDelete
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	if err := clusterSyncService.DeleteFile(req); err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.Success(c)
 }

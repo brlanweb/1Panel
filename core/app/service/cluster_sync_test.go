@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
@@ -146,7 +147,7 @@ func TestSyncPreviewImage(t *testing.T) {
 		Kind:          dto.ClusterSyncKindImage,
 		SourceNodeID:  sourceNode.ID,
 		TargetNodeIDs: []uint{targetNode.ID},
-		ResourceKeys:  []string{"redis:7.2.5", "mysql:8.0.37", "postgres:16.3"},
+		ResourceKeys:  []string{"sha256:aaa", "sha256:bbb", "sha256:ccc"},
 	})
 	if err != nil {
 		t.Fatalf("Preview: %v", err)
@@ -154,10 +155,12 @@ func TestSyncPreviewImage(t *testing.T) {
 	if len(items) != 3 {
 		t.Fatalf("Preview returned %d items, want 3", len(items))
 	}
+	// Keys are image ids; a source tag owned by another image on the
+	// target is a conflict.
 	want := map[string]string{
-		"redis:7.2.5":   model.ClusterSyncActionSkipSame,
-		"mysql:8.0.37":  model.ClusterSyncActionSkipConflict,
-		"postgres:16.3": model.ClusterSyncActionCreate,
+		"sha256:aaa": model.ClusterSyncActionSkipSame,
+		"sha256:bbb": model.ClusterSyncActionSkipConflict,
+		"sha256:ccc": model.ClusterSyncActionCreate,
 	}
 	for _, item := range items {
 		if want[item.ResourceKey] != item.Action {
@@ -355,19 +358,19 @@ func TestSyncPhpImport(t *testing.T) {
 	svc := NewIClusterSyncService().(*ClusterSyncService)
 	// Same content -> skipped by the remote import itself.
 	action, _ := svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
-		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "exif,igbinary,imagick"}, "", false)
+		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "exif,igbinary,imagick"}, syncTransferOpts{})
 	if action != model.ClusterSyncActionSkipSame {
 		t.Errorf("transferOne same php template = %s, want skip-same", action)
 	}
 	// Different extensions, no overwrite -> skip-conflict.
 	action, _ = svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
-		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "gd,zip"}, "", false)
+		dto.ClusterSyncResource{Key: "9", Name: "WordPress", Detail: "gd,zip"}, syncTransferOpts{})
 	if action != model.ClusterSyncActionSkipConflict {
 		t.Errorf("transferOne conflicting php template = %s, want skip-conflict", action)
 	}
 	// New template -> created.
 	action, _ = svc.transferOne(dto.ClusterSyncKindPhp, sourceNode, targetNode,
-		dto.ClusterSyncResource{Key: "10", Name: "SeaCMS", Detail: "mysqli,pdo_mysql,gd,curl"}, "", false)
+		dto.ClusterSyncResource{Key: "10", Name: "SeaCMS", Detail: "mysqli,pdo_mysql,gd,curl"}, syncTransferOpts{})
 	if action != model.ClusterSyncActionCreate {
 		t.Errorf("transferOne new php template = %s, want create", action)
 	}
@@ -432,8 +435,8 @@ func TestSyncLocalNodeListsImages(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListResources local image: %v", err)
 	}
-	if len(res) != 1 || res[0].Key != "redis:7.2.5" {
-		t.Fatalf("resources = %+v, want one image redis:7.2.5", res)
+	if len(res) != 1 || res[0].Key != "sha256:aaa" || res[0].Name != "redis:7.2.5" || res[0].Detail != "redis:7.2.5" {
+		t.Fatalf("resources = %+v, want one image sha256:aaa tagged redis:7.2.5", res)
 	}
 }
 
@@ -829,5 +832,174 @@ func TestSyncRemoteDownloadJsonErrorRejected(t *testing.T) {
 	}
 	if !strings.Contains(records[0].Reason, "download from source failed") {
 		t.Errorf("record reason = %q, want it to mention the failed download", records[0].Reason)
+	}
+}
+
+func TestSyncFileTransferToTargetPath(t *testing.T) {
+	content := []byte("to-another-dir")
+	svc, target, uploaded, uploadedName, uploadedDir, _ := fileTransferFixture(t, content, -1)
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID},
+		ResourceKeys: []string{"/data/a.txt"}, Path: "/data", TargetPath: "/opt/backup",
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	if *uploadedName != "a.txt" || *uploadedDir != "/opt/backup" || string(*uploaded) != "to-another-dir" {
+		t.Errorf("upload = name %q dir %q bytes %q, want a.txt into /opt/backup", *uploadedName, *uploadedDir, string(*uploaded))
+	}
+	records, _ := svc.TaskRecords(taskID)
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCreate {
+		t.Errorf("records = %+v, want one create record", records)
+	}
+}
+
+// fakeTaskLog answers /logs/tasks/search with Success for every task id it
+// has seen created, so waitNodeTask returns immediately.
+type fakeTaskLog struct{ seen map[string]bool }
+
+func (f *fakeTaskLog) note(body map[string]interface{}) {
+	if id, _ := body["taskID"].(string); id != "" {
+		f.seen[id] = true
+	}
+}
+
+func (f *fakeTaskLog) serve(w http.ResponseWriter, body map[string]interface{}) {
+	id, _ := body["taskID"].(string)
+	status := "Executing"
+	if f.seen[id] {
+		status = "Success"
+	}
+	envelope(w, map[string]interface{}{"total": 1, "items": []map[string]interface{}{{"id": id, "status": status}}})
+}
+
+func TestSyncDirectoryTransferUsesCompressAndDecompress(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	oldPoll := syncTaskPollInterval
+	syncTaskPollInterval = time.Millisecond
+	defer func() { syncTaskPollInterval = oldPoll }()
+
+	srcLog := &fakeTaskLog{seen: map[string]bool{}}
+	var compressBody map[string]interface{}
+	startLocalAgentTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if r.Method == http.MethodPost && r.Header.Get("Content-Type") == "application/json" {
+			_ = json.NewDecoder(r.Body).Decode(&body)
+		}
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []map[string]interface{}{{"name": "site", "isDir": true}}})
+		case "/api/v2/files/compress":
+			compressBody = body
+			srcLog.note(body)
+			envelope(w, nil)
+		case "/api/v2/logs/tasks/search":
+			srcLog.serve(w, body)
+		case "/api/v2/files/download":
+			w.Header().Set("Content-Type", "application/octet-stream")
+			_, _ = w.Write([]byte("tar-bytes"))
+		case "/api/v2/files/del":
+			envelope(w, nil)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	dstLog := &fakeTaskLog{seen: map[string]bool{}}
+	var uploadDir string
+	var decompressBody map[string]interface{}
+	remote := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var body map[string]interface{}
+		if r.Header.Get("Content-Type") == "application/json" {
+			_ = json.NewDecoder(r.Body).Decode(&body)
+		}
+		switch r.URL.Path {
+		case "/api/v2/files/search":
+			envelope(w, map[string]interface{}{"items": []interface{}{}})
+		case "/api/v2/files/upload":
+			_ = r.ParseMultipartForm(32 << 20)
+			uploadDir = r.FormValue("path")
+			envelope(w, nil)
+		case "/api/v2/files/decompress":
+			decompressBody = body
+			dstLog.note(body)
+			envelope(w, nil)
+		case "/api/v2/logs/tasks/search":
+			dstLog.serve(w, body)
+		case "/api/v2/files/del":
+			envelope(w, nil)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer remote.Close()
+	target := insertTestNode(t, "node-b", remote.URL, "online")
+
+	svc := NewIClusterSyncService()
+	taskID, err := svc.Execute(dto.ClusterSyncExecuteReq{
+		Kind: "file", SourceNodeID: 0, TargetNodeIDs: []uint{target.ID},
+		ResourceKeys: []string{"/www/site"}, Path: "/www", TargetPath: "/srv",
+	})
+	if err != nil {
+		t.Fatalf("Execute: %v", err)
+	}
+	records, _ := svc.TaskRecords(taskID)
+	if len(records) != 1 || records[0].Action != model.ClusterSyncActionCreate {
+		t.Fatalf("records = %+v, want one create record", records)
+	}
+	if files, _ := compressBody["files"].([]interface{}); len(files) != 1 || files[0] != "/www/site" || compressBody["type"] != "tar.gz" {
+		t.Errorf("compress body = %v, want /www/site as tar.gz", compressBody)
+	}
+	if uploadDir != syncTmpDir {
+		t.Errorf("archive uploaded into %q, want %q", uploadDir, syncTmpDir)
+	}
+	if decompressBody["dst"] != "/srv" || decompressBody["overwrite"] != false {
+		t.Errorf("decompress body = %v, want dst /srv overwrite false", decompressBody)
+	}
+}
+
+func TestSyncAppDatabasesIntersection(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	serve := func(list []map[string]interface{}) *httptest.Server {
+		return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasPrefix(r.URL.Path, "/api/v2/databases/db/list/") {
+				http.NotFound(w, r)
+				return
+			}
+			envelope(w, list)
+		}))
+	}
+	a := serve([]map[string]interface{}{{"type": "mysql", "database": "mysql"}, {"type": "postgresql", "database": "pg"}})
+	defer a.Close()
+	b := serve([]map[string]interface{}{{"type": "mysql", "database": "mysql"}, {"type": "mariadb", "database": "maria"}})
+	defer b.Close()
+	na := insertTestNode(t, "a", a.URL, "online")
+	nb := insertTestNode(t, "b", b.URL, "online")
+	list, err := NewIClusterSyncService().AppDatabases(dto.ClusterSyncAppDBReq{NodeIDs: []uint{na.ID, nb.ID}})
+	if err != nil {
+		t.Fatalf("AppDatabases: %v", err)
+	}
+	if len(list) != 1 || list[0].Type != "mysql" || list[0].Database != "mysql" {
+		t.Fatalf("databases = %+v, want only mysql/mysql", list)
+	}
+}
+
+func TestSyncAppUnsupportedReason(t *testing.T) {
+	cases := []struct {
+		res  dto.ClusterSyncResource
+		want bool
+	}{
+		{dto.ClusterSyncResource{Detail: "openresty 1.27"}, true},
+		{dto.ClusterSyncResource{Detail: "wordpress 6.5", Meta: map[string]interface{}{"dbType": "mysql"}}, false},
+		{dto.ClusterSyncResource{Detail: "halo 2.0", Meta: map[string]interface{}{"dbType": "postgresql"}}, false},
+		{dto.ClusterSyncResource{Detail: "x 1", Meta: map[string]interface{}{"hasRedis": true}}, true},
+		{dto.ClusterSyncResource{Detail: "y 1", Meta: map[string]interface{}{"dbType": "mongodb"}}, true},
+		{dto.ClusterSyncResource{Detail: "z 1"}, false},
+	}
+	for _, c := range cases {
+		if got := appUnsupportedReason(c.res) != ""; got != c.want {
+			t.Errorf("appUnsupportedReason(%+v) unsupported = %v, want %v", c.res, got, c.want)
+		}
 	}
 }

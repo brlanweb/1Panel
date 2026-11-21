@@ -40,11 +40,74 @@ const clusterRouter = {
             },
         },
         {
+            // Sidebar entry; the five sync pages below are hidden children
+            // switched with the RouterButton bar (like the official
+            // /xpack/sync/* pages).
             path: '/cluster/sync',
             name: 'ClusterSync',
-            component: () => import('@/views/cluster/sync/index.vue'),
+            redirect: '/cluster/sync/file',
             meta: {
                 title: 'menu.clusterSync',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
+            path: '/cluster/sync/file',
+            name: 'ClusterSyncFile',
+            component: () => import('@/views/cluster/sync/file/index.vue'),
+            hidden: true,
+            meta: {
+                parent: 'menu.clusterSync',
+                title: 'xpack.sync.file',
+                activeMenu: '/cluster/sync',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
+            path: '/cluster/sync/image',
+            name: 'ClusterSyncImage',
+            component: () => import('@/views/cluster/sync/image/index.vue'),
+            hidden: true,
+            meta: {
+                parent: 'menu.clusterSync',
+                title: 'xpack.sync.image',
+                activeMenu: '/cluster/sync',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
+            path: '/cluster/sync/app',
+            name: 'ClusterSyncApp',
+            component: () => import('@/views/cluster/sync/app/index.vue'),
+            hidden: true,
+            meta: {
+                parent: 'menu.clusterSync',
+                title: 'xpack.sync.app',
+                activeMenu: '/cluster/sync',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
+            path: '/cluster/sync/ssl',
+            name: 'ClusterSyncSsl',
+            component: () => import('@/views/cluster/sync/ssl/index.vue'),
+            hidden: true,
+            meta: {
+                parent: 'menu.clusterSync',
+                title: 'xpack.sync.ssl',
+                activeMenu: '/cluster/sync',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
+            path: '/cluster/sync/php-extensions',
+            name: 'ClusterSyncPhp',
+            component: () => import('@/views/cluster/sync/php/index.vue'),
+            hidden: true,
+            meta: {
+                parent: 'menu.clusterSync',
+                title: 'xpack.sync.phpExtensionsTitle',
+                activeMenu: '/cluster/sync',
                 permission: 'cluster_node_view',
             },
         },

@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"mime/multipart"
@@ -13,6 +14,7 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -22,7 +24,9 @@ import (
 	"github.com/1Panel-dev/1Panel/core/app/repo"
 	"github.com/1Panel-dev/1Panel/core/buserr"
 	"github.com/1Panel-dev/1Panel/core/global"
+	"github.com/1Panel-dev/1Panel/core/utils/common"
 	"github.com/go-resty/resty/v2"
+	"github.com/google/uuid"
 	"github.com/jinzhu/copier"
 	"gorm.io/gorm"
 )
@@ -56,6 +60,9 @@ type ClusterSyncService struct {
 
 type IClusterSyncService interface {
 	ListResources(req dto.ClusterSyncResourceSearch) ([]dto.ClusterSyncResource, error)
+	SearchResources(req dto.ClusterSyncResourceSearch) (dto.ClusterSyncResourcePage, error)
+	AppDatabases(req dto.ClusterSyncAppDBReq) ([]dto.ClusterSyncAppDB, error)
+	DeleteFile(req dto.ClusterSyncFileDelete) error
 	Preview(req dto.ClusterSyncPreviewReq) ([]dto.ClusterSyncPreviewItem, error)
 	Execute(req dto.ClusterSyncExecuteReq) (uint, error)
 	SearchTasks(req dto.ClusterSyncTaskSearch) (int64, interface{}, error)
@@ -223,40 +230,62 @@ func toBool(v interface{}) bool {
 	return b
 }
 
+// syncListOptions narrows one resource listing (search / paging / file
+// directory and sort order).
+type syncListOptions struct {
+	Path      string
+	Search    string
+	SortOrder string
+	Page      int
+	PageSize  int
+}
+
 // listRemoteResources lists one kind of resource on one node, normalized.
 // The `path` argument is only used for files (directory to list).
 func (s *ClusterSyncService) listRemoteResources(kind string, node model.ClusterNode, reqPath string, page, pageSize int) ([]dto.ClusterSyncResource, int64, error) {
+	res, err := s.listResourcesPage(kind, node, syncListOptions{Path: reqPath, Page: page, PageSize: pageSize})
+	if err != nil {
+		return nil, 0, err
+	}
+	return res.Items, res.Total, nil
+}
+
+func (s *ClusterSyncService) listResourcesPage(kind string, node model.ClusterNode, opts syncListOptions) (dto.ClusterSyncResourcePage, error) {
+	page, pageSize := opts.Page, opts.PageSize
 	if page <= 0 {
 		page = 1
 	}
 	if pageSize <= 0 || pageSize > 500 {
 		pageSize = 100
 	}
+	search := strings.TrimSpace(opts.Search)
+	out := dto.ClusterSyncResourcePage{Items: []dto.ClusterSyncResource{}}
 	switch kind {
 	case dto.ClusterSyncKindFile:
-		dir := strings.TrimSpace(reqPath)
+		dir := strings.TrimSpace(opts.Path)
 		if dir == "" {
 			dir = "/"
 		}
+		sortOrder := opts.SortOrder
+		if sortOrder != "descending" {
+			sortOrder = "ascending"
+		}
 		// The agent's /api/v2/files/search returns response.FileInfo
 		// (files.FileInfo): entries live under "items", not "files".
-		// Parsing "files" always yielded an empty list even though the
-		// call succeeded — that is why the file list never showed any
-		// rows on a deployed panel (the old tests faked the wrong shape
-		// too; see TestSyncFileListParsesRealAgentShape).
 		var data struct {
-			Items []map[string]interface{} `json:"items"`
+			Path      string                   `json:"path"`
+			ItemTotal int64                    `json:"itemTotal"`
+			Items     []map[string]interface{} `json:"items"`
 		}
 		// "expand": true is mandatory: without it the agent only stats the
 		// directory itself (files.NewFileInfo skips handleExpansion) and
-		// "items" is always empty — this was the real reason the file list
-		// stayed empty for every node, local or remote.
-		body := map[string]interface{}{"path": dir, "expand": true, "showHidden": true, "page": page, "pageSize": pageSize, "sortBy": "name", "sortOrder": "ascending", "isDetail": true}
+		// "items" is always empty.
+		body := map[string]interface{}{"path": dir, "expand": true, "showHidden": true, "page": page, "pageSize": pageSize, "search": search, "containSub": false, "sortBy": "name", "sortOrder": sortOrder, "isDetail": true}
 		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/files/search", body, &data, 15*time.Second); err != nil {
-			return nil, 0, err
+			return out, err
 		}
-		// Directories are returned too (Extra = "dir") so the UI can browse
-		// into them; they are never transferred (see transferOne).
+		// Directories are listed first so the panel reads like a file
+		// manager; both directories and files can be transferred.
 		var dirs, files []dto.ClusterSyncResource
 		for _, f := range data.Items {
 			name := toString(f["name"])
@@ -264,50 +293,71 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 				continue
 			}
 			fullPath := path.Join(dir, name)
+			meta := map[string]interface{}{
+				"isDir":     toBool(f["isDir"]),
+				"isSymlink": toBool(f["isSymlink"]),
+				"linkPath":  toString(f["linkPath"]),
+				"extension": toString(f["extension"]),
+				"modTime":   toString(f["modTime"]),
+			}
 			if toBool(f["isDir"]) {
-				dirs = append(dirs, dto.ClusterSyncResource{Key: fullPath, Name: name, Detail: dir, Extra: syncResourceDir})
+				dirs = append(dirs, dto.ClusterSyncResource{Key: fullPath, Name: name, Detail: dir, Extra: syncResourceDir, Meta: meta})
 				continue
 			}
 			files = append(files, dto.ClusterSyncResource{
 				Key: fullPath, Name: name,
-				Detail: dir, Size: int64(toFloat(f["size"])),
+				Detail: dir, Size: int64(toFloat(f["size"])), Meta: meta,
 			})
 		}
-		out := append(dirs, files...)
-		return out, int64(len(out)), nil
+		out.Items = append(append(out.Items, dirs...), files...)
+		out.Total = data.ItemTotal
+		if out.Total < int64(len(out.Items)) {
+			out.Total = int64(len(out.Items))
+		}
+		out.Path = data.Path
+		return out, nil
 	case dto.ClusterSyncKindImage:
 		var result remotePage
 		// PageImage requires orderBy + order (oneof) — omitting them is a
 		// backend 400, which used to make the image list silently empty.
-		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize, "orderBy": "createdAt", "order": "null"}, &result, 15*time.Second); err != nil {
-			return nil, 0, err
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/containers/image/search", map[string]interface{}{"page": page, "pageSize": pageSize, "name": search, "orderBy": "createdAt", "order": "null"}, &result, 15*time.Second); err != nil {
+			return out, err
 		}
-		var out []dto.ClusterSyncResource
+		// One row per image (id), like the image page: an image is saved
+		// and loaded as a whole, with all of its tags.
 		for _, raw := range result.Items {
 			var item map[string]interface{}
 			if err := json.Unmarshal(raw, &item); err != nil {
 				continue
 			}
 			id := toString(item["id"])
-			tags, _ := item["tags"].([]interface{})
-			for _, t := range tags {
-				tag := toString(t)
-				if tag == "" {
-					continue
-				}
-				out = append(out, dto.ClusterSyncResource{
-					Key: tag, Name: tag,
-					Detail: id, Size: int64(toFloat(item["size"])),
-				})
+			if id == "" {
+				continue
 			}
+			var tags []string
+			rawTags, _ := item["tags"].([]interface{})
+			for _, t := range rawTags {
+				if tag := toString(t); tag != "" && tag != "<none>:<none>" {
+					tags = append(tags, tag)
+				}
+			}
+			name := shortImageID(id)
+			if len(tags) > 0 {
+				name = tags[0]
+			}
+			out.Items = append(out.Items, dto.ClusterSyncResource{
+				Key: id, Name: name,
+				Detail: strings.Join(tags, ","), Size: int64(toFloat(item["size"])),
+				Meta: map[string]interface{}{"tags": tags, "createdAt": toString(item["createdAt"]), "isUsed": toBool(item["isUsed"])},
+			})
 		}
-		return out, result.Total, nil
+		out.Total = result.Total
+		return out, nil
 	case dto.ClusterSyncKindApp:
 		var result remotePage
-		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/apps/installed/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
-			return nil, 0, err
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/apps/installed/search", map[string]interface{}{"page": page, "pageSize": pageSize, "name": search, "sync": true}, &result, 20*time.Second); err != nil {
+			return out, err
 		}
-		var out []dto.ClusterSyncResource
 		for _, raw := range result.Items {
 			var item map[string]interface{}
 			if err := json.Unmarshal(raw, &item); err != nil {
@@ -324,25 +374,33 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 			name := toString(item["name"])
 			version := toString(item["version"])
 			// The agent's AppInstallDTO serializes the detail id as
-			// "appDetailID" (capital ID). Reading "appDetailId" always
-			// produced "" and every app sync failed with "no appDetailId".
+			// "appDetailID" (capital ID).
 			detailID := toString(item["appDetailID"])
 			if detailID == "" {
 				detailID = toString(item["appDetailId"])
 			}
-			out = append(out, dto.ClusterSyncResource{
+			env, _ := item["env"].(map[string]interface{})
+			out.Items = append(out.Items, dto.ClusterSyncResource{
 				Key: id, Name: name,
 				Detail: key + " " + version,
 				Extra:  detailID,
+				Meta: map[string]interface{}{
+					"appKey": key, "appName": toString(item["appName"]), "version": version,
+					"status": toString(item["status"]), "linkDB": toBool(item["linkDB"]),
+					"dbType": toString(env["PANEL_DB_TYPE"]), "dbHostName": toString(env["PANEL_DB_HOST_NAME"]),
+					"hasDBHost": env["PANEL_DB_HOST"] != nil,
+					"hasRedis":  env["PANEL_REDIS_HOST"] != nil || env["REDIS_HOST"] != nil,
+					"hasMongo":  env["MONGO_HOST"] != nil,
+				},
 			})
 		}
-		return out, result.Total, nil
+		out.Total = result.Total
+		return out, nil
 	case dto.ClusterSyncKindCert:
 		var result remotePage
-		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/websites/ssl/search", map[string]interface{}{"page": page, "pageSize": pageSize}, &result, 15*time.Second); err != nil {
-			return nil, 0, err
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/websites/ssl/search", map[string]interface{}{"page": page, "pageSize": pageSize, "domain": search, "orderBy": "expire_date", "order": "ascending"}, &result, 15*time.Second); err != nil {
+			return out, err
 		}
-		var out []dto.ClusterSyncResource
 		for _, raw := range result.Items {
 			var item map[string]interface{}
 			if err := json.Unmarshal(raw, &item); err != nil {
@@ -353,22 +411,25 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 			if id == "" || domain == "" {
 				continue
 			}
-			out = append(out, dto.ClusterSyncResource{
+			out.Items = append(out.Items, dto.ClusterSyncResource{
 				Key: id, Name: domain,
 				Detail: toString(item["provider"]),
 				Extra:  strconv.FormatBool(toBool(item["autoRenew"])),
+				Meta: map[string]interface{}{
+					"status": toString(item["status"]), "provider": toString(item["provider"]),
+					"expireDate": toString(item["expireDate"]), "domains": toString(item["domains"]),
+				},
 			})
 		}
-		return out, result.Total, nil
+		out.Total = result.Total
+		return out, nil
 	case dto.ClusterSyncKindPhp:
 		// PHP extension templates live in the source panel's own template
-		// table (seeded with Default/WordPress/Flarum/SeaCMS/Dev). Key is
-		// the template id, Detail is the comma-separated extension list.
+		// table. Key is the template id, Detail is the extension list.
 		var result remotePage
-		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/runtimes/php/extensions/search", map[string]interface{}{"page": page, "pageSize": pageSize, "all": true}, &result, 15*time.Second); err != nil {
-			return nil, 0, err
+		if err := s.callNodeJSON(node, http.MethodPost, "/api/v2/runtimes/php/extensions/search", map[string]interface{}{"page": page, "pageSize": pageSize, "name": search}, &result, 15*time.Second); err != nil {
+			return out, err
 		}
-		var out []dto.ClusterSyncResource
 		for _, raw := range result.Items {
 			var item map[string]interface{}
 			if err := json.Unmarshal(raw, &item); err != nil {
@@ -379,79 +440,309 @@ func (s *ClusterSyncService) listRemoteResources(kind string, node model.Cluster
 			if id == "" || name == "" {
 				continue
 			}
-			out = append(out, dto.ClusterSyncResource{
+			out.Items = append(out.Items, dto.ClusterSyncResource{
 				Key: id, Name: name,
 				Detail: toString(item["extensions"]),
 			})
 		}
-		return out, result.Total, nil
+		out.Total = result.Total
+		return out, nil
 	}
-	return nil, 0, buserr.New("ErrInvalidParams")
+	return out, buserr.New("ErrInvalidParams")
+}
+
+func shortImageID(id string) string {
+	id = strings.TrimPrefix(id, "sha256:")
+	if len(id) > 12 {
+		return id[:12]
+	}
+	return id
+}
+
+// lookupFile finds one file or directory by its full path on a node by
+// listing its parent directory filtered by name (so it works in
+// directories with more entries than one listing page).
+func (s *ClusterSyncService) lookupFile(node model.ClusterNode, fullPath string) (dto.ClusterSyncResource, bool, error) {
+	fullPath = path.Clean(fullPath)
+	name := path.Base(fullPath)
+	if fullPath == "/" || name == "" {
+		return dto.ClusterSyncResource{}, false, nil
+	}
+	page, err := s.listResourcesPage(dto.ClusterSyncKindFile, node, syncListOptions{Path: path.Dir(fullPath), Search: name, Page: 1, PageSize: 500})
+	if err != nil {
+		return dto.ClusterSyncResource{}, false, err
+	}
+	for _, item := range page.Items {
+		if item.Name == name {
+			return item, true, nil
+		}
+	}
+	return dto.ClusterSyncResource{}, false, nil
+}
+
+// resolveResources maps the requested keys to source resources. Files are
+// looked up one by one (keys are full paths, possibly in a large
+// directory); the other kinds come from one listing.
+func (s *ClusterSyncService) resolveResources(kind string, source model.ClusterNode, keys []string, reqPath string) (map[string]dto.ClusterSyncResource, error) {
+	byKey := map[string]dto.ClusterSyncResource{}
+	if kind == dto.ClusterSyncKindFile {
+		for _, key := range keys {
+			res, ok, err := s.lookupFile(source, key)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				byKey[key] = res
+			}
+		}
+		return byKey, nil
+	}
+	resources, _, err := s.listRemoteResources(kind, source, reqPath, 1, 500)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range resources {
+		byKey[r.Key] = r
+	}
+	return byKey, nil
 }
 
 func (s *ClusterSyncService) ListResources(req dto.ClusterSyncResourceSearch) ([]dto.ClusterSyncResource, error) {
+	page, err := s.SearchResources(req)
+	if err != nil {
+		return nil, err
+	}
+	return page.Items, nil
+}
+
+func (s *ClusterSyncService) SearchResources(req dto.ClusterSyncResourceSearch) (dto.ClusterSyncResourcePage, error) {
 	if !validSyncKind(req.Kind) {
-		return nil, buserr.New("ErrInvalidParams")
+		return dto.ClusterSyncResourcePage{}, buserr.New("ErrInvalidParams")
 	}
 	node, err := s.resolveNode(req.SourceNodeID)
 	if err != nil {
-		return nil, err
+		return dto.ClusterSyncResourcePage{}, err
 	}
 	if node.Status == model.ClusterNodeStatusOffline {
-		return nil, buserr.New("ErrInvalidParams")
+		return dto.ClusterSyncResourcePage{}, buserr.New("ErrInvalidParams")
 	}
-	resources, _, err := s.listRemoteResources(req.Kind, node, req.Path, req.Page, req.PageSize)
+	return s.listResourcesPage(req.Kind, node, syncListOptions{Path: req.Path, Search: req.Search, SortOrder: req.SortOrder, Page: req.Page, PageSize: req.PageSize})
+}
+
+// AppDatabases lists the database services (type + name) that exist on
+// every given node, for the app-transfer dependency selector.
+func (s *ClusterSyncService) AppDatabases(req dto.ClusterSyncAppDBReq) ([]dto.ClusterSyncAppDB, error) {
+	types := strings.TrimSpace(req.Types)
+	if types == "" {
+		types = "mysql,mariadb,postgresql"
+	}
+	var common map[string]dto.ClusterSyncAppDB
+	for _, id := range req.NodeIDs {
+		node, err := s.resolveNode(id)
+		if err != nil {
+			return nil, err
+		}
+		var list []struct {
+			Type     string `json:"type"`
+			Database string `json:"database"`
+		}
+		if err := s.callNodeJSON(node, http.MethodGet, "/api/v2/databases/db/list/"+url.PathEscape(types), nil, &list, 15*time.Second); err != nil {
+			return nil, fmt.Errorf("%s: %s", node.Name, truncateErr(err.Error()))
+		}
+		found := map[string]dto.ClusterSyncAppDB{}
+		for _, item := range list {
+			if item.Database == "" {
+				continue
+			}
+			key := item.Type + "/" + item.Database
+			if common == nil {
+				found[key] = dto.ClusterSyncAppDB{Type: item.Type, Database: item.Database}
+			} else if v, ok := common[key]; ok {
+				found[key] = v
+			}
+		}
+		common = found
+	}
+	out := []dto.ClusterSyncAppDB{}
+	for _, v := range common {
+		out = append(out, v)
+	}
+	sort.Slice(out, func(i, j int) bool {
+		if out[i].Type != out[j].Type {
+			return out[i].Type < out[j].Type
+		}
+		return out[i].Database < out[j].Database
+	})
+	return out, nil
+}
+
+// DeleteFile deletes one file or directory on a node (file-transfer page).
+// The node's own delete policy applies (protected paths, recycle bin).
+func (s *ClusterSyncService) DeleteFile(req dto.ClusterSyncFileDelete) error {
+	node, err := s.resolveNode(req.NodeID)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	if resources == nil {
-		resources = []dto.ClusterSyncResource{}
+	p := path.Clean(strings.TrimSpace(req.Path))
+	if p == "/" || !strings.HasPrefix(p, "/") {
+		return buserr.New("ErrInvalidParams")
 	}
-	return resources, nil
+	return s.callNodeJSON(node, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": p, "isDir": req.IsDir, "forceDelete": false}, nil, 60*time.Second)
+}
+
+// syncTransferOpts carries the per-request options of one transfer.
+type syncTransferOpts struct {
+	Path       string // file: source directory
+	TargetPath string // file: target directory ("" = same as source)
+	Overwrite  bool
+	AppDBHost  string // app: database service name on the target
+}
+
+func (o syncTransferOpts) fileTargetDir(res dto.ClusterSyncResource) string {
+	if dir := strings.TrimSpace(o.TargetPath); dir != "" {
+		return path.Clean(dir)
+	}
+	return path.Dir(res.Key)
+}
+
+// appKeyVersion splits the listing's "appKey version" detail.
+func appKeyVersion(res dto.ClusterSyncResource) (string, string) {
+	parts := strings.SplitN(strings.TrimSpace(res.Detail), " ", 2)
+	if len(parts) != 2 {
+		return parts[0], ""
+	}
+	return parts[0], parts[1]
+}
+
+func imageTags(res dto.ClusterSyncResource) []string {
+	var tags []string
+	for _, t := range strings.Split(res.Detail, ",") {
+		if t = strings.TrimSpace(t); t != "" {
+			tags = append(tags, t)
+		}
+	}
+	return tags
+}
+
+// syncTaskPollInterval is how often a node task is polled (tests shorten it).
+var syncTaskPollInterval = 2 * time.Second
+
+// waitNodeTask polls a node's task log (POST /logs/tasks/search) until the
+// async task created with taskID succeeds or fails.
+func (s *ClusterSyncService) waitNodeTask(node model.ClusterNode, taskID string, timeout time.Duration) error {
+	deadline := time.Now().Add(timeout)
+	for {
+		var page struct {
+			Items []struct {
+				Status   string `json:"status"`
+				ErrorMsg string `json:"errorMsg"`
+			} `json:"items"`
+		}
+		err := s.callNodeJSON(node, http.MethodPost, "/api/v2/logs/tasks/search", map[string]interface{}{"taskID": taskID, "page": 1, "pageSize": 1}, &page, 15*time.Second)
+		if err == nil && len(page.Items) > 0 {
+			switch page.Items[0].Status {
+			case "Success":
+				return nil
+			case "Failed", "Canceled":
+				msg := strings.TrimSpace(page.Items[0].ErrorMsg)
+				if msg == "" {
+					msg = "task " + strings.ToLower(page.Items[0].Status)
+				}
+				return errors.New(msg)
+			}
+		}
+		if time.Now().After(deadline) {
+			if err != nil {
+				return fmt.Errorf("task %s did not finish: %s", taskID, truncateErr(err.Error()))
+			}
+			return fmt.Errorf("task %s did not finish in time", taskID)
+		}
+		time.Sleep(syncTaskPollInterval)
+	}
+}
+
+// syncTmpDir is the scratch directory used on nodes for archives.
+const syncTmpDir = "/tmp/1panel-cluster-sync"
+
+func (s *ClusterSyncService) removeNodeFile(node model.ClusterNode, p string) {
+	_ = s.callNodeJSON(node, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": p, "isDir": false, "forceDelete": true}, nil, 30*time.Second)
 }
 
 // compareOnTarget computes the preview action for one resource on one target.
-func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNode, res dto.ClusterSyncResource, reqPath string) (action, reason string) {
+func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (action, reason string) {
 	switch kind {
 	case dto.ClusterSyncKindFile:
-		items, _, err := s.listRemoteResources(kind, target, reqPath, 1, 500)
+		dst := path.Join(opts.fileTargetDir(res), path.Base(res.Key))
+		item, ok, err := s.lookupFile(target, dst)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "could not list target directory: " + truncateErr(err.Error())
 		}
-		for _, item := range items {
-			if item.Key == res.Key {
-				if item.Size == res.Size {
-					return model.ClusterSyncActionSkipSame, "target already has the same file (same size)"
-				}
-				return model.ClusterSyncActionSkipConflict, "target file differs (different size)"
-			}
+		if !ok {
+			return model.ClusterSyncActionCreate, ""
 		}
-		return model.ClusterSyncActionCreate, ""
+		if res.Extra == syncResourceDir {
+			if item.Extra != syncResourceDir {
+				return model.ClusterSyncActionSkipConflict, "target has a file with the same name as the directory"
+			}
+			// Directories are merged: new files are added, existing
+			// target files are kept unless overwrite is requested.
+			return model.ClusterSyncActionCreate, ""
+		}
+		if item.Extra == syncResourceDir {
+			return model.ClusterSyncActionSkipConflict, "target has a directory with the same name"
+		}
+		if item.Size == res.Size {
+			return model.ClusterSyncActionSkipSame, "target already has the same file (same size)"
+		}
+		return model.ClusterSyncActionSkipConflict, "target file differs (different size)"
 	case dto.ClusterSyncKindImage:
 		items, _, err := s.listRemoteResources(kind, target, "", 1, 500)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "could not list target images: " + truncateErr(err.Error())
 		}
-		for _, item := range items {
-			if item.Key == res.Key {
-				if item.Detail == res.Detail && res.Detail != "" {
-					return model.ClusterSyncActionSkipSame, "target already has the same image"
-				}
-				return model.ClusterSyncActionSkipConflict, "target has a different image with the same tag"
+		srcTags := imageTags(res)
+		tagOwner := map[string]string{}
+		var same *dto.ClusterSyncResource
+		for i := range items {
+			for _, t := range imageTags(items[i]) {
+				tagOwner[t] = items[i].Key
 			}
+			if items[i].Key == res.Key {
+				same = &items[i]
+			}
+		}
+		for _, t := range srcTags {
+			if owner, ok := tagOwner[t]; ok && owner != res.Key {
+				return model.ClusterSyncActionSkipConflict, "target has a different image tagged " + t
+			}
+		}
+		if same != nil {
+			have := map[string]bool{}
+			for _, t := range imageTags(*same) {
+				have[t] = true
+			}
+			for _, t := range srcTags {
+				if !have[t] {
+					return model.ClusterSyncActionCreate, ""
+				}
+			}
+			return model.ClusterSyncActionSkipSame, "target already has the same image"
 		}
 		return model.ClusterSyncActionCreate, ""
 	case dto.ClusterSyncKindApp:
+		if reason := appUnsupportedReason(res); reason != "" {
+			return model.ClusterSyncActionFailed, reason
+		}
 		items, _, err := s.listRemoteResources(kind, target, "", 1, 500)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "could not list target apps: " + truncateErr(err.Error())
 		}
 		for _, item := range items {
-			if item.Detail == res.Detail && res.Detail != "" {
-				return model.ClusterSyncActionSkipSame, "target already has the same app version installed"
-			}
-			if strings.HasPrefix(item.Detail, strings.Split(res.Detail, " ")[0]+" ") && strings.Split(res.Detail, " ")[0] != "" {
-				return model.ClusterSyncActionSkipConflict, "target has a different version of the same app"
+			if strings.EqualFold(item.Name, res.Name) {
+				if item.Detail == res.Detail {
+					return model.ClusterSyncActionSkipSame, "target already has this app installed with the same name and version"
+				}
+				return model.ClusterSyncActionSkipConflict, "target already has an app installed with the same name"
 			}
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -462,7 +753,7 @@ func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNo
 		}
 		for _, item := range items {
 			if item.Name == res.Name {
-				return model.ClusterSyncActionSkipConflict, "target already has a certificate for this domain (content comparison happens at execution; same content is skipped there)"
+				return model.ClusterSyncActionSkipConflict, "target already has a certificate for this domain"
 			}
 		}
 		return model.ClusterSyncActionCreate, ""
@@ -484,6 +775,33 @@ func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNo
 	return model.ClusterSyncActionFailed, "unknown resource kind"
 }
 
+// appUnsupportedReason mirrors the page's rule: only apps without resource
+// dependencies, or depending on MySQL / MariaDB / PostgreSQL, are migrated.
+func appUnsupportedReason(res dto.ClusterSyncResource) string {
+	key, _ := appKeyVersion(res)
+	if key == "openresty" {
+		return "OpenResty is not migrated (it is bound to the panel's websites)"
+	}
+	if res.Meta == nil {
+		return ""
+	}
+	if toBool(res.Meta["hasRedis"]) || toBool(res.Meta["hasMongo"]) {
+		return "only apps depending on MySQL, MariaDB or PostgreSQL can be migrated"
+	}
+	if dbType := strings.ToLower(toString(res.Meta["dbType"])); dbType != "" {
+		switch dbType {
+		case "mysql", "mariadb", "postgresql":
+		default:
+			return "only apps depending on MySQL, MariaDB or PostgreSQL can be migrated"
+		}
+	}
+	return ""
+}
+
+func syncOptsFromPreview(req dto.ClusterSyncPreviewReq) syncTransferOpts {
+	return syncTransferOpts{Path: req.Path, TargetPath: req.TargetPath, AppDBHost: req.AppDBHost}
+}
+
 func (s *ClusterSyncService) Preview(req dto.ClusterSyncPreviewReq) ([]dto.ClusterSyncPreviewItem, error) {
 	if !validSyncKind(req.Kind) {
 		return nil, buserr.New("ErrInvalidParams")
@@ -492,14 +810,11 @@ func (s *ClusterSyncService) Preview(req dto.ClusterSyncPreviewReq) ([]dto.Clust
 	if err != nil {
 		return nil, err
 	}
-	resources, _, err := s.listRemoteResources(req.Kind, source, req.Path, 1, 500)
+	byKey, err := s.resolveResources(req.Kind, source, req.ResourceKeys, req.Path)
 	if err != nil {
 		return nil, err
 	}
-	byKey := map[string]dto.ClusterSyncResource{}
-	for _, r := range resources {
-		byKey[r.Key] = r
-	}
+	opts := syncOptsFromPreview(req)
 	var out []dto.ClusterSyncPreviewItem
 	for _, targetID := range req.TargetNodeIDs {
 		if targetID == req.SourceNodeID {
@@ -524,7 +839,7 @@ func (s *ClusterSyncService) Preview(req dto.ClusterSyncPreviewReq) ([]dto.Clust
 				out = append(out, dto.ClusterSyncPreviewItem{ResourceKey: key, TargetNodeID: targetID, TargetName: target.Name, Action: model.ClusterSyncActionFailed, Reason: "resource not found on source node"})
 				continue
 			}
-			action, reason := s.compareOnTarget(req.Kind, target, res, req.Path)
+			action, reason := s.compareOnTarget(req.Kind, target, res, opts)
 			out = append(out, dto.ClusterSyncPreviewItem{ResourceKey: key, ResourceName: res.Name, TargetNodeID: targetID, TargetName: target.Name, Action: action, Reason: reason})
 		}
 	}
@@ -549,7 +864,7 @@ func (s *ClusterSyncService) signedClient(node model.ClusterNode, timeout time.D
 	return client, timestamp, hmacToken, md5Token, nil
 }
 
-func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string) (tmpPath string, size int64, err error) {
+func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePath string, maxBytes int64) (tmpPath string, size int64, err error) {
 	client, timestamp, hmacToken, md5Token, err := s.signedClient(node, 10*time.Minute)
 	if err != nil {
 		return "", 0, err
@@ -603,9 +918,9 @@ func (s *ClusterSyncService) downloadRemoteFile(node model.ClusterNode, remotePa
 		_ = os.Remove(tmpPath)
 		return "", 0, err
 	}
-	if info.Size() > maxSyncFileBytes {
+	if info.Size() > maxBytes {
 		_ = os.Remove(tmpPath)
-		return "", 0, fmt.Errorf("file is %d bytes, over the %d-byte sync limit", info.Size(), maxSyncFileBytes)
+		return "", 0, fmt.Errorf("file is %d bytes, over the %d-byte sync limit", info.Size(), maxBytes)
 	}
 	return tmpPath, info.Size(), nil
 }
@@ -660,11 +975,11 @@ func (s *ClusterSyncService) uploadRemoteFile(node model.ClusterNode, dir, fileN
 // downloadNodeFile / uploadNodeFile dispatch file transfers by node: the
 // local panel goes over the unix socket, registered nodes use the signed
 // remote calls.
-func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string) (string, int64, error) {
+func (s *ClusterSyncService) downloadNodeFile(node model.ClusterNode, remotePath string, maxBytes int64) (string, int64, error) {
 	if isLocalNode(node) {
-		return s.downloadLocalFile(remotePath)
+		return s.downloadLocalFile(remotePath, maxBytes)
 	}
-	return s.downloadRemoteFile(node, remotePath)
+	return s.downloadRemoteFile(node, remotePath, maxBytes)
 }
 
 func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileName, tmpPath string, overwrite bool) error {
@@ -678,7 +993,7 @@ func (s *ClusterSyncService) uploadNodeFile(node model.ClusterNode, dir, fileNam
 // socket and streams it to a temp file (same 200 MB cap as the remote path).
 // The agent answers errors as a JSON envelope even with HTTP 200, so a JSON
 // content type is parsed as an error instead of being saved as file bytes.
-func (s *ClusterSyncService) downloadLocalFile(remotePath string) (string, int64, error) {
+func (s *ClusterSyncService) downloadLocalFile(remotePath string, maxBytes int64) (string, int64, error) {
 	tmp, err := os.CreateTemp("", "cluster-sync-*")
 	if err != nil {
 		return "", 0, err
@@ -710,15 +1025,15 @@ func (s *ClusterSyncService) downloadLocalFile(remotePath string) (string, int64
 		_ = os.Remove(tmpPath)
 		return "", 0, err
 	}
-	written, copyErr := io.CopyN(out, resp.Body, maxSyncFileBytes+1)
+	written, copyErr := io.CopyN(out, resp.Body, maxBytes+1)
 	_ = out.Close()
 	if copyErr != nil && copyErr != io.EOF {
 		_ = os.Remove(tmpPath)
 		return "", 0, copyErr
 	}
-	if written > maxSyncFileBytes {
+	if written > maxBytes {
 		_ = os.Remove(tmpPath)
-		return "", 0, fmt.Errorf("file is over the %d-byte sync limit", maxSyncFileBytes)
+		return "", 0, fmt.Errorf("file is over the %d-byte sync limit", maxBytes)
 	}
 	return tmpPath, written, nil
 }
@@ -771,61 +1086,26 @@ func (s *ClusterSyncService) uploadLocalFile(dir, fileName, tmpPath string, over
 
 // transferOne executes a single (resource × target) transfer. It returns the
 // action recorded for the item and a human-readable reason ("" on create).
-func (s *ClusterSyncService) transferOne(kind string, source, target model.ClusterNode, res dto.ClusterSyncResource, reqPath string, overwrite bool) (string, string) {
+func (s *ClusterSyncService) transferOne(kind string, source, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (string, string) {
 	switch kind {
 	case dto.ClusterSyncKindFile:
 		if res.Extra == syncResourceDir {
-			return model.ClusterSyncActionFailed, "directories are not synced; open the directory and select files"
+			return s.transferDir(source, target, res, opts)
 		}
-		tmpPath, _, err := s.downloadNodeFile(source, res.Key)
+		tmpPath, _, err := s.downloadNodeFile(source, res.Key, maxSyncFileBytes)
 		if err != nil {
 			return model.ClusterSyncActionFailed, "download from source failed: " + truncateErr(err.Error())
 		}
 		defer os.Remove(tmpPath)
-		dir := path.Dir(res.Key)
-		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, overwrite); err != nil {
-			// Best effort: remove a partially uploaded file on the target.
-			_ = s.callNodeJSON(target, http.MethodPost, "/api/v2/files/del", map[string]interface{}{"path": res.Key, "isDir": false, "forceDelete": true}, nil, 10*time.Second)
+		dir := opts.fileTargetDir(res)
+		if err := s.uploadNodeFile(target, dir, path.Base(res.Key), tmpPath, opts.Overwrite); err != nil {
 			return model.ClusterSyncActionFailed, "upload to target failed: " + truncateErr(err.Error())
 		}
 		return model.ClusterSyncActionCreate, ""
 	case dto.ClusterSyncKindImage:
-		var out struct {
-			TaskID string `json:"taskID"`
-		}
-		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/pull", map[string]interface{}{"imageName": []string{res.Key}}, &out, 10*time.Minute); err != nil {
-			return model.ClusterSyncActionFailed, "image pull on target failed: " + truncateErr(err.Error())
-		}
-		return model.ClusterSyncActionCreate, ""
+		return s.transferImage(source, target, res)
 	case dto.ClusterSyncKindApp:
-		// Reinstall the same app on the target with the source install's
-		// parameters. Ports and other host-bound values come from the
-		// source; if the target rejects them (e.g. port in use) the
-		// target's error is recorded verbatim on the record.
-		appDetailID, err := strconv.ParseUint(strings.TrimSpace(res.Extra), 10, 64)
-		if err != nil || appDetailID == 0 {
-			return model.ClusterSyncActionFailed, "source app has no appDetailId; cannot reinstall on target"
-		}
-		var appConfig struct {
-			Params []struct {
-				Key   string      `json:"key"`
-				Value interface{} `json:"value"`
-			} `json:"params"`
-		}
-		if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/apps/installed/params/"+res.Key, nil, &appConfig, 10*time.Second); err != nil {
-			return model.ClusterSyncActionFailed, "could not read source app params: " + truncateErr(err.Error())
-		}
-		params := map[string]interface{}{}
-		for _, p := range appConfig.Params {
-			if p.Key != "" {
-				params[p.Key] = p.Value
-			}
-		}
-		body := map[string]interface{}{"appDetailId": appDetailID, "name": res.Name, "params": params}
-		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 10*time.Minute); err != nil {
-			return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
-		}
-		return model.ClusterSyncActionCreate, ""
+		return s.transferApp(source, target, res, opts)
 	case dto.ClusterSyncKindCert:
 		// Fetch the full certificate from the source (private key + PEM).
 		// Keys live only in memory for the duration of this call and are
@@ -840,12 +1120,8 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/websites/ssl/"+res.Key, nil, &cert, 10*time.Second); err != nil {
 			return model.ClusterSyncActionFailed, "could not read source certificate: " + truncateErr(err.Error())
 		}
-		// ACME / auto-renew certificates used to be rejected outright,
-		// which made certificate sync fail for almost every real panel
-		// (most certificates are ACME). They are now copied as a static
-		// pasted certificate; renewal stays with the source panel, so the
-		// copy must be re-synced after the source renews (noted in the
-		// description on the target).
+		// ACME / auto-renew certificates are copied as a static pasted
+		// certificate; renewal stays with the source panel.
 		if strings.TrimSpace(cert.PrivateKey) == "" || strings.TrimSpace(cert.Pem) == "" {
 			return model.ClusterSyncActionFailed, "source panel did not return the certificate content"
 		}
@@ -861,9 +1137,7 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		// Write path is the open-source import endpoint: it creates the
 		// template, returns "skipped" when the target already has the same
 		// content, and fails with ErrPHPExtensionsConflict on a name
-		// clash with different extensions. The official xpack push
-		// endpoint is NOT used (ErrXpackNotFound on open-source panels).
-		// res.Detail carries the extension list from the source listing.
+		// clash with different extensions.
 		var status string
 		err := s.callNodeJSON(target, http.MethodPost, "/api/v2/runtimes/php/extensions/import", map[string]interface{}{"name": res.Name, "extensions": res.Detail}, &status, 10*time.Second)
 		if err == nil {
@@ -875,10 +1149,9 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		if !strings.Contains(err.Error(), "ErrPHPExtensionsConflict") {
 			return model.ClusterSyncActionFailed, "PHP template import on target failed: " + truncateErr(err.Error())
 		}
-		if !overwrite {
+		if !opts.Overwrite {
 			return model.ClusterSyncActionSkipConflict, "target has a PHP template with the same name but different extensions"
 		}
-		// Explicit overwrite: resolve the target template id and update it.
 		targetItems, _, listErr := s.listRemoteResources(kind, target, "", 1, 500)
 		if listErr != nil {
 			return model.ClusterSyncActionFailed, "could not list target PHP templates for overwrite: " + truncateErr(listErr.Error())
@@ -901,6 +1174,226 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 	return model.ClusterSyncActionFailed, "unknown resource kind"
 }
 
+// maxSyncArchiveBytes caps directory archives and image tarballs that
+// transit through the master.
+const maxSyncArchiveBytes = 20 * 1024 * 1024 * 1024
+
+func newSyncTaskID() string { return uuid.NewString() }
+
+func (s *ClusterSyncService) ensureNodeDir(node model.ClusterNode, dir string) {
+	_ = s.callNodeJSON(node, http.MethodPost, "/api/v2/files", map[string]interface{}{"path": dir, "isDir": true, "mode": 0700}, nil, 15*time.Second)
+}
+
+// moveArchive downloads an archive from one node and uploads it into
+// syncTmpDir on another, removing the master's temp copy.
+func (s *ClusterSyncService) moveArchive(source, target model.ClusterNode, srcPath string) (string, error) {
+	tmpPath, _, err := s.downloadNodeFile(source, srcPath, maxSyncArchiveBytes)
+	if err != nil {
+		return "", fmt.Errorf("download from source failed: %s", truncateErr(err.Error()))
+	}
+	defer os.Remove(tmpPath)
+	name := path.Base(srcPath)
+	if err := s.uploadNodeFile(target, syncTmpDir, name, tmpPath, true); err != nil {
+		return "", fmt.Errorf("upload to target failed: %s", truncateErr(err.Error()))
+	}
+	return path.Join(syncTmpDir, name), nil
+}
+
+// transferDir packs a directory on the source (files/compress, tar.gz),
+// moves the archive through the master and unpacks it into the target
+// directory (files/decompress). Existing target files are kept unless
+// overwrite is requested.
+func (s *ClusterSyncService) transferDir(source, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (string, string) {
+	archive := "sync-" + common.RandStrAndNum(12) + ".tar.gz"
+	taskID := newSyncTaskID()
+	srcArchive := path.Join(syncTmpDir, archive)
+	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/files/compress", map[string]interface{}{
+		"files": []string{res.Key}, "dst": syncTmpDir, "type": "tar.gz", "name": archive, "replace": true, "taskID": taskID,
+	}, nil, 30*time.Second); err != nil {
+		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
+	}
+	defer s.removeNodeFile(source, srcArchive)
+	if err := s.waitNodeTask(source, taskID, 2*time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "compress on source failed: " + truncateErr(err.Error())
+	}
+	dstArchive, err := s.moveArchive(source, target, srcArchive)
+	if err != nil {
+		return model.ClusterSyncActionFailed, err.Error()
+	}
+	defer s.removeNodeFile(target, dstArchive)
+	overwrite := opts.Overwrite
+	taskID = newSyncTaskID()
+	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/files/decompress", map[string]interface{}{
+		"path": dstArchive, "dst": opts.fileTargetDir(res), "type": "tar.gz", "overwrite": &overwrite, "taskID": taskID,
+	}, nil, 30*time.Second); err != nil {
+		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
+	}
+	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "decompress on target failed: " + truncateErr(err.Error())
+	}
+	return model.ClusterSyncActionCreate, ""
+}
+
+// transferImage copies one image (with all its tags) without a registry:
+// docker save on the source, transit through the master, docker load on
+// the target, then re-tag so every source tag exists on the target.
+func (s *ClusterSyncService) transferImage(source, target model.ClusterNode, res dto.ClusterSyncResource) (string, string) {
+	tags := imageTags(res)
+	ref := res.Key
+	if len(tags) > 0 {
+		ref = tags[0]
+	}
+	name := "sync-image-" + common.RandStrAndNum(12)
+	srcTar := path.Join(syncTmpDir, name+".tar")
+	s.ensureNodeDir(source, syncTmpDir)
+	taskID := newSyncTaskID()
+	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/containers/image/save", map[string]interface{}{
+		"tagName": ref, "path": syncTmpDir, "name": name, "taskID": taskID,
+	}, nil, 30*time.Second); err != nil {
+		return model.ClusterSyncActionFailed, "image save on source failed: " + truncateErr(err.Error())
+	}
+	defer s.removeNodeFile(source, srcTar)
+	if err := s.waitNodeTask(source, taskID, 2*time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "image save on source failed: " + truncateErr(err.Error())
+	}
+	dstTar, err := s.moveArchive(source, target, srcTar)
+	if err != nil {
+		return model.ClusterSyncActionFailed, err.Error()
+	}
+	defer s.removeNodeFile(target, dstTar)
+	taskID = newSyncTaskID()
+	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/load", map[string]interface{}{
+		"paths": []string{dstTar}, "taskID": taskID,
+	}, nil, 30*time.Second); err != nil {
+		return model.ClusterSyncActionFailed, "image load on target failed: " + truncateErr(err.Error())
+	}
+	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "image load on target failed: " + truncateErr(err.Error())
+	}
+	if len(tags) > 1 {
+		// Keep any tags the target already had on this image.
+		all := append([]string{}, tags...)
+		if items, _, err := s.listRemoteResources(dto.ClusterSyncKindImage, target, "", 1, 500); err == nil {
+			for _, item := range items {
+				if item.Key == res.Key {
+					all = append(all, imageTags(item)...)
+				}
+			}
+		}
+		seen := map[string]bool{}
+		var uniq []string
+		for _, t := range all {
+			if !seen[t] {
+				seen[t] = true
+				uniq = append(uniq, t)
+			}
+		}
+		if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/containers/image/tag", map[string]interface{}{"sourceID": res.Key, "tags": uniq}, nil, 60*time.Second); err != nil {
+			return model.ClusterSyncActionFailed, "image loaded but tagging on target failed: " + truncateErr(err.Error())
+		}
+	}
+	return model.ClusterSyncActionCreate, ""
+}
+
+// transferApp migrates one installed app: install the same app version on
+// the target with the source's parameters (database dependency switched to
+// the selected target database service), then back the app up on the
+// source and restore that backup on the target so data moves too.
+func (s *ClusterSyncService) transferApp(source, target model.ClusterNode, res dto.ClusterSyncResource, opts syncTransferOpts) (string, string) {
+	if reason := appUnsupportedReason(res); reason != "" {
+		return model.ClusterSyncActionFailed, reason
+	}
+	appKey, version := appKeyVersion(res)
+	if appKey == "" || version == "" {
+		return model.ClusterSyncActionFailed, "source app has no key/version"
+	}
+	var detail struct {
+		ID uint `json:"id"`
+	}
+	if err := s.callNodeJSON(target, http.MethodGet, "/api/v2/apps/detail/node/"+url.PathEscape(appKey)+"/"+url.PathEscape(version), nil, &detail, 20*time.Second); err != nil || detail.ID == 0 {
+		msg := "app " + appKey + " " + version + " is not available in the target app store (sync the app store first)"
+		if err != nil {
+			msg += ": " + truncateErr(err.Error())
+		}
+		return model.ClusterSyncActionFailed, msg
+	}
+	var appConfig struct {
+		Params []struct {
+			Key   string      `json:"key"`
+			Value interface{} `json:"value"`
+		} `json:"params"`
+	}
+	if err := s.callNodeJSON(source, http.MethodGet, "/api/v2/apps/installed/params/"+res.Key, nil, &appConfig, 20*time.Second); err != nil {
+		return model.ClusterSyncActionFailed, "could not read source app params: " + truncateErr(err.Error())
+	}
+	params := map[string]interface{}{}
+	for _, p := range appConfig.Params {
+		if p.Key != "" {
+			params[p.Key] = p.Value
+		}
+	}
+	linkDB := res.Meta != nil && (toBool(res.Meta["linkDB"]) || toBool(res.Meta["hasDBHost"]))
+	if _, ok := params["PANEL_DB_HOST"]; ok || linkDB {
+		if strings.TrimSpace(opts.AppDBHost) == "" {
+			return model.ClusterSyncActionFailed, "select the database the app should use on the target"
+		}
+		// The agent maps a database service name to its address/port.
+		params["PANEL_DB_HOST"] = opts.AppDBHost
+	}
+	taskID := newSyncTaskID()
+	body := map[string]interface{}{"appDetailId": detail.ID, "name": res.Name, "params": params, "taskID": taskID}
+	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/apps/install", body, nil, 5*time.Minute); err != nil {
+		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
+	}
+	if err := s.waitNodeTask(target, taskID, time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "app install on target failed: " + truncateErr(err.Error())
+	}
+	// Data: back up on the source and restore on the target.
+	var record struct {
+		DownloadAccountID uint   `json:"downloadAccountID"`
+		FileDir           string `json:"fileDir"`
+		FileName          string `json:"fileName"`
+	}
+	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/backups/backup", map[string]interface{}{
+		"type": "app", "name": appKey, "detailName": res.Name, "isImmediate": true, "taskID": newSyncTaskID(),
+		"description": "cluster app transfer to " + target.Name,
+	}, &record, time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "app installed on target, but the source backup failed (data not migrated): " + truncateErr(err.Error())
+	}
+	if record.FileName == "" {
+		return model.ClusterSyncActionFailed, "app installed on target, but the source backup returned no file (data not migrated)"
+	}
+	accountID := record.DownloadAccountID
+	if accountID == 0 {
+		accountID = 1
+	}
+	var backupPath string
+	if err := s.callNodeJSON(source, http.MethodPost, "/api/v2/backups/record/download", map[string]interface{}{
+		"downloadAccountID": accountID, "fileDir": record.FileDir, "fileName": record.FileName,
+	}, &backupPath, 30*time.Minute); err != nil || backupPath == "" {
+		msg := "app installed on target, but the source backup could not be located (data not migrated)"
+		if err != nil {
+			msg += ": " + truncateErr(err.Error())
+		}
+		return model.ClusterSyncActionFailed, msg
+	}
+	dstBackup, err := s.moveArchive(source, target, backupPath)
+	if err != nil {
+		return model.ClusterSyncActionFailed, "app installed on target, but moving the backup failed (data not migrated): " + err.Error()
+	}
+	defer s.removeNodeFile(target, dstBackup)
+	taskID = newSyncTaskID()
+	if err := s.callNodeJSON(target, http.MethodPost, "/api/v2/backups/recover/byupload", map[string]interface{}{
+		"downloadAccountID": 1, "type": "app", "name": appKey, "detailName": res.Name, "file": dstBackup, "taskID": taskID,
+	}, nil, 5*time.Minute); err != nil {
+		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
+	}
+	if err := s.waitNodeTask(target, taskID, 2*time.Hour); err != nil {
+		return model.ClusterSyncActionFailed, "app installed on target, but restoring data failed: " + truncateErr(err.Error())
+	}
+	return model.ClusterSyncActionCreate, ""
+}
+
 func syncCertDescription(sourceName string, autoRenew bool) string {
 	desc := "synced from cluster node " + sourceName
 	if autoRenew {
@@ -917,13 +1410,9 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 	if err != nil {
 		return 0, err
 	}
-	resources, _, err := s.listRemoteResources(req.Kind, source, req.Path, 1, 500)
+	byKey, err := s.resolveResources(req.Kind, source, req.ResourceKeys, req.Path)
 	if err != nil {
 		return 0, err
-	}
-	byKey := map[string]dto.ClusterSyncResource{}
-	for _, r := range resources {
-		byKey[r.Key] = r
 	}
 	targetIDsJSON, _ := json.Marshal(req.TargetNodeIDs)
 	task := &model.ClusterSyncTask{
@@ -935,10 +1424,8 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 		return 0, err
 	}
 	if syncExecuteAsync {
-		// Image pulls and app installs take minutes; running them inside
-		// the HTTP request made the browser time out (20s) and report a
-		// failure while the transfer was still running. The task id is
-		// returned at once and the page polls the task list.
+		// Image transfers and app migrations take minutes; the task id is
+		// returned at once and the page polls the task.
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -959,20 +1446,8 @@ func (s *ClusterSyncService) Execute(req dto.ClusterSyncExecuteReq) (uint, error
 var syncExecuteAsync = true
 
 func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.ClusterSyncExecuteReq, source model.ClusterNode, byKey map[string]dto.ClusterSyncResource) {
+	opts := syncTransferOpts{Path: req.Path, TargetPath: req.TargetPath, Overwrite: req.OverwriteConflicts, AppDBHost: req.AppDBHost}
 	succeeded, skipped, failed := 0, 0, 0
-	finishTask := func() {
-		status := model.ClusterSyncTaskSuccess
-		if failed > 0 && (succeeded > 0 || skipped > 0) {
-			status = model.ClusterSyncTaskPartial
-		} else if failed > 0 {
-			status = model.ClusterSyncTaskFailed
-		}
-		task.Total = succeeded + skipped + failed
-		_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
-			"status": status, "total": task.Total,
-			"succeeded": succeeded, "skipped": skipped, "failed": failed,
-		})
-	}
 	for _, targetID := range req.TargetNodeIDs {
 		if targetID == req.SourceNodeID {
 			continue
@@ -994,23 +1469,22 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 				failed++
 				continue
 			}
-			action, reason := model.ClusterSyncActionCreate, ""
-			if !req.OverwriteConflicts {
-				action, reason = s.compareOnTarget(req.Kind, target, res, req.Path)
-				if action == model.ClusterSyncActionFailed {
-					_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
-					failed++
-					continue
-				}
-				if action != model.ClusterSyncActionCreate {
-					_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
-					skipped++
-					continue
-				}
+			action, reason := s.compareOnTarget(req.Kind, target, res, opts)
+			if action == model.ClusterSyncActionFailed {
+				_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
+				failed++
+				continue
 			}
-			// For certificates the same-content re-check happens inside
-			// transferOne; its skip-conflict counts as skipped.
-			action, reason = s.transferOne(req.Kind, source, target, res, req.Path, req.OverwriteConflicts)
+			// Same content is always skipped; a conflict is skipped unless
+			// the caller explicitly opted into overwriting (never for apps:
+			// an existing install is not replaced).
+			if action == model.ClusterSyncActionSkipSame ||
+				(action == model.ClusterSyncActionSkipConflict && (!req.OverwriteConflicts || req.Kind == dto.ClusterSyncKindApp)) {
+				_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
+				skipped++
+				continue
+			}
+			action, reason = s.transferOne(req.Kind, source, target, res, opts)
 			switch action {
 			case model.ClusterSyncActionCreate:
 				succeeded++
@@ -1021,10 +1495,6 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 			}
 			_ = s.record(task.ID, req.Kind, key, res.Name, source.ID, targetID, target.Name, action, reason, time.Since(start).Milliseconds())
 		}
-		// Per-node settlement: record the target's last sync outcome.
-		// Only this target's failures count (the old code used the running
-		// total, marking every later target partial), and the local
-		// pseudo-node (id 0) has no cluster_nodes row to update.
 		nodeStatus := model.ClusterSyncTaskSuccess
 		if failed > failedBefore {
 			nodeStatus = model.ClusterSyncTaskPartial
@@ -1035,7 +1505,17 @@ func (s *ClusterSyncService) runTask(task *model.ClusterSyncTask, req dto.Cluste
 			})
 		}
 	}
-	finishTask()
+	status := model.ClusterSyncTaskSuccess
+	if failed > 0 && (succeeded > 0 || skipped > 0) {
+		status = model.ClusterSyncTaskPartial
+	} else if failed > 0 {
+		status = model.ClusterSyncTaskFailed
+	}
+	task.Total = succeeded + skipped + failed
+	_ = s.syncRepo.UpdateTask(task.ID, map[string]interface{}{
+		"status": status, "total": task.Total,
+		"succeeded": succeeded, "skipped": skipped, "failed": failed,
+	})
 }
 
 func (s *ClusterSyncService) record(taskID uint, kind, key, name string, sourceID, targetID uint, targetName, action, reason string, durationMs int64) error {

@@ -95,12 +95,21 @@ export namespace Cluster {
         detail: string;
         size: number;
         extra: string;
+        meta?: Record<string, any>;
+    }
+
+    export interface SyncResourcePage {
+        items: SyncResource[];
+        total: number;
+        path: string;
     }
 
     export interface SyncResourceSearch {
         kind: SyncKind;
         sourceNodeId: number;
         path?: string;
+        search?: string;
+        sortOrder?: string;
         page?: number;
         pageSize?: number;
     }
@@ -111,6 +120,24 @@ export namespace Cluster {
         targetNodeIds: number[];
         resourceKeys: string[];
         path?: string;
+        targetPath?: string;
+        appDbHost?: string;
+    }
+
+    export interface SyncAppDBReq {
+        nodeIds: number[];
+        types?: string;
+    }
+
+    export interface SyncAppDB {
+        type: string;
+        database: string;
+    }
+
+    export interface SyncFileDelete {
+        nodeId: number;
+        path: string;
+        isDir: boolean;
     }
 
     export interface SyncPreviewItem {

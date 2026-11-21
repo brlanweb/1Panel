@@ -40,7 +40,15 @@ export const getClusterAggregateOverview = () => {
 };
 
 export const searchClusterSyncResources = (req: Cluster.SyncResourceSearch) => {
-    return http.postLocalNode<Cluster.SyncResource[]>(`/core/cluster/sync/resources/search`, req, 60000);
+    return http.postLocalNode<Cluster.SyncResourcePage>(`/core/cluster/sync/resources/search`, req, 60000);
+};
+
+export const listClusterSyncAppDatabases = (req: Cluster.SyncAppDBReq) => {
+    return http.postLocalNode<Cluster.SyncAppDB[]>(`/core/cluster/sync/app/databases`, req, 60000);
+};
+
+export const deleteClusterSyncFile = (req: Cluster.SyncFileDelete) => {
+    return http.postLocalNode<any>(`/core/cluster/sync/files/del`, req, 60000);
 };
 
 export const previewClusterSync = (req: Cluster.SyncPreviewReq) => {

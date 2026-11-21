@@ -69,13 +69,13 @@ func (s *AlertSender) sendByConfig(config model.AlertConfig, quota string, param
 		} else {
 			s.sendEmailWithConfig(config, quota, params)
 		}
-	case constant.Bark:
+	case constant.Bark, constant.WeCom, constant.Telegram:
 		if isResource {
 			s.sendResourceBarkWithConfig(config, quota, params)
 		} else {
 			s.sendBarkWithConfig(config, quota, params)
 		}
-	case constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Custom:
+	case constant.DingTalk, constant.FeiShu, constant.Custom:
 		if isResource {
 			s.sendResourceWebhookWithConfig(config, quota, params)
 		} else {
@@ -230,15 +230,15 @@ func (s *AlertSender) sendBarkWithConfig(config model.AlertConfig, quota string,
 		AlertId:     s.alert.ID,
 		Type:        s.alert.Type,
 		AlertRule:   alertUtil.ProcessAlertRule(s.alert),
-		AlertDetail: alertUtil.ProcessAlertDetail(s.alert, quota, params, constant.Bark),
+		AlertDetail: alertUtil.ProcessAlertDetail(s.alert, quota, params, config.Type),
 		Method:      strconv.Itoa(int(config.ID)),
 	}
 
 	transport := xpack.MultiNodeProvider.LoadRequestTransport()
 	agentInfo, _ := xpack.MultiNodeProvider.GetAgentInfo()
-	err := alertUtil.CreateBarkAlertLog(create, s.alert, params, transport, agentInfo, config)
+	err := alertUtil.CreateDirectAlertLog(create, s.alert, params, transport, agentInfo, config)
 	if err != nil {
-		global.LOG.Errorf("%s alert bark push failed: %v", s.alert.Type, err)
+		global.LOG.Errorf("%s alert %s push failed: %v", s.alert.Type, config.Type, err)
 		return
 	}
 	alertUtil.CreateNewAlertTask(quota, s.alert.Type, s.quotaType, strconv.Itoa(int(config.ID)))
@@ -259,13 +259,13 @@ func (s *AlertSender) sendResourceBarkWithConfig(config model.AlertConfig, quota
 		AlertId:     s.alert.ID,
 		Type:        s.alert.Type,
 		AlertRule:   alertUtil.ProcessAlertRule(s.alert),
-		AlertDetail: alertUtil.ProcessAlertDetail(s.alert, quota, params, constant.Bark),
+		AlertDetail: alertUtil.ProcessAlertDetail(s.alert, quota, params, config.Type),
 		Method:      strconv.Itoa(int(config.ID)),
 	}
 
 	transport := xpack.MultiNodeProvider.LoadRequestTransport()
 	agentInfo, _ := xpack.MultiNodeProvider.GetAgentInfo()
-	if err := alertUtil.CreateBarkAlertLog(create, s.alert, params, transport, agentInfo, config); err != nil {
+	if err := alertUtil.CreateDirectAlertLog(create, s.alert, params, transport, agentInfo, config); err != nil {
 		global.LOG.Errorf("failed to send Bark alert: %v", err)
 		return
 	}

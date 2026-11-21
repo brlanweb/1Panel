@@ -38,6 +38,8 @@ type IDashboardService interface {
 	LoadBaseInfo(ioOption string, netOption string) (*dto.DashboardBase, error)
 	LoadCurrentInfoForNode() *dto.NodeCurrent
 	LoadCurrentInfo(ioOption string, netOption string) *dto.DashboardCurrent
+	LoadMonitorRealtime() *dto.MonitorRealtime
+	LoadMonitorStatic() *dto.MonitorStatic
 	LoadTopCPU() []dto.Process
 	LoadTopMem() []dto.Process
 

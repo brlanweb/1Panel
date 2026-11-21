@@ -116,7 +116,7 @@ func sendAlert(alertRepo repo.IAlertRepo, alert dto.AlertDTO, pushAlert dto.Push
 		}
 		alertUtil.CreateNewAlertTask(strconv.Itoa(int(pushAlert.EntryID)), alertUtil.GetCronJobType(alert.Type), strconv.Itoa(int(pushAlert.EntryID)), methodStr)
 
-	case constant.Bark:
+	case constant.Bark, constant.WeCom, constant.Telegram:
 		todayCount, _, err := alertRepo.LoadTaskCount(alertUtil.GetCronJobType(alert.Type), strconv.Itoa(int(pushAlert.EntryID)), methodStr)
 		if err != nil || alert.SendCount <= todayCount {
 			return
@@ -130,18 +130,18 @@ func sendAlert(alertRepo repo.IAlertRepo, alert dto.AlertDTO, pushAlert dto.Push
 		transport := xpack.MultiNodeProvider.LoadRequestTransport()
 		agentInfo, _ := xpack.MultiNodeProvider.GetAgentInfo()
 		params := alertUtil.CreateTaskAlertParams(pushAlert)
-		alertDetail := alertUtil.ProcessAlertDetail(alert, pushAlert.TaskName, params, constant.Bark)
+		alertDetail := alertUtil.ProcessAlertDetail(alert, pushAlert.TaskName, params, config.Type)
 		alertRule := alertUtil.ProcessAlertRule(alert)
 		create.AlertRule = alertRule
 		create.AlertDetail = alertDetail
-		err = alertUtil.CreateBarkAlertLog(create, alert, params, transport, agentInfo, config)
+		err = alertUtil.CreateDirectAlertLog(create, alert, params, transport, agentInfo, config)
 		if err != nil {
-			global.LOG.Errorf("%s alert bark push failed: %v", alert.Type, err)
+			global.LOG.Errorf("%s alert %s push failed: %v", alert.Type, config.Type, err)
 			return
 		}
 		alertUtil.CreateNewAlertTask(strconv.Itoa(int(pushAlert.EntryID)), alertUtil.GetCronJobType(alert.Type), strconv.Itoa(int(pushAlert.EntryID)), methodStr)
 
-	case constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Custom:
+	case constant.DingTalk, constant.FeiShu, constant.Custom:
 		todayCount, _, err := alertRepo.LoadTaskCount(alertUtil.GetCronJobType(alert.Type), strconv.Itoa(int(pushAlert.EntryID)), methodStr)
 		if err != nil || alert.SendCount <= todayCount {
 			return

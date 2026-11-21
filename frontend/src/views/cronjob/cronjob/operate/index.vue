@@ -935,6 +935,7 @@ const legacyAlertMethodTypeMap: Record<string, string> = {
     email: 'email',
     sms: 'sms',
     bark: 'bark',
+    telegram: 'telegram',
     weCom: 'weCom',
     dingTalk: 'dingTalk',
     feiShu: 'feiShu',
@@ -961,7 +962,7 @@ const groupedAlertConfigOptions = computed(() => {
         type: string;
         options: { value: string; label: string; typeLabel: string }[];
     }[] = [];
-    const typeOrder = ['email', 'sms', 'weCom', 'dingTalk', 'feiShu', 'bark', 'custom'];
+    const typeOrder = ['email', 'sms', 'weCom', 'dingTalk', 'feiShu', 'bark', 'telegram', 'custom'];
     for (const t of typeOrder) {
         if (typeMap.has(t)) {
             const typeLabel = getConfigTypeLabel(t);

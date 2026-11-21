@@ -26,8 +26,10 @@ import (
 type AlertService struct{}
 
 var eeHiddenAlertTypes = []string{"licenseException", "panelUpdate", "panelPwdEndTime"}
+
+// Channels that need the paid edition. WeCom and Telegram are delivered by
+// the panel itself (utils/alert/direct.go) and are available everywhere.
 var communityAlertMethodTypeNames = map[string]string{
-	constant.WeCom:    "WeCom",
 	constant.DingTalk: "DingTalk",
 	constant.FeiShu:   "FeiShu",
 	constant.SMS:      "SMS",
@@ -43,6 +45,7 @@ var legacyAlertMethodTypeMap = map[string]string{
 	constant.DingTalk: constant.DingTalk,
 	constant.FeiShu:   constant.FeiShu,
 	constant.Custom:   constant.Custom,
+	constant.Telegram: constant.Telegram,
 }
 
 var supportedAlertMethodTypes = map[string]struct{}{
@@ -53,6 +56,7 @@ var supportedAlertMethodTypes = map[string]struct{}{
 	constant.DingTalk: {},
 	constant.FeiShu:   {},
 	constant.Custom:   {},
+	constant.Telegram: {},
 }
 
 type IAlertService interface {
@@ -693,7 +697,7 @@ func (a AlertService) checkAlertConfigSMSPhoneUnique(req dto.AlertConfigUpdate) 
 }
 
 func (a AlertService) checkAlertConfigDisplayNameUnique(req dto.AlertConfigUpdate) error {
-	if req.Type != constant.Custom && (global.CONF.Base.IsEnterprise || global.CONF.Base.Edition == "cn") {
+	if req.Type != constant.Custom && !alertUtil.IsDirectChannel(req.Type) && (global.CONF.Base.IsEnterprise || global.CONF.Base.Edition == "cn") {
 		return nil
 	}
 	displayName := alertConfigDisplayName(req.Type, req.Config)
@@ -791,7 +795,7 @@ func (a AlertService) validateCommunityAlertConfigType(configType string) error 
 
 func alertConfigDisplayName(configType, configData string) string {
 	switch configType {
-	case constant.Email, constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Bark, constant.SMS, constant.Custom:
+	case constant.Email, constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Bark, constant.SMS, constant.Custom, constant.Telegram:
 		var cfg struct {
 			DisplayName string `json:"displayName"`
 		}
@@ -831,6 +835,9 @@ func (a AlertService) DeleteAlertConfig(id uint) (string, error) {
 }
 
 func (a AlertService) TestAlertConfig(req dto.AlertConfigTest) (bool, error) {
+	if alertUtil.IsDirectChannel(req.Type) {
+		return a.testDirectAlertConfig(req)
+	}
 	emailConfig, err := resolveEmailTestConfig(req)
 	if err != nil {
 		return false, err
@@ -858,6 +865,33 @@ func (a AlertService) TestAlertConfig(req dto.AlertConfigTest) (bool, error) {
 	}
 	transport := xpack.MultiNodeProvider.LoadRequestTransport()
 	if err := email.SendMail(cfg, msg, transport); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// testDirectAlertConfig sends a test message through Bark / WeCom /
+// Telegram. Secrets left as keep-mutations or masks are resolved against the
+// stored config, so the test works when editing without retyping them.
+func (a AlertService) testDirectAlertConfig(req dto.AlertConfigTest) (bool, error) {
+	var existing *model.AlertConfig
+	if req.ID != 0 {
+		stored, err := alertRepo.GetConfigById(req.ID)
+		if err != nil {
+			return false, err
+		}
+		if stored.Type != req.Type {
+			return false, fmt.Errorf("alert config %d has type %s, not %s", req.ID, stored.Type, req.Type)
+		}
+		existing = &stored
+	}
+	prepared, err := alertconfig.Prepare(req.Type, req.Config, constant.AlertEnable, existing)
+	if err != nil {
+		return false, err
+	}
+	transport := xpack.MultiNodeProvider.LoadRequestTransport()
+	config := model.AlertConfig{Type: req.Type, Config: prepared}
+	if err := alertUtil.SendDirectMessage(config, i18n.GetMsgByKey("TestAlertTitle"), i18n.GetMsgByKey("TestAlertMessage"), transport); err != nil {
 		return false, err
 	}
 	return true, nil

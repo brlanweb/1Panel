@@ -189,6 +189,12 @@ export namespace Alert {
         recipient: string;
     }
 
+    export interface AlertConfigDirectTest {
+        id?: number;
+        type: 'weCom' | 'bark' | 'telegram';
+        config: string;
+    }
+
     export interface AlertConfigCustomTest {
         id?: number;
         type: 'custom';

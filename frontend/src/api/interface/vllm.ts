@@ -8,6 +8,9 @@ export namespace Vllm {
         hfToken: string;
         modelScopeUrl: string;
         modelScopeToken: string;
+        proxyMode: 'none' | 'node' | 'custom';
+        proxyUrl: string;
+        proxyDeploy: boolean;
     }
 
     export interface Search extends ReqPage {

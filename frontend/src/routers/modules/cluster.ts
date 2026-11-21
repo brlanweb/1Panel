@@ -21,6 +21,15 @@ const clusterRouter = {
             },
         },
         {
+            path: '/cluster/resource',
+            name: 'ClusterResource',
+            component: () => import('@/views/cluster/resource/index.vue'),
+            meta: {
+                title: 'menu.clusterResource',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
             path: '/cluster/nodes',
             name: 'ClusterNodes',
             component: () => import('@/views/cluster/nodes/index.vue'),

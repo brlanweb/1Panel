@@ -26,4 +26,5 @@ const (
 	FeiShu   = "feiShu"
 	Custom   = "custom"
 	Bark     = "bark"
+	Telegram = "telegram"
 )

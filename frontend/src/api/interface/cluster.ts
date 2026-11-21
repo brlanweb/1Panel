@@ -294,4 +294,83 @@ export namespace Cluster {
         repointed: number;
         createdAt: string;
     }
+
+    export interface MonitorRealtime {
+        nodeId: number;
+        name: string;
+        online: boolean;
+        cpuUsedPercent: number;
+        cpuTotal: number;
+        load1: number;
+        upSpeed: number;
+        downSpeed: number;
+        netBytesSent: number;
+        netBytesRecv: number;
+        error: string;
+        sampledAt: number;
+    }
+
+    export interface MonitorDisk {
+        path: string;
+        type: string;
+        device: string;
+        total: number;
+        used: number;
+        free: number;
+        usedPercent: number;
+    }
+
+    export interface MonitorStatic {
+        nodeId: number;
+        name: string;
+        entryHost: string;
+        online: boolean;
+        hostname: string;
+        os: string;
+        prettyDistro: string;
+        kernelArch: string;
+        uptime: number;
+        cpuTotal: number;
+        cpuModelName: string;
+        memoryTotal: number;
+        memoryUsed: number;
+        memoryUsedPercent: number;
+        swapTotal: number;
+        swapUsed: number;
+        swapUsedPercent: number;
+        diskTotal: number;
+        diskUsed: number;
+        diskUsedPercent: number;
+        disks: MonitorDisk[];
+        internalIPs: string[];
+        publicIP: string;
+        error: string;
+        sampledAt: number;
+    }
+
+    export interface MonitorRisk {
+        nodeId: number;
+        name: string;
+        kind: 'offline' | 'cpu' | 'memory' | 'disk';
+        level: 'warning' | 'critical';
+        value: number;
+        target: string;
+        message: string;
+    }
+
+    export interface MonitorStaticRes {
+        nodes: MonitorStatic[];
+        risks: MonitorRisk[];
+        total: number;
+        online: number;
+        offline: number;
+        warning: number;
+        critical: number;
+        warnPercent: number;
+        criticalPercent: number;
+    }
+
+    export interface MonitorRealtimeRes {
+        nodes: MonitorRealtime[];
+    }
 }

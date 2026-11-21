@@ -9,6 +9,13 @@ type VllmSettings struct {
 	HFToken         string `json:"hfToken"`
 	ModelScopeURL   string `json:"modelScopeUrl"`
 	ModelScopeToken string `json:"modelScopeToken"`
+	// ProxyMode: "" / none = direct; "node" = the proxy node configured in
+	// Settings → Proxy node; "custom" = ProxyURL.
+	ProxyMode string `json:"proxyMode"`
+	ProxyURL  string `json:"proxyUrl"`
+	// ProxyDeploy also applies the proxy to vLLM deployments (otherwise it
+	// is only used for model downloads).
+	ProxyDeploy bool `json:"proxyDeploy"`
 }
 
 type VllmSearch struct {

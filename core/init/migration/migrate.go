@@ -89,5 +89,7 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddForkReleaseSettings,
 		migrations.AddClusterSyncTaskStep,
 		migrations.AddClusterSyncTaskProgress,
+		migrations.AddClusterResourceMenu,
+		migrations.RemoveXpackMenuTree,
 	}
 }

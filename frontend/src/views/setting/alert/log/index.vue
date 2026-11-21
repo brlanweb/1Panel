@@ -290,6 +290,8 @@ const formatMethod = (row: Alert.AlertLog) => {
                 return t('xpack.alert.custom');
             case 'bark':
                 return t('xpack.alert.bark');
+            case 'telegram':
+                return t('xpack.alert.telegram');
             default:
                 return invalidLabel;
         }

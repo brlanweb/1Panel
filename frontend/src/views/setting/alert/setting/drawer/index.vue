@@ -96,12 +96,38 @@
                         :allow-clear-url="form.status === 'Disable'"
                     />
 
+                    <template v-else-if="form.type === 'telegram'">
+                        <el-form-item :label="$t('xpack.alert.displayName')" prop="webhookName">
+                            <el-input v-model="form.webhookName" />
+                        </el-form-item>
+                        <el-form-item label="Bot Token" prop="telegramToken">
+                            <el-input
+                                v-model.trim="form.telegramToken"
+                                type="password"
+                                show-password
+                                placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+                            />
+                            <span class="input-help">{{ $t('xpack.alert.telegramTokenHelper') }}</span>
+                        </el-form-item>
+                        <el-form-item label="Chat ID" prop="telegramChatId">
+                            <el-input v-model.trim="form.telegramChatId" placeholder="-1001234567890" />
+                            <span class="input-help">{{ $t('xpack.alert.telegramChatIdHelper') }}</span>
+                        </el-form-item>
+                        <el-form-item :label="$t('xpack.alert.telegramApiBase')" prop="telegramApiBase">
+                            <el-input v-model.trim="form.telegramApiBase" placeholder="https://api.telegram.org" />
+                            <span class="input-help">{{ $t('xpack.alert.telegramApiBaseHelper') }}</span>
+                        </el-form-item>
+                    </template>
+
                     <template v-else>
                         <el-form-item :label="$t('xpack.alert.webhookName')" prop="webhookName">
                             <el-input v-model="form.webhookName" />
                         </el-form-item>
                         <el-form-item :label="$t('xpack.alert.webhookUrl')" prop="webhookUrl">
                             <el-input v-model.trim="form.webhookUrl" :rows="2" type="password" show-password />
+                            <span v-if="form.type === 'weCom'" class="input-help">
+                                {{ $t('xpack.alert.weComHelper') }}
+                            </span>
                         </el-form-item>
                     </template>
 
@@ -144,11 +170,24 @@
                     </el-button>
                 </div>
             </div>
-            <div v-else class="flex justify-end gap-2">
-                <el-button @click="drawerVisible = false">{{ $t('commons.button.cancel') }}</el-button>
-                <el-button v-permission :disabled="loading" type="primary" @click="onSave(formRef)">
-                    {{ $t('commons.button.confirm') }}
+            <div v-else class="flex items-center justify-between">
+                <el-button
+                    v-if="isDirectType"
+                    v-permission
+                    :disabled="loading"
+                    plain
+                    type="primary"
+                    @click="onTest(formRef)"
+                >
+                    {{ $t('xpack.alert.test') }}
                 </el-button>
+                <span v-else />
+                <div>
+                    <el-button @click="drawerVisible = false">{{ $t('commons.button.cancel') }}</el-button>
+                    <el-button v-permission :disabled="loading" type="primary" @click="onSave(formRef)">
+                        {{ $t('commons.button.confirm') }}
+                    </el-button>
+                </div>
             </div>
         </template>
     </DrawerPro>
@@ -200,6 +239,20 @@ const webhookRules = {
     webhookUrl: [Rules.requiredInput],
 };
 
+const telegramRules = {
+    webhookName: [Rules.requiredInput, { validator: checkDisplayNameDuplicate, trigger: 'blur' }],
+    telegramToken: [Rules.requiredInput, { validator: checkTelegramToken, trigger: 'blur' }],
+    telegramChatId: [Rules.requiredInput],
+};
+
+function checkTelegramToken(_rule: unknown, value: string, callback: (error?: Error) => void) {
+    if (value && !/^[0-9]{3,20}:[A-Za-z0-9_-]{20,100}$/.test(value.trim())) {
+        callback(new Error(i18n.global.t('xpack.alert.telegramTokenInvalid')));
+        return;
+    }
+    callback();
+}
+
 const customWebhookRules = {
     'customWebhook.displayName': [{ validator: checkDisplayNameDuplicate, trigger: 'blur' }],
 };
@@ -208,13 +261,17 @@ const currentRules = computed(() => {
     if (form.type === 'email') return emailRules;
     if (form.type === 'sms') return smsRules;
     if (form.type === 'custom') return customWebhookRules;
+    if (form.type === 'telegram') return telegramRules;
     return webhookRules;
 });
 
 const typeOptions = computed(() => {
     const options: { value: string; label: string }[] = [{ value: 'email', label: i18n.global.t('xpack.alert.mail') }];
+    // WeCom robot and Telegram Bot are sent by the panel itself and are
+    // available in every edition.
+    options.push({ value: 'weCom', label: i18n.global.t('xpack.alert.weCom') });
+    options.push({ value: 'telegram', label: i18n.global.t('xpack.alert.telegram') });
     if (isProductPro.value && !isIntl.value) {
-        options.push({ value: 'weCom', label: i18n.global.t('xpack.alert.weCom') });
         options.push({ value: 'dingTalk', label: i18n.global.t('xpack.alert.dingTalk') });
         options.push({ value: 'feiShu', label: i18n.global.t('xpack.alert.feiShu') });
     }
@@ -271,11 +328,22 @@ const form = reactive({
     recipient: '',
     webhookName: '',
     webhookUrl: '',
+    telegramToken: '',
+    telegramChatId: '',
+    telegramApiBase: '',
     smsDisplayName: '',
     smsPhone: '',
     smsDailyAlertNum: 50,
     customWebhook: createDefaultCustomWebhookDraft(),
 });
+
+const isDirectType = computed(() => ['weCom', 'bark', 'telegram'].includes(form.type));
+
+const resetTelegramForm = () => {
+    form.telegramToken = '';
+    form.telegramChatId = '';
+    form.telegramApiBase = '';
+};
 
 const customWebhookValidationIssues = ref<CustomWebhookValidationIssue[]>([]);
 const customWebhookTestPassed = computed(() => customWebhookTestState.passed);
@@ -360,6 +428,7 @@ const titleMap: Record<string, string> = {
     dingTalk: 'xpack.alert.dingTalk',
     feiShu: 'xpack.alert.feiShu',
     bark: 'xpack.alert.bark',
+    telegram: 'xpack.alert.telegram',
     sms: 'xpack.alert.smsConfig',
     custom: 'xpack.alert.custom',
 };
@@ -377,6 +446,7 @@ const acceptParams = (params: DrawerProps): void => {
     form.emailPassword = '';
     form.smsPhone = '';
     form.webhookUrl = '';
+    resetTelegramForm();
     form.customWebhook = createDefaultCustomWebhookDraft();
     if (params.id && params.id > 0) {
         isEdit.value = true;
@@ -398,6 +468,11 @@ const acceptParams = (params: DrawerProps): void => {
             form.smsDailyAlertNum = params.config?.alertDailyNum || 50;
         } else if (form.type === 'custom') {
             form.customWebhook = hydrateCustomWebhookDraft(params.config || {});
+        } else if (form.type === 'telegram') {
+            form.webhookName = params.config?.displayName || '';
+            form.telegramToken = rawSecretValue(params.config?.botToken);
+            form.telegramChatId = params.config?.chatId || '';
+            form.telegramApiBase = params.config?.apiBase || '';
         } else {
             form.webhookName = params.config?.displayName || '';
             form.webhookUrl = rawSecretValue(params.config?.url);
@@ -429,6 +504,7 @@ const acceptParams = (params: DrawerProps): void => {
 };
 
 const onTypeChange = (type: string) => {
+    resetTelegramForm();
     form.emailPassword = '';
     form.smsPhone = '';
     form.webhookUrl = '';
@@ -460,6 +536,18 @@ const buildEmailConfig = () => ({
     ...form.config,
     password: serializeLegacySecretValue(form.emailPassword),
     recipient: form.recipient,
+});
+
+const buildTelegramConfig = () => ({
+    displayName: form.webhookName,
+    botToken: serializeLegacySecretValue(form.telegramToken, true),
+    chatId: form.telegramChatId.trim(),
+    apiBase: form.telegramApiBase.trim(),
+});
+
+const buildWebhookConfig = () => ({
+    displayName: form.webhookName,
+    url: serializeLegacySecretValue(form.webhookUrl, true),
 });
 
 const revisionPayload = () => (form.id && form.revision ? { revision: form.revision } : {});
@@ -505,10 +593,19 @@ const buildSavePayload = () => {
             displayName: configInfo.displayName,
         };
     }
-    const configInfo = {
-        displayName: form.webhookName,
-        url: serializeLegacySecretValue(form.webhookUrl, true),
-    };
+    if (form.type === 'telegram') {
+        const telegramInfo = buildTelegramConfig();
+        return {
+            id: form.id || 0,
+            ...revisionPayload(),
+            type: 'telegram',
+            title: titleMap['telegram'],
+            status: form.status,
+            config: JSON.stringify(telegramInfo),
+            displayName: telegramInfo.displayName,
+        };
+    }
+    const configInfo = buildWebhookConfig();
     return {
         id: form.id || 0,
         ...revisionPayload(),
@@ -603,6 +700,30 @@ const onTest = async (formEl: FormInstance | undefined) => {
         } finally {
             completeCustomWebhookTest(customWebhookTestState, attempt, false);
         }
+        return;
+    }
+    if (isDirectType.value) {
+        await formEl.validate(async (valid) => {
+            if (!valid) return;
+            loading.value = true;
+            try {
+                const config = form.type === 'telegram' ? buildTelegramConfig() : buildWebhookConfig();
+                const res = await TestAlertConfig({
+                    ...(form.id ? { id: form.id } : {}),
+                    type: form.type as Alert.AlertConfigDirectTest['type'],
+                    config: JSON.stringify(config),
+                });
+                if (res.data) {
+                    MsgSuccess(i18n.global.t('xpack.alert.alertTestOk'));
+                } else {
+                    MsgError(i18n.global.t('xpack.alert.alertTestFailed'));
+                }
+            } catch {
+                return;
+            } finally {
+                loading.value = false;
+            }
+        });
         return;
     }
     if (form.type !== 'email') return;

@@ -23,6 +23,8 @@ func (s *DashboardRouter) InitRouter(Router *gin.RouterGroup) {
 		cmdRouter.POST("/app/launcher/option", baseApi.LoadAppLauncherOption)
 		cmdRouter.GET("/base/:ioOption/:netOption", baseApi.LoadDashboardBaseInfo)
 		cmdRouter.GET("/current/node", baseApi.LoadCurrentInfoForNode)
+		cmdRouter.GET("/monitor/realtime", baseApi.LoadMonitorRealtime)
+		cmdRouter.GET("/monitor/static", baseApi.LoadMonitorStatic)
 		cmdRouter.GET("/current/:ioOption/:netOption", baseApi.LoadDashboardCurrentInfo)
 		cmdRouter.GET("/current/top/cpu", baseApi.LoadDashboardTopCPU)
 		cmdRouter.GET("/current/top/mem", baseApi.LoadDashboardTopMem)

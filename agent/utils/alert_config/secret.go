@@ -103,6 +103,16 @@ func Prepare(configType, rawMutation, status string, existing *model.AlertConfig
 		if isWebhookType(configType) && !hasWebhookURL(root) {
 			return "", fmt.Errorf("webhook URL is required while the config is enabled")
 		}
+		if configType == constant.Telegram {
+			token, err := storedSecret(root, "botToken")
+			if err != nil || strings.TrimSpace(token) == "" {
+				return "", fmt.Errorf("Telegram bot token is required while the config is enabled")
+			}
+			chatID, err := storedSecret(root, "chatId")
+			if err != nil || strings.TrimSpace(chatID) == "" {
+				return "", fmt.Errorf("Telegram chat id is required while the config is enabled")
+			}
+		}
 	}
 	return encodeObject(root)
 }
@@ -115,6 +125,8 @@ func secretField(configType string) string {
 		return "phone"
 	case constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Bark:
 		return "url"
+	case constant.Telegram:
+		return "botToken"
 	default:
 		return ""
 	}

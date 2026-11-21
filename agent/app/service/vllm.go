@@ -49,6 +49,9 @@ const (
 	vllmSettingHFToken         = "VllmHFToken"
 	vllmSettingModelScopeURL   = "VllmModelScopeURL"
 	vllmSettingModelScopeToken = "VllmModelScopeToken"
+	vllmSettingProxyMode       = "VllmProxyMode"
+	vllmSettingProxyURL        = "VllmProxyURL"
+	vllmSettingProxyDeploy     = "VllmProxyDeploy"
 
 	defaultModelScopeURL = "https://www.modelscope.cn"
 	defaultVllmImage     = "vllm/vllm-openai:latest"
@@ -108,6 +111,9 @@ func (s *VllmService) LoadSettings() dto.VllmSettings {
 		HFToken:         get(vllmSettingHFToken, ""),
 		ModelScopeURL:   get(vllmSettingModelScopeURL, defaultModelScopeURL),
 		ModelScopeToken: get(vllmSettingModelScopeToken, ""),
+		ProxyMode:       get(vllmSettingProxyMode, "none"),
+		ProxyURL:        get(vllmSettingProxyURL, ""),
+		ProxyDeploy:     get(vllmSettingProxyDeploy, "") == "true",
 	}
 }
 
@@ -125,7 +131,22 @@ func (s *VllmService) SaveSettings(req dto.VllmSettings) error {
 			return buserr.WithDetail("ErrInvalidParams", "invalid URL: "+u, nil)
 		}
 	}
+	switch req.ProxyMode {
+	case "", "none":
+		req.ProxyMode = "none"
+	case "node":
+	case "custom":
+		p, err := url.Parse(strings.TrimSpace(req.ProxyURL))
+		if err != nil || p.Host == "" || (p.Scheme != "http" && p.Scheme != "https" && p.Scheme != "socks5" && p.Scheme != "socks5h") {
+			return buserr.WithDetail("ErrInvalidParams", "proxy URL must look like http://host:port or socks5://host:port", nil)
+		}
+	default:
+		return buserr.WithDetail("ErrInvalidParams", "invalid proxy mode", nil)
+	}
 	pairs := map[string]string{
+		vllmSettingProxyMode:       req.ProxyMode,
+		vllmSettingProxyURL:        strings.TrimSpace(req.ProxyURL),
+		vllmSettingProxyDeploy:     strconv.FormatBool(req.ProxyDeploy),
 		vllmSettingModelDir:        filepath.Clean(req.ModelDir),
 		vllmSettingTokenizerDir:    filepath.Clean(req.TokenizerDir),
 		vllmSettingHFEndpoint:      strings.TrimRight(req.HFEndpoint, "/"),
@@ -139,6 +160,38 @@ func (s *VllmService) SaveSettings(req dto.VllmSettings) error {
 		}
 	}
 	return nil
+}
+
+// vllmProxyEnv returns the proxy environment for vLLM containers and the
+// docker network they must join to reach it ("" = default network).
+// forDeploy selects the deployment scope (only when ProxyDeploy is set).
+func (s *VllmService) vllmProxyEnv(forDeploy bool) (map[string]string, string, error) {
+	st := s.LoadSettings()
+	if forDeploy && !st.ProxyDeploy {
+		return nil, "", nil
+	}
+	var proxyURL, network string
+	switch st.ProxyMode {
+	case "node":
+		u, err := NewIProxyNodeService().ProxyURLForContainer()
+		if err != nil {
+			return nil, "", err
+		}
+		proxyURL, network = u, "1panel-network"
+	case "custom":
+		proxyURL = st.ProxyURL
+	default:
+		return nil, "", nil
+	}
+	if proxyURL == "" {
+		return nil, "", nil
+	}
+	noProxy := "localhost,127.0.0.1,::1"
+	return map[string]string{
+		"HTTP_PROXY": proxyURL, "HTTPS_PROXY": proxyURL, "ALL_PROXY": proxyURL,
+		"http_proxy": proxyURL, "https_proxy": proxyURL, "all_proxy": proxyURL,
+		"NO_PROXY": noProxy, "no_proxy": noProxy,
+	}, network, nil
 }
 
 // ------------------------------------------------------------------ models
@@ -244,6 +297,18 @@ func (s *VllmService) runModelDownload(item *model.VllmModel) {
 	st := s.LoadSettings()
 	containerName := fmt.Sprintf("1panel-vllm-download-%d", item.ID)
 	args := []string{"run", "--rm", "--name", containerName, "-v", item.Dir + ":/target"}
+	proxyEnv, proxyNetwork, proxyErr := s.vllmProxyEnv(false)
+	if proxyErr != nil {
+		item.Status, item.Message = constant.StatusFailed, truncateVllmMsg(proxyErr.Error())
+		_ = s.repo.SaveModel(item)
+		return
+	}
+	if proxyNetwork != "" {
+		args = append(args, "--network", proxyNetwork)
+	}
+	for k, v := range proxyEnv {
+		args = append(args, "-e", k+"="+v)
+	}
 	var script string
 	switch item.Source {
 	case "huggingface":
@@ -518,7 +583,11 @@ func (s *VllmService) SaveDeployment(req dto.VllmDeploymentSave) error {
 	item.Args, item.Env, item.RecipeID = req.Args, req.Env, req.RecipeID
 	item.ContainerName = "1panel-vllm-" + item.Name
 	item.Dir = path.Join(global.Dir.DataDir, "ai/vllm/deployments", item.Name)
-	composeContent, err := buildVllmCompose(item)
+	proxyEnv, proxyNetwork, err := s.vllmProxyEnv(true)
+	if err != nil {
+		return err
+	}
+	composeContent, err := buildVllmCompose(item, proxyEnv, proxyNetwork)
 	if err != nil {
 		return err
 	}
@@ -564,7 +633,7 @@ func (s *VllmService) runDeploymentTask(item *model.VllmDeployment, taskID, oper
 // buildVllmCompose renders the compose project for a local instance. All
 // user values go into the YAML structure (never into a shell string), and
 // engine args are passed as an argv list.
-func buildVllmCompose(d *model.VllmDeployment) (string, error) {
+func buildVllmCompose(d *model.VllmDeployment, proxyEnv map[string]string, proxyNetwork string) (string, error) {
 	command := []string{
 		"--model", path.Join(vllmContainerModels, "model"),
 		"--served-model-name", d.ServedName,
@@ -611,6 +680,12 @@ func buildVllmCompose(d *model.VllmDeployment) (string, error) {
 		"command":        command,
 		"labels":         map[string]string{"createdBy": "1Panel", "1panel.vllm": d.Name},
 	}
+	for k, v := range proxyEnv {
+		// Explicit deployment env wins over the global proxy.
+		if _, ok := env[k]; !ok {
+			env[k] = v
+		}
+	}
 	if len(env) > 0 {
 		service["environment"] = env
 	}
@@ -630,6 +705,10 @@ func buildVllmCompose(d *model.VllmDeployment) (string, error) {
 		// mounts; put them in a recipe's env/args or edit the compose file.
 	}
 	project := map[string]interface{}{"services": map[string]interface{}{d.Name: service}}
+	if proxyNetwork != "" {
+		service["networks"] = []string{proxyNetwork}
+		project["networks"] = map[string]interface{}{proxyNetwork: map[string]bool{"external": true}}
+	}
 	out, err := yaml.Marshal(project)
 	if err != nil {
 		return "", err

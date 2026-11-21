@@ -180,6 +180,26 @@ func (b *BaseApi) LoadDashboardCurrentInfo(c *gin.Context) {
 }
 
 // @Tags Dashboard
+// @Summary Load realtime monitor sample (cpu + network counters)
+// @Success 200 {object} dto.MonitorRealtime
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /dashboard/monitor/realtime [get]
+func (b *BaseApi) LoadMonitorRealtime(c *gin.Context) {
+	helper.SuccessWithData(c, dashboardService.LoadMonitorRealtime())
+}
+
+// @Tags Dashboard
+// @Summary Load static monitor sample (memory, disks, addresses)
+// @Success 200 {object} dto.MonitorStatic
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /dashboard/monitor/static [get]
+func (b *BaseApi) LoadMonitorStatic(c *gin.Context) {
+	helper.SuccessWithData(c, dashboardService.LoadMonitorStatic())
+}
+
+// @Tags Dashboard
 // @Summary Load top cpu processes
 // @Success 200 {array} dto.Process
 // @Security ApiKeyAuth

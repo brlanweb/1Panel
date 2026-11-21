@@ -24,6 +24,13 @@ func (s *SettingRouter) InitRouter(Router *gin.RouterGroup) {
 
 		settingRouter.POST("/description/save", baseApi.SaveDescription)
 
+		settingRouter.GET("/proxy-node", baseApi.LoadProxyNodeStatus)
+		settingRouter.POST("/proxy-node/save", baseApi.SaveProxyNode)
+		settingRouter.POST("/proxy-node/refresh", baseApi.RefreshProxyNode)
+		settingRouter.POST("/proxy-node/select", baseApi.SelectProxyNode)
+		settingRouter.POST("/proxy-node/test", baseApi.TestProxyNodes)
+		settingRouter.POST("/proxy-node/operate", baseApi.OperateProxyNode)
+
 		settingRouter.GET("/snapshot/load", baseApi.LoadSnapshotData)
 		settingRouter.POST("/snapshot", baseApi.CreateSnapshot)
 		settingRouter.POST("/snapshot/recreate", baseApi.RecreateSnapshot)

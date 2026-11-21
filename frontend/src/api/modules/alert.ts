@@ -104,7 +104,7 @@ export const UpdateAlertConfigStatus = (req: Alert.AlertConfigStatusReq) => {
     return http.post<any>(`/alert/config/status`, req);
 };
 
-export const TestAlertConfig = (req: Alert.AlertConfigTest) => {
+export const TestAlertConfig = (req: Alert.AlertConfigTest | Alert.AlertConfigDirectTest) => {
     return http.post<any>(`/alert/config/test`, req);
 };
 

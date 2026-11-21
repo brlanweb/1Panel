@@ -443,7 +443,7 @@ const configOptions = computed(() => {
             type: c.type,
             disabled:
                 c.status !== 'Enable' ||
-                ((isIntl.value || !isProductPro.value) && ['weCom', 'dingTalk', 'feiShu', 'sms'].includes(c.type)),
+                ((isIntl.value || !isProductPro.value) && ['dingTalk', 'feiShu', 'sms'].includes(c.type)),
         }))
         .sort((a, b) => Number(a.disabled) - Number(b.disabled));
 });
@@ -459,6 +459,7 @@ const legacyMethodTypeMap: Record<string, string> = {
     email: 'email',
     sms: 'sms',
     bark: 'bark',
+    telegram: 'telegram',
     weCom: 'weCom',
     dingTalk: 'dingTalk',
     feiShu: 'feiShu',

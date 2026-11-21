@@ -320,6 +320,7 @@ const getTypeIcon = (type: string) => {
         dingTalk: ChatDotRound,
         feiShu: ChatDotRound,
         bark: Bell,
+        telegram: ChatDotRound,
         custom: Link,
     };
     return map[type] || Message;
@@ -333,6 +334,7 @@ const getTypeColor = (type: string) => {
         dingTalk: '#409eff',
         feiShu: '#7c3aed',
         bark: '#e6a23c',
+        telegram: '#229ed9',
         custom: '#6366f1',
     };
     return map[type] || '#909399';
@@ -346,6 +348,7 @@ const getTypeTagType = (type: string) => {
         dingTalk: '',
         feiShu: 'danger',
         bark: 'warning',
+        telegram: 'primary',
         custom: 'primary',
     };
     return map[type] || 'info';
@@ -469,7 +472,7 @@ const onStatusChange = async (row: Alert.AlertConfigInfo) => {
 };
 
 const isStatusChangeDisabled = (row: Alert.AlertConfigInfo): boolean => {
-    return !isProductPro.value && ['weCom', 'dingTalk', 'feiShu', 'sms'].includes(row.type);
+    return !isProductPro.value && ['dingTalk', 'feiShu', 'sms'].includes(row.type);
 };
 
 const onDelete = (id: number) => {
@@ -515,7 +518,7 @@ const buttons = computed(() => [
         },
         disabled: (row: Alert.AlertConfigInfo) =>
             !row.updatedAt ||
-            ((isIntl.value || !isProductPro.value) && ['weCom', 'dingTalk', 'feiShu', 'sms'].includes(row.type)),
+            ((isIntl.value || !isProductPro.value) && ['dingTalk', 'feiShu', 'sms'].includes(row.type)),
     },
     {
         label: i18n.global.t('commons.button.delete'),

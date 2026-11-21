@@ -780,7 +780,7 @@ func doSendAlert(alert dto.AlertDTO, alertType, quota, quotaType string, params 
 		}
 		alertUtil.CreateNewAlertTask(quota, alertType, quotaType, methodStr)
 
-	case constant.Bark:
+	case constant.Bark, constant.WeCom, constant.Telegram:
 		todayCount, isValid := canSendAlertToday(alertType, quotaType, alert.SendCount, methodStr)
 		if !isValid {
 			return
@@ -794,17 +794,17 @@ func doSendAlert(alert dto.AlertDTO, alertType, quota, quotaType string, params 
 		alertInfo := alert
 		alertInfo.Type = alertType
 		create.AlertRule = alertUtil.ProcessAlertRule(alert)
-		create.AlertDetail = alertUtil.ProcessAlertDetail(alertInfo, quotaType, params, constant.Bark)
+		create.AlertDetail = alertUtil.ProcessAlertDetail(alertInfo, quotaType, params, config.Type)
 		transport := xpack.MultiNodeProvider.LoadRequestTransport()
 		agentInfo, _ := xpack.MultiNodeProvider.GetAgentInfo()
-		alertErr := alertUtil.CreateBarkAlertLog(create, alertInfo, params, transport, agentInfo, config)
+		alertErr := alertUtil.CreateDirectAlertLog(create, alertInfo, params, transport, agentInfo, config)
 		if alertErr != nil {
 			global.LOG.Infof("%s alert %s push failed, err: %v", alertType, methodStr, alertErr.Error())
 			return
 		}
 		alertUtil.CreateNewAlertTask(quota, alertType, quotaType, methodStr)
 
-	case constant.WeCom, constant.DingTalk, constant.FeiShu, constant.Custom:
+	case constant.DingTalk, constant.FeiShu, constant.Custom:
 		todayCount, isValid := canSendAlertToday(alertType, quotaType, alert.SendCount, methodStr)
 		if !isValid {
 			return

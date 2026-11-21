@@ -43,7 +43,7 @@ func TestBuildVllmCompose(t *testing.T) {
 		MaxModelLen: 8192, GPUMemoryUtil: "0.85", APIKey: "sk-test", Args: "--enable-prefix-caching",
 		Env: "VLLM_LOGGING_LEVEL=INFO",
 	}
-	out, err := buildVllmCompose(d)
+	out, err := buildVllmCompose(d, nil, "")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -94,9 +94,44 @@ func TestBuildVllmCompose(t *testing.T) {
 	}
 
 	d.GPUType = "cpu"
-	out, _ = buildVllmCompose(d)
+	out, _ = buildVllmCompose(d, nil, "")
 	if strings.Contains(out, "nvidia") {
 		t.Fatal("cpu deployment must not reserve GPUs")
+	}
+}
+
+func TestBuildVllmComposeWithProxy(t *testing.T) {
+	d := &model.VllmDeployment{
+		Name: "qwen", Image: "vllm/vllm-openai:latest", ContainerName: "1panel-vllm-qwen",
+		Port: 8001, ModelPath: "/m", ServedName: "q", GPUType: "cpu",
+		Env: "HTTPS_PROXY=http://override:1",
+	}
+	proxy := map[string]string{"HTTPS_PROXY": "http://u:p@1panel-proxy-node:7890", "HTTP_PROXY": "http://u:p@1panel-proxy-node:7890"}
+	out, err := buildVllmCompose(d, proxy, "1panel-network")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var parsed struct {
+		Services map[string]struct {
+			Env      map[string]string `yaml:"environment"`
+			Networks []string          `yaml:"networks"`
+		} `yaml:"services"`
+		Networks map[string]struct {
+			External bool `yaml:"external"`
+		} `yaml:"networks"`
+	}
+	if err := yaml.Unmarshal([]byte(out), &parsed); err != nil {
+		t.Fatal(err)
+	}
+	svc := parsed.Services["qwen"]
+	if svc.Env["HTTPS_PROXY"] != "http://override:1" {
+		t.Fatalf("explicit env must win: %v", svc.Env)
+	}
+	if svc.Env["HTTP_PROXY"] != "http://u:p@1panel-proxy-node:7890" {
+		t.Fatalf("proxy env missing: %v", svc.Env)
+	}
+	if len(svc.Networks) != 1 || svc.Networks[0] != "1panel-network" || !parsed.Networks["1panel-network"].External {
+		t.Fatalf("network not attached:\n%s", out)
 	}
 }
 

@@ -149,3 +149,18 @@ export const promoteDbReplication = (id: number, reason: string, manualStepKeys:
 export const listDbFailovers = (id: number) => {
     return http.postLocalNode<Cluster.DbFailoverInfo[]>(`/core/cluster/db-replications/failovers`, { id });
 };
+
+// Cluster resource monitor. Both endpoints are cached server-side
+// (realtime ~1s, static 30s), so polling them never fans out more than
+// once per period no matter how many tabs are open.
+export const loadClusterMonitorRealtime = () => {
+    return http.get<Cluster.MonitorRealtimeRes>(
+        `/core/cluster/resource/realtime`,
+        {},
+        { headers: { CurrentNode: 'local' } },
+    );
+};
+
+export const loadClusterMonitorStatic = (force = false) => {
+    return http.postLocalNode<Cluster.MonitorStaticRes>(`/core/cluster/resource/static`, { force }, 30000);
+};

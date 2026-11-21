@@ -59,12 +59,21 @@ jobs:
               "https://resource.fit2cloud.com/1panel/package/v2/stable/${BASE}/release/${PKG}"
             SKIP_FRONTEND=1 bash scripts/fork-release.sh "$TAG" "/tmp/${PKG}" "$ARCH"
           done
+          install -m 755 scripts/quick_start.sh build/release/quick_start.sh
           ls -lh build/release
 
       - name: Release notes
         run: |
           {
             echo "## ${TAG}"
+            echo
+            echo '### 一键安装 / Quick install'
+            echo
+            echo '```bash'
+            echo "bash <(curl -fsSL https://github.com/${GITHUB_REPOSITORY}/releases/latest/download/quick_start.sh)"
+            echo '```'
+            echo
+            echo '已安装的面板请在页脚点击“更新”升级。 / Existing panels: use the Update button in the footer.'
             echo
             git log --pretty='- %s' "$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)..${TAG}" | head -100
           } > /tmp/notes.md

@@ -81,6 +81,7 @@ type IUpgradeService interface {
 	LoadNotes(req dto.Upgrade) (string, error)
 	SearchUpgrade() (*dto.UpgradeInfo, error)
 	LoadRelease() ([]dto.ReleasesNotes, error)
+	LoadUpgradeStatus() dto.UpgradeStatus
 }
 
 func NewIUpgradeService() IUpgradeService {
@@ -148,32 +149,55 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 
 	// Fork build: the package comes from the fork's own release assets,
 	// never from the upstream package repository.
+	if compareForkVersion(req.Version, global.CONF.Base.Version) <= 0 {
+		return fmt.Errorf("version %s is not newer than the running %s", req.Version, global.CONF.Base.Version)
+	}
+	resetForkReleaseCache() // the release may have just been published
 	downloadURL, fileName, err := forkPackageURL(req.Version, itemArch)
 	if err != nil {
 		return err
 	}
-	_ = settingRepo.Update("SystemStatus", "Upgrading")
+	if err := beginUpgrade(req.Version); err != nil {
+		return err
+	}
+	_ = settingRepo.UpdateOrCreate(settingUpgradeLastResult, "")
 	go func() {
 		oldLang := ctl_conf.Load("LANGUAGE")
-		if err := files.DownloadFileWithProxyStream(downloadURL, downloadDir+"/"+fileName); err != nil {
-			global.LOG.Errorf("download service file failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+		// Phase 1 (panel stays usable): download, verify, unpack, check.
+		pkgPath := downloadDir + "/" + fileName
+		if err := downloadForkPackage(downloadURL, pkgPath, reportDownload); err != nil {
+			failUpgrade(req.Version, err)
+			_ = os.RemoveAll(baseDir)
 			return
 		}
 		global.LOG.Info("download all file successful!")
+		setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageVerifying })
+		if err := verifyForkPackageChecksum(req.Version, fileName, pkgPath); err != nil {
+			failUpgrade(req.Version, err)
+			_ = os.RemoveAll(baseDir)
+			return
+		}
 		defer func() {
 			_ = os.Remove(downloadDir)
 		}()
-		if err := files.HandleUnTar(downloadDir+"/"+fileName, downloadDir, ""); err != nil {
-			global.LOG.Errorf("decompress file failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+		if err := files.HandleUnTar(pkgPath, downloadDir, ""); err != nil {
+			failUpgrade(req.Version, fmt.Errorf("decompress package failed: %v", err))
+			_ = os.RemoveAll(baseDir)
 			return
 		}
 		tmpDir := downloadDir + "/" + strings.ReplaceAll(fileName, ".tar.gz", "")
+		if err := checkForkPackageLayout(tmpDir, svcInfo); err != nil {
+			failUpgrade(req.Version, err)
+			_ = os.RemoveAll(baseDir)
+			return
+		}
 
+		// Phase 2: replace files; the UI switches to the global
+		// "upgrading" overlay and waits for the restart.
+		setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageInstalling })
+		_ = settingRepo.Update("SystemStatus", "Upgrading")
 		if err := u.handleBackup(originalDir, svcInfo); err != nil {
-			global.LOG.Errorf("handle backup original file failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("backup current version failed: %v", err))
 			return
 		}
 		itemLog := model.UpgradeLog{NodeID: 0, OldVersion: global.CONF.Base.Version, NewVersion: req.Version, BackupFile: baseDir}
@@ -182,31 +206,28 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		global.LOG.Info("backup original data successful, now start to upgrade!")
 
 		if err := files.CopyFileWithRename(path.Join(tmpDir, "1panel-core"), "/usr/local/bin/1panel-core"); err != nil {
-			global.LOG.Errorf("upgrade 1panel-core failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("upgrade 1panel-core failed, err: %v", err))
 			u.handleRollback(originalDir, 1, svcInfo)
 			return
 		}
 		if err := files.CopyFileWithRename(path.Join(tmpDir, "1panel-agent"), "/usr/local/bin/1panel-agent"); err != nil {
-			global.LOG.Errorf("upgrade 1panel-agent failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("upgrade 1panel-agent failed, err: %v", err))
 			u.handleRollback(originalDir, 1, svcInfo)
 			return
 		}
 
 		if err := files.CopyFileWithRename(path.Join(tmpDir, "1pctl"), "/usr/local/bin/1pctl"); err != nil {
-			global.LOG.Errorf("upgrade 1pctl failed, err: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("upgrade 1pctl failed, err: %v", err))
 			u.handleRollback(originalDir, 2, svcInfo)
 			return
 		}
 		if err := ctl_conf.UpdateInFile("/usr/local/bin/1pctl", "BASE_DIR", global.CONF.Base.InstallDir); err != nil {
-			global.LOG.Errorf("upgrade basedir in 1pctl failed, err: %v", err)
+			failUpgrade(req.Version, fmt.Errorf("upgrade basedir in 1pctl failed, err: %v", err))
 			u.handleRollback(originalDir, 2, svcInfo)
 			return
 		}
 		if err := ctl_conf.UpdateInFile("/usr/local/bin/1pctl", "LANGUAGE", oldLang); err != nil {
-			global.LOG.Errorf("upgrade basedir in 1pctl failed, err: %v", err)
+			failUpgrade(req.Version, fmt.Errorf("upgrade language in 1pctl failed, err: %v", err))
 			u.handleRollback(originalDir, 2, svcInfo)
 			return
 		}
@@ -216,34 +237,30 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		// 1pctl carries another version would make the panel report (and
 		// keep offering) the wrong version after the restart.
 		if err := ctl_conf.UpdateInFile("/usr/local/bin/1pctl", "ORIGINAL_VERSION", req.Version); err != nil {
-			global.LOG.Errorf("upgrade version in 1pctl failed, err: %v", err)
+			failUpgrade(req.Version, fmt.Errorf("upgrade version in 1pctl failed, err: %v", err))
 			u.handleRollback(originalDir, 2, svcInfo)
 			return
 		}
 		initScriptPath := path.Join(tmpDir, "initscript")
 
 		if err := files.CopyItem(false, true, path.Join(initScriptPath, svcInfo.selCoreName), svcInfo.basePath); err != nil {
-			global.LOG.Errorf("upgrade %s failed, err: %v", svcInfo.coreName, err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("upgrade %s failed, err: %v", svcInfo.coreName, err))
 			u.handleRollback(originalDir, 3, svcInfo)
 			return
 		}
 		if err := files.CopyItem(false, true, path.Join(initScriptPath, svcInfo.selAgentName), svcInfo.basePath); err != nil {
-			global.LOG.Errorf("upgrade %s failed, err: %v", svcInfo.agentName, err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("upgrade %s failed, err: %v", svcInfo.agentName, err))
 			u.handleRollback(originalDir, 3, svcInfo)
 			return
 		}
 
 		if err := files.CopyItem(true, true, path.Join(tmpDir, "lang"), "/usr/local/bin"); err != nil {
-			global.LOG.Errorf("Update language files failed: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("update language files failed: %v", err))
 			u.handleRollback(originalDir, 4, svcInfo)
 			return
 		}
 		if err := files.CopyFileWithRename(path.Join(tmpDir, "GeoIP.mmdb"), path.Join(global.CONF.Base.InstallDir, "1panel/geo/GeoIP.mmdb")); err != nil {
-			global.LOG.Warnf("Update GeoIP database failed: %v", err)
-			_ = settingRepo.Update("SystemStatus", "Free")
+			failUpgrade(req.Version, fmt.Errorf("update GeoIP database failed: %v", err))
 			u.handleRollback(originalDir, 4, svcInfo)
 			return
 		}

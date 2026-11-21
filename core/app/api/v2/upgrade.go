@@ -79,3 +79,13 @@ func (b *BaseApi) Upgrade(c *gin.Context) {
 	}
 	helper.Success(c)
 }
+
+// @Tags System Setting
+// @Summary Load upgrade progress
+// @Success 200 {object} dto.UpgradeStatus
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/settings/upgrade/status [get]
+func (b *BaseApi) GetUpgradeStatus(c *gin.Context) {
+	helper.SuccessWithData(c, upgradeService.LoadUpgradeStatus())
+}

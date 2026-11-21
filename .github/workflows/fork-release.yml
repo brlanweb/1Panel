@@ -1,0 +1,83 @@
+# Fork release: push a tag like v2.5.1-cluster.1 and this workflow builds
+# the panel for amd64 + arm64, packages it on top of the matching upstream
+# package (1pctl, initscript/, lang/, GeoIP.mmdb) and publishes a GitHub
+# release with the packages and .sha256 files. Panels on an older version
+# then offer it under the footer "Update" button (fork_release.go).
+#
+# Tags containing "-rc" / "-beta" / "-alpha" are published as pre-releases
+# (offered only to panels with developer mode enabled).
+name: fork-release
+
+on:
+  push:
+    tags:
+      - 'v2.*-cluster.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag to (re)build, e.g. v2.5.1-cluster.1 (must exist)'
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'brlanweb/1Panel'
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ github.event.inputs.tag || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.tag || github.ref }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22.12'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: core/go.mod
+          cache-dependency-path: |
+            core/go.sum
+            agent/go.sum
+
+      - name: Build frontend (once, shared by both arches)
+        run: cd frontend && npm ci && npm run build:pro
+
+      - name: Package amd64 + arm64
+        run: |
+          set -euo pipefail
+          # Upstream base version = tag without the -cluster.N suffix.
+          BASE="${TAG%%-cluster*}"
+          for ARCH in amd64 arm64; do
+            PKG="1panel-${BASE}-linux-${ARCH}.tar.gz"
+            curl -fL --retry 3 -o "/tmp/${PKG}" \
+              "https://resource.fit2cloud.com/1panel/package/v2/stable/${BASE}/release/${PKG}"
+            SKIP_FRONTEND=1 bash scripts/fork-release.sh "$TAG" "/tmp/${PKG}" "$ARCH"
+          done
+          ls -lh build/release
+
+      - name: Release notes
+        run: |
+          {
+            echo "## ${TAG}"
+            echo
+            git log --pretty='- %s' "$(git describe --tags --abbrev=0 "${TAG}^" 2>/dev/null || git rev-list --max-parents=0 HEAD)..${TAG}" | head -100
+          } > /tmp/notes.md
+
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          PRE=""
+          case "$TAG" in *-rc*|*-beta*|*-alpha*) PRE="--prerelease" ;; esac
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" build/release/* --clobber
+          else
+            gh release create "$TAG" build/release/* --title "$TAG" --notes-file /tmp/notes.md $PRE
+          fi

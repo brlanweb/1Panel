@@ -230,6 +230,9 @@ export const loadReleaseNotes = (version: string) => {
 export const listReleases = () => {
     return http.get<Array<Setting.ReleasesNotes>>(`/core/settings/upgrade/releases`);
 };
+export const loadUpgradeStatus = () => {
+    return http.get<Setting.UpgradeStatus>(`/core/settings/upgrade/status`);
+};
 export const upgrade = (version: string) => {
     return http.post(`/core/settings/upgrade`, { version: version });
 };

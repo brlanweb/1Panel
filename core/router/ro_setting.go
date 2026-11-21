@@ -41,6 +41,7 @@ func (s *SettingRouter) InitRouter(Router *gin.RouterGroup) {
 		settingRouter.POST("/upgrade/notes", baseApi.GetNotesByVersion)
 		settingRouter.GET("/upgrade/releases", baseApi.LoadRelease)
 		settingRouter.GET("/upgrade", baseApi.GetUpgradeInfo)
+		settingRouter.GET("/upgrade/status", baseApi.GetUpgradeStatus)
 		settingRouter.POST("/apps/store/update", baseApi.UpdateAppstoreConfig)
 		settingRouter.GET("/apps/store/config", baseApi.GetAppstoreConfig)
 		settingRouter.GET("/memo", baseApi.GetMemo)

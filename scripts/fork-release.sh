@@ -5,12 +5,18 @@
 # (core/app/service/fork_release.go). A new version is offered to panels
 # ONLY after you publish a release here, so the flow is:
 #
+#   Recommended: git tag v2.5.1-cluster.1 && git push origin v2.5.1-cluster.1
+#   .github/workflows/fork-release.yml then builds amd64 + arm64 and
+#   publishes the release with packages and .sha256 files automatically.
+#
+#   Manual:
 #   1. bash scripts/fork-release.sh v2.1.5-cluster.2 /path/to/upstream-1panel-vX-linux-amd64.tar.gz amd64
 #   2. Create a GitHub release on brlanweb/1Panel with tag v2.1.5-cluster.2
 #      (mark it "pre-release" to offer it only to panels in developer mode),
-#      write the release note in the body, and upload
-#      build/release/1panel-v2.1.5-cluster.2-linux-amd64.tar.gz as an asset.
-#   3. Panels running an older version see the update within ~10 minutes.
+#      write the release note in the body, and upload BOTH
+#      build/release/1panel-v2.1.5-cluster.2-linux-amd64.tar.gz and its .sha256.
+#   3. Panels running an older version see the update within ~10 minutes
+#      (the footer check is cached 10 min; clicking "Update" re-checks).
 #
 # The upstream package is only used for the files this repo does not
 # build (1pctl, initscript/, lang/, GeoIP.mmdb, install.sh); both binaries
@@ -31,8 +37,11 @@ OUT="$ROOT/build/release"
 WORK="$(mktemp -d)"
 trap 'rm -rf "$WORK"' EXIT
 
-echo ">> building frontend"
-(cd "$ROOT/frontend" && npm ci && npm run build:pro)
+if [ "${SKIP_FRONTEND:-}" != "1" ]; then
+	echo ">> building frontend (needs Node >= 22.12)"
+	(cd "$ROOT/frontend" && npm ci && npm run build:pro)
+fi
+[ -f "$ROOT/core/cmd/server/web/index.html" ] || { echo "frontend build missing (core/cmd/server/web/index.html)" >&2; exit 1; }
 
 echo ">> building core / agent for linux/$ARCH"
 bash "$ROOT/agent/utils/vm/helper/prepare.sh"
@@ -56,6 +65,7 @@ sed -i.bak "s/^ORIGINAL_VERSION=.*/ORIGINAL_VERSION=$TAG/" "$PKG_DIR/1pctl" && r
 
 mkdir -p "$OUT"
 tar -czf "$OUT/$PKG_NAME.tar.gz" -C "$WORK" "$PKG_NAME"
-(cd "$OUT" && shasum -a 256 "$PKG_NAME.tar.gz" > "$PKG_NAME.tar.gz.sha256")
+# The panel verifies the package against this file before installing.
+(cd "$OUT" && { command -v sha256sum >/dev/null && sha256sum "$PKG_NAME.tar.gz" || shasum -a 256 "$PKG_NAME.tar.gz"; } > "$PKG_NAME.tar.gz.sha256")
 echo ">> done: $OUT/$PKG_NAME.tar.gz"
 echo "   upload it to the GitHub release with tag $TAG"

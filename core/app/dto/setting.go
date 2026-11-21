@@ -189,6 +189,18 @@ type Upgrade struct {
 	Version string `json:"version" validate:"required"`
 }
 
+// UpgradeStatus is the live state of a fork upgrade (see fork_upgrade.go).
+type UpgradeStatus struct {
+	Stage          string    `json:"stage"` // idle | downloading | verifying | installing | failed
+	Version        string    `json:"version"`
+	CurrentVersion string    `json:"currentVersion"`
+	Done           int64     `json:"done"`
+	Total          int64     `json:"total"`
+	Rate           int64     `json:"rate"`
+	Error          string    `json:"error"`
+	UpdatedAt      time.Time `json:"updatedAt"`
+}
+
 type ReleasesNotes struct {
 	Version           string `json:"version"`
 	CreatedAt         string `json:"createdAt"`

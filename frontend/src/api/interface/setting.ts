@@ -266,6 +266,16 @@ export namespace Setting {
         latestVersion: string;
         releaseNote: string;
     }
+    export interface UpgradeStatus {
+        stage: 'idle' | 'downloading' | 'verifying' | 'installing' | 'failed';
+        version: string;
+        currentVersion: string;
+        done: number;
+        total: number;
+        rate: number;
+        error: string;
+        updatedAt: string;
+    }
 
     export interface License {
         licenseName: string;

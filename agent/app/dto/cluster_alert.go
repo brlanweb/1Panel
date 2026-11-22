@@ -40,7 +40,10 @@ type ClusterAlertParams struct {
 	VerifyTLS      bool              `json:"verifyTLS,omitempty"`
 	Headers        map[string]string `json:"headers,omitempty"`
 
-	// modelApi
+	// modelApi: AccountID references a model service (AI → model
+	// services); Model is one of its models. Provider/BaseURL/APIKey are
+	// only kept for rules saved before model services were referenced.
+	AccountID      uint   `json:"accountId,omitempty"`
 	Provider       string `json:"provider,omitempty"`
 	BaseURL        string `json:"baseUrl,omitempty"`
 	Model          string `json:"model,omitempty"`
@@ -99,4 +102,22 @@ type ClusterAlertTargetStateDTO struct {
 	LastChangeAt    int64  `json:"lastChangeAt"`
 	LastValue       string `json:"lastValue"`
 	LastError       string `json:"lastError"`
+}
+
+// ClusterAlertSummaryItem is one target shown on the home page alert card.
+type ClusterAlertSummaryItem struct {
+	AlertID      uint   `json:"alertId"`
+	AlertType    string `json:"alertType"`
+	AlertTitle   string `json:"alertTitle"`
+	TargetLabel  string `json:"targetLabel"`
+	Status       string `json:"status"`
+	Detail       string `json:"detail"`
+	LastChangeAt int64  `json:"lastChangeAt"`
+}
+
+type ClusterAlertSummary struct {
+	RuleCount    int                       `json:"ruleCount"`
+	TargetCount  int                       `json:"targetCount"`
+	FailingCount int                       `json:"failingCount"`
+	Items        []ClusterAlertSummaryItem `json:"items"`
 }

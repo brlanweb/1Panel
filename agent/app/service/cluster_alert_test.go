@@ -171,11 +171,22 @@ func TestValidateModelResponse(t *testing.T) {
 		{"anthropic", `{"type":"error"}`, false, false},
 		{"gemini", `{"candidates":[{"content":{"parts":[{"text":"hi"}]}}]}`, true, true},
 		{"gemini", `{"candidates":[]}`, false, false},
+		{"openai-responses", `{"status":"completed","output":[{"content":[{"text":"hi"}]}]}`, true, true},
+		{"openai-responses", `{}`, false, false},
 	}
 	for _, c := range cases {
 		err := validateModelResponse(dto.ClusterAlertParams{Provider: c.provider, StrictContent: c.strict}, []byte(c.body))
 		if (err == nil) != c.ok {
 			t.Fatalf("%s %s: got %v", c.provider, c.body, err)
 		}
+	}
+}
+
+func TestModelProbeHelpers(t *testing.T) {
+	if !isProbeableModelAPIType("anthropic-messages") || isProbeableModelAPIType("openai-images") {
+		t.Fatal("unexpected probeable api types")
+	}
+	if responseFormat("gemini-generate-content") != "gemini" || responseFormat("openai-completions") != "openai" {
+		t.Fatal("unexpected response format mapping")
 	}
 }

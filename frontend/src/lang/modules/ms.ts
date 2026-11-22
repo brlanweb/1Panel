@@ -640,7 +640,7 @@ const message = {
         revokeAuthorizationHelper: 'Tarik balik akses pengguna {0} kepada pangkalan data {1}?',
         supplementPassword: 'Tambah kata laluan',
         supplementPasswordHelper:
-            'Hanya menyimpan kata laluan sedia ada dalam 1Panel tanpa menukar kata laluan pengguna pangkalan data.',
+            'Hanya menyimpan kata laluan sedia ada dalam XPanel tanpa menukar kata laluan pengguna pangkalan data.',
         noUserBind: 'Tiada kaitan',
         pgAuthorizationHelper:
             'Pengguna super boleh mengakses semua pangkalan data dalam tika ini tanpa pautan. Pengguna biasa hanya mengurus kebenaran pangkalan data, bukan kebenaran jadual.',
@@ -648,7 +648,7 @@ const message = {
             'Pembatalan kebenaran tidak memadamkan pengguna. Akses melalui PUBLIC atau peranan lain mungkin kekal.',
         pgSuperUser: 'Pengguna Super',
         loadFromRemoteHelper:
-            'Ini akan menyelaraskan pangkalan data, pengguna dan kebenaran dari pelayan ke 1Panel. Teruskan?',
+            'Ini akan menyelaraskan pangkalan data, pengguna dan kebenaran dari pelayan ke XPanel. Teruskan?',
         passwordHelper: 'Tidak dapat diperoleh, klik untuk ubah',
         remote: 'Jauh',
         remoteDB: 'Pelayan jauh | Pelayan-pelayan jauh',
@@ -822,7 +822,7 @@ const message = {
             hardware: 'Penempatan perkakasan',
             editMembers: 'Sunting ahli',
             usageScope:
-                'Perkaitan berdasarkan konfigurasi aplikasi yang diurus oleh 1Panel pada nod ini; nilai memori diukur untuk seluruh GPU.',
+                'Perkaitan berdasarkan konfigurasi aplikasi yang diurus oleh XPanel pada nod ini; nilai memori diukur untuk seluruh GPU.',
             usageTitle: 'Penggunaan GPU',
             usageHelp:
                 'GPU yang dipilih mungkin digunakan oleh pengerahan lain. Meneruskan boleh menyebabkan kekurangan memori GPU atau prestasi menurun. Anda masih boleh meneruskan.',
@@ -1204,7 +1204,7 @@ const message = {
             localLayoutDirect: 'Letak terus',
             localLayoutGrouped: 'Kumpul ikut organisasi (pilihan)',
             serviceHelper:
-                'Sambungkan perkhidmatan model daripada awan awam, enjin inferens setempat dan gerbang AI untuk digunakan oleh ejen terbina dalam 1Panel serta ejen luaran seperti WorkBuddy.',
+                'Sambungkan perkhidmatan model daripada awan awam, enjin inferens setempat dan gerbang AI untuk digunakan oleh ejen terbina dalam XPanel serta ejen luaran seperti WorkBuddy.',
             gpuType: 'Jenis GPU',
             vllmVersion: 'Versi vLLM',
             vllmImage: 'Imej vLLM',
@@ -1268,7 +1268,7 @@ const message = {
             modelDirHelper:
                 'Direktori muat turun model dan sumber senarai model setempat. Perubahan tidak memindahkan fail sedia ada.',
             featuredModelsHelper:
-                'Semak model pilihan 1Panel, lihat spesifikasi, kegunaan dan sumber muat turun, kemudian pilih model yang sesuai untuk dimuat turun.',
+                'Semak model pilihan XPanel, lihat spesifikasi, kegunaan dan sumber muat turun, kemudian pilih model yang sesuai untuk dimuat turun.',
             featuredModelsSyncHelper:
                 'Penyegerakan automatik mengemas kini katalog model pilihan setiap hari pada awal pagi tanpa memuat turun fail model. Anda juga boleh menyegerakkan secara manual pada bila-bila masa.',
             recipeSyncHelper:
@@ -1339,7 +1339,7 @@ const message = {
             recipeArguments: 'Argumen pelancaran',
             recipeImportCommand: 'Import arahan',
             recipeImportPlaceholder:
-                'Tampal arahan pelancaran dalam format pip/uv atau docker di sini. 1Panel akan menghuraikan dan mengisi borang secara automatik.',
+                'Tampal arahan pelancaran dalam format pip/uv atau docker di sini. XPanel akan menghuraikan dan mengisi borang secara automatik.',
             recipeVariablesNotSupported:
                 'Rujukan pemboleh ubah tidak disokong dalam arahan. Masukkan nilai khusus; tetapkan pemboleh ubah persekitaran dalam medan yang berkenaan.',
             recipeImportError:
@@ -1374,7 +1374,7 @@ const message = {
             ollama_doc:
                 'Cari model di {link}. Model akan dimuat turun secara automatik selepas ditambah. Pastikan perkhidmatan Ollama berjalan dan ruang cakera mencukupi.',
             container_conn_helper: 'Gunakan alamat ini untuk akses atau sambungan antara kontena',
-            from_remote: 'Model ini tidak dimuat turun melalui 1Panel; tiada log muat turun berkaitan.',
+            from_remote: 'Model ini tidak dimuat turun melalui XPanel; tiada log muat turun berkaitan.',
             no_logs: 'Log muat turun model ini telah dipadam dan tidak boleh dilihat.',
             composeFile: 'Fail Susunan',
             imageCategory: 'Jenis imej',
@@ -1389,8 +1389,8 @@ const message = {
                 default:
                     'Versi standard komuniti rasmi vLLM dengan CUDA 13.0, sesuai untuk pemacu dan seni bina GPU yang lebih baharu.',
                 rtxPro5000:
-                    'Versi tersuai untuk NVIDIA RTX Pro 5000, dioptimumkan untuk DeepSeek-V4.1-Flash-1017. Imej diselenggara oleh 1Panel.',
-                dspark: 'Versi tersuai untuk dua peranti NVIDIA GB10, dioptimumkan untuk DeepSeek-V4-Flash. Imej diselenggara oleh 1Panel.',
+                    'Versi tersuai untuk NVIDIA RTX Pro 5000, dioptimumkan untuk DeepSeek-V4.1-Flash-1017. Imej diselenggara oleh XPanel.',
+                dspark: 'Versi tersuai untuk dua peranti NVIDIA GB10, dioptimumkan untuk DeepSeek-V4-Flash. Imej diselenggara oleh XPanel.',
                 dspark4: 'Versi tersuai untuk empat peranti NVIDIA GB10, dioptimumkan untuk DeepSeek-V4.1-Flash.',
             },
             syncModelAccount: 'Segerakkan ke perkhidmatan model',
@@ -1449,7 +1449,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI Gateway menyokong penggunaan kendiri',
             deploymentNoticeDescription:
-                'AI Gateway kini menyokong penggunaan kendiri. AI Gateway terbina dalam 1Panel tidak lagi akan menerima kemas kini. Kami mengesyorkan pemasangan versi kendiri daripada gedung aplikasi. Anda juga boleh terus menggunakan versi semasa.',
+                'AI Gateway kini menyokong penggunaan kendiri. AI Gateway terbina dalam XPanel tidak lagi akan menerima kemas kini. Kami mengesyorkan pemasangan versi kendiri daripada gedung aplikasi. Anda juga boleh terus menggunakan versi semasa.',
             deploymentNoticeContinue: 'Faham, terus gunakan',
             deploymentNoticeAppStore: 'Pergi ke gedung aplikasi',
             deploymentNoticeNoAppPermission:
@@ -2203,14 +2203,14 @@ const message = {
             protocolVersionHelper:
                 'Hanya digunakan oleh Streamable HTTP tanpa keadaan untuk memulakan MCP Server stdio hiliran secara automatik',
             gatewayArgsHelper:
-                'Argumen ditambahkan pada arahan supergateway. Argumen pengangkutan, port, laluan dan protokol yang diurus oleh 1Panel tidak boleh diubah',
+                'Argumen ditambahkan pada arahan supergateway. Argumen pengangkutan, port, laluan dan protokol yang diurus oleh XPanel tidak boleh diubah',
             testConnection: 'Uji Sambungan',
             connectionSuccess: 'Sambungan berjaya',
             connectionFailed: 'Sambungan gagal',
         },
     },
     panelMCP: {
-        accessTitle: 'Akses 1Panel MCP',
+        accessTitle: 'Akses XPanel MCP',
         servicesTitle: 'Perkhidmatan MCP',
         websiteCancelPendingBind: 'Batalkan pautan',
         websiteBinding: 'Pautan laman web',
@@ -2297,7 +2297,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2335,7 +2335,7 @@ const message = {
         allResults: 'Semua status',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: 'Semakan perkhidmatan gagal. Semak log dan keserasian versi.',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2344,13 +2344,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: 'Padam imej lama',
         deleteOldImageHelp:
             'Selepas naik taraf berjaya, padam imej lama yang tidak digunakan. Kegagalan pembersihan tidak menjejaskan naik taraf; lihat log tugas.',
         installEmpty:
-            'Perkhidmatan 1Panel MCP belum dipasang. Pasang dan aktifkannya untuk mencipta kelayakan akses dan memanggil alat MCP.',
+            'Perkhidmatan XPanel MCP belum dipasang. Pasang dan aktifkannya untuk mencipta kelayakan akses dan memanggil alat MCP.',
         installWithCredentials: 'MCP belum dipasang. Kelayakan dikekalkan; panggilan tidak tersedia.',
         installTaskLog: 'Log pemasangan',
         installNow: 'Pasang sekarang',
@@ -2358,7 +2358,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: 'Muat semula dan timpa tetapan yang belum disimpan?',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: 'Masukkan rujukan imej Docker yang sah dengan tag atau ringkasan SHA-256.',
@@ -2593,6 +2593,10 @@ const message = {
         missing: 'Tiada',
     },
     container: {
+        logDisconnected:
+            'Sambungan strim log telah terputus. Sambung semula untuk memuatkan log terkini dan meneruskan penstriman.',
+        logsUnavailable:
+            'Kontena tidak wujud atau telah dipadamkan. Log kontena tidak tersedia. Cipta semula kontena dan cuba lagi.',
         nvidiaSupport: 'Sokongan GPU NVIDIA',
         nvidiaHelper:
             'Daftarkan runtime kontena NVIDIA. Pasang NVIDIA Container Toolkit dahulu. Peruntukkan GPU kepada setiap kontena secara berasingan.',
@@ -2648,7 +2652,7 @@ const message = {
         operatorAppHelper:
             'Operasi "{0}" akan dilakukan pada kontena berikut dan mungkin mempengaruhi perkhidmatan yang sedang berjalan. Adakah anda mahu meneruskan?',
         containerDeleteHelper:
-            "Dikesan bahawa bekas ini berasal dari Kedai Apl. Memadam bekas tidak akan mengalihnya sepenuhnya dari 1Panel. Untuk memadam sepenuhnya, sila pergi ke Kedai Apl -> menu 'Dipasang' atau 'Persekitaran Runtime'. Teruskan?",
+            "Dikesan bahawa bekas ini berasal dari Kedai Apl. Memadam bekas tidak akan mengalihnya sepenuhnya dari XPanel. Untuk memadam sepenuhnya, sila pergi ke Kedai Apl -> menu 'Dipasang' atau 'Persekitaran Runtime'. Teruskan?",
         start: 'Mulakan',
         stop: 'Hentikan',
         restart: 'Mulakan semula',
@@ -2869,7 +2873,7 @@ const message = {
         composeNamePriorityHelper:
             'Keutamaan nama projek: nama dalam konfigurasi Docker Compose > direktori induk fail > nama yang dimasukkan di sini.',
         composeHelper:
-            'Komposisi yang dicipta melalui editor atau templat 1Panel akan disimpan dalam direktori {0}/docker/compose.',
+            'Komposisi yang dicipta melalui editor atau templat XPanel akan disimpan dalam direktori {0}/docker/compose.',
         deleteFile: 'Padam fail',
         deleteComposeHelper:
             'Padam semua fail berkaitan komposisi kontena, termasuk fail konfigurasi dan fail berterusan. Sila berhati-hati!',
@@ -2883,12 +2887,12 @@ const message = {
         containerStatus: 'Status kontena',
         exited: 'Keluar',
         running: 'Berjalan ( {0} / {1} )',
-        composeDetailHelper: 'Komposisi dibuat di luar 1Panel. Operasi mula dan berhenti tidak disokong.',
+        composeDetailHelper: 'Komposisi dibuat di luar XPanel. Operasi mula dan berhenti tidak disokong.',
         composeOperatorHelper: 'Operasi {1} akan dilakukan pada {0}. Adakah anda mahu meneruskan?',
         composeDownHelper:
             'Ini akan menghentikan dan menghapuskan semua kontena dan rangkaian di bawah komposisi {0}. Adakah anda mahu meneruskan?',
         composeEnvHelper2:
-            'Penyelarasan ini dibuat oleh Kedai Apl 1Panel. Sila ubah pembolehubah persekitaran dalam aplikasi yang dipasang.',
+            'Penyelarasan ini dibuat oleh Kedai Apl XPanel. Sila ubah pembolehubah persekitaran dalam aplikasi yang dipasang.',
         composeContentPlaceholder: 'Tulis atau tampal kandungan fail docker-compose anda di sini',
         setting: 'Tetapan | Tetapan',
         restartHelper: 'Perubahan konfigurasi memerlukan perkhidmatan Docker dimulakan semula untuk berkuat kuasa',
@@ -3061,7 +3065,7 @@ const message = {
         noLogs: 'Tiada keluaran tugas lagi...',
         errPath: 'Laluan sandaran [{0}] salah, tidak boleh dimuat turun!',
         cutWebsiteLog: 'Putaran log laman web',
-        cutWebsiteLogHelper: 'Fail log yang diputar akan disandarkan ke direktori sandaran 1Panel.',
+        cutWebsiteLogHelper: 'Fail log yang diputar akan disandarkan ke direktori sandaran XPanel.',
         syncIpGroup: 'Segerakkan kumpulan IP WAF',
         syncIpGroupHelper: 'Segerakkan kumpulan IP jauh yang digunakan dalam senarai hitam/putih WAF',
         requestExpirationTime: 'Waktu luput permintaan muat naik (Jam)',
@@ -3093,7 +3097,7 @@ const message = {
             syncHelper: 'Akan menyelaraskan pustaka skrip sistem. Operasi ini hanya melibatkan skrip sistem. Teruskan?',
         },
         nextTime: '5 pelaksanaan seterusnya',
-        logHelper1: '1. Log sistem 1Panel',
+        logHelper1: '1. Log sistem XPanel',
         backupContent: 'Kandungan sandaran',
         cronSpecRule2: 'Format tempoh pelaksanaan tidak betul, semak dan cuba lagi!',
         executor: 'Pelaksana',
@@ -3807,7 +3811,7 @@ const message = {
         previewTruncated: 'Fail terlalu besar, hanya menunjukkan bahagian terakhir',
         previewEmpty: 'Fail kosong atau bukan fail teks',
         previewLargeFile: 'Pratonton',
-        panelInstallDir: 'Direktori pemasangan 1Panel tidak boleh dipadamkan',
+        panelInstallDir: 'Direktori pemasangan XPanel tidak boleh dipadamkan',
         wgetTask: 'Tugas Muat Turun',
         stopWgetConfirm: 'Adakah anda pasti mahu menghentikan tugas muat turun ini?',
         useServerFilename: 'Gunakan nama fail daripada pelayan',
@@ -4048,7 +4052,7 @@ const message = {
         timeZoneChangeHelper:
             'Menukar zon waktu memerlukan memulakan semula perkhidmatan. Adakah anda mahu meneruskan?',
         timeZoneHelper:
-            'Pengubahan zon waktu bergantung pada perkhidmatan sistem timedatectl. Berkuat kuasa selepas mulakan semula perkhidmatan 1Panel.',
+            'Pengubahan zon waktu bergantung pada perkhidmatan sistem timedatectl. Berkuat kuasa selepas mulakan semula perkhidmatan XPanel.',
         timeZoneCN: 'Beijing',
         timeZoneAM: 'Los Angeles',
         timeZoneNY: 'New York',
@@ -4157,7 +4161,7 @@ const message = {
             'Hanya permintaan daripada IP/CIDR ini akan mempercayai Forwarded dan X-Forwarded-Proto untuk menentukan HTTPS',
         passkeyNotSupported: 'Pelayar atau persekitaran semasa tidak menyokong passkey',
         passkeyPrereqTitle: 'Prasyarat berikut diperlukan untuk Passkey',
-        passkeyPrereqBindDomain: 'Pengikatan domain 1Panel dikonfigurasi',
+        passkeyPrereqBindDomain: 'Pengikatan domain XPanel dikonfigurasi',
         passkeyPrereqHttps: 'Akses selamat melalui HTTPS',
         passkeyPrereqBrowser: 'Persekitaran menyokong Passkey (WebAuthn + pengesah platform)',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4211,10 +4215,10 @@ const message = {
         panelSSL: 'Panel SSL',
         unBindDomainHelper:
             'Tindakan membuka ikatan nama domain boleh menyebabkan ketidakamanan sistem. Adakah anda mahu meneruskan?',
-        bindDomainHelper: 'Selepas anda mengikat domain, hanya domain itu yang boleh mengakses perkhidmatan 1Panel.',
+        bindDomainHelper: 'Selepas anda mengikat domain, hanya domain itu yang boleh mengakses perkhidmatan XPanel.',
         bindDomainHelper1: 'Biarkan kosong untuk melumpuhkan ikatan nama domain.',
         bindDomainWarning:
-            'Selepas ikatan domain, anda akan log keluar dan hanya boleh mengakses perkhidmatan 1Panel melalui nama domain yang ditentukan dalam tetapan. Adakah anda mahu meneruskan?',
+            'Selepas ikatan domain, anda akan log keluar dan hanya boleh mengakses perkhidmatan XPanel melalui nama domain yang ditentukan dalam tetapan. Adakah anda mahu meneruskan?',
         allowIPs: 'IP Dibenarkan',
         unAllowIPs: 'IP Tidak Dibenarkan',
         unAllowIPsWarning:
@@ -4232,7 +4236,7 @@ const message = {
         secret: 'Rahsia',
         mfaInterval: 'Selang penyegaran (saat)',
         mfaTitleHelper:
-            'Judul digunakan untuk membezakan hos 1Panel yang berbeza. Imbas lagi atau tambahkan kunci rahsia secara manual selepas anda mengubah judul.',
+            'Judul digunakan untuk membezakan hos XPanel yang berbeza. Imbas lagi atau tambahkan kunci rahsia secara manual selepas anda mengubah judul.',
         mfaIntervalHelper:
             'Selepas mengubah selang penyegaran, imbas semula atau tambahkan kunci rahsia secara manual.\nSesetengah aplikasi pengesah hanya menyokong selang 30 saat (contohnya, Google/Microsoft Authenticator).',
         mfaAlert:
@@ -4319,14 +4323,14 @@ const message = {
         ignoreRule: 'Aturan abaikan',
         editIgnoreRule: 'Sunting aturan abaikan',
         ignoreHelper:
-            'Aturan ini akan digunakan untuk memampatkan dan menyandarkan direktori data 1Panel semasa membuat snapshot. Secara lalai, fail soket diabaikan.',
+            'Aturan ini akan digunakan untuk memampatkan dan menyandarkan direktori data XPanel semasa membuat snapshot. Secara lalai, fail soket diabaikan.',
         ignoreHelper1: 'Satu per baris. Contoh,\n*.log\n/opt/1panel/cache',
-        panelInfo: 'Tulis maklumat asas 1Panel',
-        panelBin: 'Sandarkan fail sistem 1Panel',
+        panelInfo: 'Tulis maklumat asas XPanel',
+        panelBin: 'Sandarkan fail sistem XPanel',
         daemonJson: 'Sandarkan fail konfigurasi Docker',
-        appData: 'Sandarkan aplikasi yang dipasang dari 1Panel',
-        panelData: 'Sandarkan direktori data 1Panel',
-        backupData: 'Sandarkan direktori sandaran tempatan untuk 1Panel',
+        appData: 'Sandarkan aplikasi yang dipasang dari XPanel',
+        panelData: 'Sandarkan direktori data XPanel',
+        backupData: 'Sandarkan direktori sandaran tempatan untuk XPanel',
         compress: 'Cipta fail snapshot',
         upload: 'Muat naik fail snapshot',
         recoverDetail: 'Butiran pemulihan',
@@ -4336,7 +4340,7 @@ const message = {
         recoverErrArch: 'Pemulihan snapshot antara seni bina pelayan yang berbeza tidak disokong!',
         recoverErrSize: 'Kekurangan ruang cakera dikesan, sila periksa atau bersihkan dan cuba lagi!',
         recoverHelper: 'Memulakan pemulihan dari snapshot {0}, sila sahkan maklumat berikut sebelum meneruskan:',
-        recoverHelper1: 'Pemulihan memerlukan mulakan semula perkhidmatan Docker dan 1Panel',
+        recoverHelper1: 'Pemulihan memerlukan mulakan semula perkhidmatan Docker dan XPanel',
         recoverHelper2:
             'Pastikan terdapat ruang cakera yang mencukupi pada pelayan (Saiz fail snapshot: {0}, Ruang tersedia: {1})',
         recoverHelper3:
@@ -4345,8 +4349,8 @@ const message = {
             'Operasi ini hanya menggulung balik nod utama. Jika terdapat nod anak yang telah dinaik taraf, sila gulungkan balik nod anak terlebih dahulu sebelum meneruskan.',
         rollback: 'Pulangkan semula',
         rollbackHelper:
-            'Pulangkan semula pemulihan ini akan menggantikan semua fail dari pemulihan ini, dan mungkin memerlukan mulakan semula perkhidmatan Docker dan 1Panel. Adakah anda mahu meneruskan?',
-        upgradeHelper: 'Kemas kini memerlukan mulakan semula perkhidmatan 1Panel. Adakah anda mahu meneruskan?',
+            'Pulangkan semula pemulihan ini akan menggantikan semua fail dari pemulihan ini, dan mungkin memerlukan mulakan semula perkhidmatan Docker dan XPanel. Adakah anda mahu meneruskan?',
+        upgradeHelper: 'Kemas kini memerlukan mulakan semula perkhidmatan XPanel. Adakah anda mahu meneruskan?',
         rollbackLocalHelper:
             'Nod utama tidak menyokong rollback secara langsung. Sila laksanakan arahan [1pctl restore] secara manual untuk rollback!',
         noUpgrade: 'Ia adalah versi terbaru pada masa ini',
@@ -4447,7 +4451,7 @@ const message = {
         importLicense: 'Lesen',
         securityWarningTitle: 'Jangan gunakan lesen retak atau lesen daripada sumber yang tidak diketahui.',
         securityWarningContent:
-            '1Panel perlu dijalankan oleh pengguna dengan keistimewaan pentadbiran sistem. Lesen tidak rasmi atau versi yang diubah suai boleh menyebabkan pelayan hilang kawalan, kebocoran data dan risiko keselamatan serius lain. Dapatkan lesen dan pakej pemasangan hanya melalui saluran rasmi FIT2CLOUD.',
+            'XPanel perlu dijalankan oleh pengguna dengan keistimewaan pentadbiran sistem. Lesen tidak rasmi atau versi yang diubah suai boleh menyebabkan pelayan hilang kawalan, kebocoran data dan risiko keselamatan serius lain. Dapatkan lesen dan pakej pemasangan hanya melalui saluran rasmi FIT2CLOUD.',
         importHelper: 'Sila klik atau seret fail lesen ke sini',
         licenseRequiredTip:
             'Lesen belum diimport. Salin ID peranti, dapatkan lesen dan importkannya sebelum anda boleh log masuk.',
@@ -4491,7 +4495,7 @@ const message = {
         monitor:
             'Naik taraf ke Edisi Komersial untuk melihat status laman web masa nyata, trend pelawat, sumber trafik, log permintaan dan lain-lain.',
         alert: 'Naik taraf ke Edisi Komersial untuk menerima amaran SMS dan melihat log amaran.',
-        node: 'Naik taraf ke Edisi Komersial untuk mengurus berbilang pelayan Linux dengan 1Panel.',
+        node: 'Naik taraf ke Edisi Komersial untuk mengurus berbilang pelayan Linux dengan XPanel.',
         nodeApp:
             'Naik taraf ke Edisi Komersial untuk menaik taraf versi aplikasi berbilang nod tanpa menukar nod secara manual.',
         nodeDashboard:
@@ -4515,7 +4519,7 @@ const message = {
     },
     clean: {
         scan: 'Mulakan imbasan',
-        scanHelper: 'Bersihkan fail sampah dengan mudah yang dihasilkan semasa operasi 1Panel',
+        scanHelper: 'Bersihkan fail sampah dengan mudah yang dihasilkan semasa operasi XPanel',
         clean: 'Bersihkan sekarang',
         reScan: 'Imbas semula',
         cleanHelper: 'Fail dan direktori terpilih tidak boleh dipulihkan selepas pembersihan. Teruskan?',
@@ -5278,7 +5282,7 @@ const message = {
         execShell: 'Jalankan skrip selepas permintaan pengesahan.',
         shell: 'Kandungan skrip',
         shellHelper:
-            'Direktori pelaksanaan lalai skrip adalah direktori pemasangan 1Panel. Jika sijil ditolak ke direktori tempatan, direktori pelaksanaan akan menjadi direktori tolak sijil. Tamat masa pelaksanaan lalai ialah 30 minit.',
+            'Direktori pelaksanaan lalai skrip adalah direktori pemasangan XPanel. Jika sijil ditolak ke direktori tempatan, direktori pelaksanaan akan menjadi direktori tolak sijil. Tamat masa pelaksanaan lalai ialah 30 minit.',
         customAcme: 'Perkhidmatan ACME Tersuai',
         customAcmeURL: 'URL Perkhidmatan ACME',
         baiduCloud: 'Baidu Cloud',
@@ -5296,7 +5300,7 @@ const message = {
         ipv6DisableContainerHelper: 'Sembunyikan maklumat port IPv6 bekas.',
         ipv6DisableWhitelistHelper:
             'Buang peraturan IPv6 daripada senarai dibenarkan dan kekalkan semua peraturan IPv6 sedia ada yang lain.',
-        ipv6DisableRulesHelper: 'Nyahdayakan peraturan IPv6 iptables dan nftables yang diuruskan oleh 1Panel.',
+        ipv6DisableRulesHelper: 'Nyahdayakan peraturan IPv6 iptables dan nftables yang diuruskan oleh XPanel.',
         ipv6DisableNetworkHelper: 'Ini tidak menyahdayakan rangkaian IPv6 pelayan.',
         ipv6DisableEffectHelper: 'Sekatan akses IPv6 dan pemajuan port yang terlibat tidak lagi berkuat kuasa.',
         ipv6Disabled: 'Sokongan IPv6 dinyahdayakan. Dayakannya dalam tetapan tembok api dahulu.',
@@ -5356,7 +5360,7 @@ const message = {
         systemFirewall: 'Tembok api hos',
         systemFirewallHelper: 'Mengawal akses port hos dan peraturan masuk.',
         forwardingHelper: 'Mengurus peraturan pemajuan port.',
-        dockerFirewallHelper: 'Memilih cara 1Panel mengurus perlindungan port bekas.',
+        dockerFirewallHelper: 'Memilih cara XPanel mengurus perlindungan port bekas.',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0, percubaan',
         backendRecommendation: 'Disyorkan untuk menggunakan iptables atau nftables.',
         configuredRules: '{0} peraturan dikonfigurasi',
@@ -5369,9 +5373,9 @@ const message = {
             'Import sehingga {0} peraturan (dikira selepas pengembangan), dengan saiz fail tidak melebihi {1} KB.',
         ruleSyncTitle: 'Segerakkan peraturan',
         ruleSyncAction: 'Segerakkan peraturan',
-        ruleSyncDatabase: 'Pangkalan data 1Panel',
+        ruleSyncDatabase: 'Pangkalan data XPanel',
         ruleSyncDatabaseHelper:
-            'Segerakkan dan selaraskan peraturan terurus dalam tembok api semasa berdasarkan peraturan pangkalan data 1Panel. Peraturan yang tiada akan ditambah dan peraturan berlebihan akan dipadam.',
+            'Segerakkan dan selaraskan peraturan terurus dalam tembok api semasa berdasarkan peraturan pangkalan data XPanel. Peraturan yang tiada akan ditambah dan peraturan berlebihan akan dipadam.',
         ruleSyncDatabaseTotal: 'Peraturan pangkalan data',
         ruleSyncDatabaseConfirm:
             'Segerakkan {1} supaya sepadan tepat dengan {0} peraturan pangkalan data? {2} peraturan sasaran akan dipadam dan peraturan yang tiada akan ditambah.',
@@ -5399,13 +5403,13 @@ const message = {
         downloadRuleBackup: 'Muat turun sandaran peraturan',
         importFileHelper:
             'Import fail JSON sehingga 64 MB secara kelompok mengikut susunan fail. Peraturan yang tidak dapat ditukar akan dilaporkan sebagai ralat.',
-        resetDirectRulesHelper: 'Padam semua rantai tembok api hos 1Panel, peraturan aktif dan fail kekal dalam {0}.',
+        resetDirectRulesHelper: 'Padam semua rantai tembok api hos XPanel, peraturan aktif dan fail kekal dalam {0}.',
         resetWhitelistRulesHelper:
             'Tetapkan semula konfigurasi tersuai {0}, pulihkan tetapan lalai dan nyahaktifkannya.',
         cleanupForwardingBackendHelper:
-            'Padam semua peraturan pemajuan, rantaian dan fail pemulihan automatik 1Panel daripada {0}. Sandaran JSON sedia ada dikekalkan.',
+            'Padam semua peraturan pemajuan, rantaian dan fail pemulihan automatik XPanel daripada {0}. Sandaran JSON sedia ada dikekalkan.',
         cleanupDockerBackendHelper:
-            'Padam semua peraturan perlindungan Docker, rantaian dan fail pemulihan automatik 1Panel daripada {0}. Sandaran JSON sedia ada dikekalkan.',
+            'Padam semua peraturan perlindungan Docker, rantaian dan fail pemulihan automatik XPanel daripada {0}. Sandaran JSON sedia ada dikekalkan.',
         cleanupBeforeBackendSwitch:
             'Tetapkan semula {0} semasa sebelum beralih kepada {1} dan sahkan cara peraturannya akan dipulihkan.',
         backendSwitchNotice:
@@ -5536,6 +5540,8 @@ const message = {
         editRuleConfirm: 'Adakah anda pasti mahu mengubah peraturan ini?',
     },
     runtime: {
+        statusMessageUnavailable:
+            'Maklumat status terperinci tidak tersedia. Semak log persekitaran masa jalan untuk butiran lanjut.',
         importEnv: 'Import Pemboleh Ubah Persekitaran',
         envImportError: 'Baris {0}: {1}',
         envInvalidAssignment: 'Penetapan NAME=value yang sah diperlukan',
@@ -5670,7 +5676,7 @@ const message = {
             dir: 'Direktori',
             numprocs: 'Bil. proses',
             initWarn:
-                'Ini akan mengubah nilai "files" dalam bahagian "[include]" dalam fail konfigurasi utama. Direktori fail konfigurasi lain akan menjadi: "{direktori pemasangan 1Panel}/1panel/tools/supervisord/supervisor.d/".',
+                'Ini akan mengubah nilai "files" dalam bahagian "[include]" dalam fail konfigurasi utama. Direktori fail konfigurasi lain akan menjadi: "{direktori pemasangan XPanel}/1panel/tools/supervisord/supervisor.d/".',
             operatorHelper: 'Operasi {1} akan dilakukan pada {0}, teruskan?',
             uptime: 'Masa berjalan',
             notStartWarn: 'Supervisor belum dimulakan. Mulakan dahulu.',
@@ -6505,7 +6511,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: 'Toleransi masa token',
                     clockSkewHelper:
-                        'Membenarkan sedikit perbezaan masa antara penyedia identiti dan 1Panel. Kekalkan nilai lalai 60 saat.',
+                        'Membenarkan sedikit perbezaan masa antara penyedia identiti dan XPanel. Kekalkan nilai lalai 60 saat.',
                     clockSkewRequired: 'Masukkan toleransi masa token.',
                     compatibilityMode: 'Mod keserasian',
                     compatibilityModeHelper:
@@ -6622,13 +6628,13 @@ const message = {
                     nameClaimHelper: 'Masukkan medan yang mengandungi nama pengguna, seperti preferred_username.',
                     nameClaimRequired: 'Masukkan Claim nama pengguna.',
                     nameConflict: 'Nama dasar konflik',
-                    panelURL: '1Panel awam URL',
+                    panelURL: 'XPanel awam URL',
                     panelURLHTTPWarning:
                         'HTTP tidak melindungi respons kebenaran. Gunakannya hanya dalam persekitaran peribadi terpencil yang diterima oleh Provider.',
                     panelURLHelper:
-                        'Masukkan alamat yang digunakan untuk mengakses 1Panel. Alamat ini digunakan untuk menjana URL panggil balik.',
+                        'Masukkan alamat yang digunakan untuk mengakses XPanel. Alamat ini digunakan untuk menjana URL panggil balik.',
                     panelURLInvalid: 'Masukkan asal yang mengandungi hanya skema, hos dan port pilihan.',
-                    panelURLRequired: 'Masukkan 1Panel awam URL.',
+                    panelURLRequired: 'Masukkan XPanel awam URL.',
                     pkceDisabled: 'Dilumpuhkan (keserasian sahaja)',
                     pkceDisabledWarning:
                         'Melumpuhkan PKCE mengurangkan perlindungan terhadap pemintasan kod kebenaran.',
@@ -6688,7 +6694,7 @@ const message = {
                     signingKeyStatic: 'Kunci awam JWK atau PEM statik',
                     standardDiscovery: 'Discovery OIDC standard',
                     standardDiscoveryDesc:
-                        '1Panel menemui titik akhir dan keupayaan dan tidak menyimpan dokumen mentah.',
+                        'XPanel menemui titik akhir dan keupayaan dan tidak menyimpan dokumen mentah.',
                     standardMode: 'Mod standard',
                     standardModeHelper:
                         'Temui titik akhir, keupayaan menandatangani dan sokongan PKCE daripada Issuer.',
@@ -6809,7 +6815,7 @@ const message = {
                     metadataXMLPlaceholder: 'Tampal <EntityDescriptor>...</EntityDescriptor>',
                     nameAttribute: 'Atribut nama pengguna',
                     nameAttributeHelper:
-                        'Membaca atribut ini daripada SAML Assertion yang disahkan dan memetakannya kepada nama pengguna 1Panel.',
+                        'Membaca atribut ini daripada SAML Assertion yang disahkan dan memetakannya kepada nama pengguna XPanel.',
                     nameAttributePlaceholder: 'Contohnya: uid, username atau account',
                     nameAttributeRequired: 'Masukkan atribut nama pengguna.',
                     notConfigured: 'Belum dikonfigurasi',
@@ -6844,7 +6850,7 @@ const message = {
                         'Digunakan untuk menandatangani AuthnRequest dan mesej log keluar. Ia disulitkan semasa disimpan dan tidak pernah dipaparkan.',
                     syncLogout: 'Log keluar segerak',
                     syncLogoutHelper:
-                        'Log keluar daripada 1Panel atau penyedia identiti turut melog keluar bahagian yang lain.',
+                        'Log keluar daripada XPanel atau penyedia identiti turut melog keluar bahagian yang lain.',
                     testBeforeBrowserTest: 'Uji konfigurasi semasa sebelum memulakan ujian log masuk penyemak imbas.',
                     testBeforeEnable: 'Uji konfigurasi semasa sebelum mendayakan atau menyimpan perubahan sensitif.',
                     testConfiguration: 'Uji konfigurasi',
@@ -6875,14 +6881,14 @@ const message = {
                     passwordSaved: 'Biarkan kosong untuk menyimpan kata laluan yang disimpan',
                     userSearch: 'Carian pengguna',
                     userSearchDesc:
-                        'Tetapkan pangkalan carian dan penapis pengguna, kemudian petakan atribut LDAP yang digunakan sebagai 1Panel name.',
+                        'Tetapkan pangkalan carian dan penapis pengguna, kemudian petakan atribut LDAP yang digunakan sebagai XPanel name.',
                     userFilter: 'Penapis pengguna',
                     userFilterTooltip:
                         'Gantikan %(user)s dengan nama pengguna yang dilepaskan, atau dengan * untuk membaca direktori penuh.',
                     userFilterHelper: 'Nama pengguna dikeluarkan sebelum ia dimasukkan ke dalam penapis LDAP.',
                     attributeMap: 'Pemetaan atribut',
-                    attributeMapTooltip: 'Pemetaan JSON daripada medan 1Panel name kepada atribut LDAP.',
-                    attributeMapHelper: 'Tetapkan atribut LDAP yang dipetakan ke medan 1Panel name.',
+                    attributeMapTooltip: 'Pemetaan JSON daripada medan XPanel name kepada atribut LDAP.',
+                    attributeMapHelper: 'Tetapkan atribut LDAP yang dipetakan ke medan XPanel name.',
                     advanced: 'Tetapan lanjutan',
                     advancedDesc: 'Konfigurasikan halaman pertanyaan TLS dan LDAP.',
                     strictSync: 'Penyegerakan yang ketat',
@@ -6922,7 +6928,7 @@ const message = {
                     sync: {
                         title: 'Penyegerakan berjadual',
                         description:
-                            'Baca direktori LDAP penuh mengikut jadual dan kekalkan pengguna LDAP yang diimport dalam 1Panel.',
+                            'Baca direktori LDAP penuh mengikut jadual dan kekalkan pengguna LDAP yang diimport dalam XPanel.',
                         enable: 'Dayakan jadual',
                         enableHelper:
                             'Apabila dilumpuhkan, pelaksanaan automatik berhenti; penyegerakan manual masih tersedia.',
@@ -6981,7 +6987,7 @@ const message = {
                     },
                     testLoginTitle: 'Uji log masuk AD/LDAP',
                     testLoginDesc:
-                        'Ikat dengan bukti kelayakan pengguna AD/LDAP untuk menguji pengesahan sahaja. Tiada sesi 1Panel dibuat.',
+                        'Ikat dengan bukti kelayakan pengguna AD/LDAP untuk menguji pengesahan sahaja. Tiada sesi XPanel dibuat.',
                     ldapUsername: 'Nama pengguna LDAP',
                     usernameRequired: 'Masukkan nama pengguna LDAP.',
                     startTest: 'Mulakan ujian',
@@ -7582,7 +7588,7 @@ const message = {
             tamperContent4:
                 'Rekod log akses dan operasi fail untuk audit dan analisis selanjutnya oleh pentadbir serta mengenal pasti potensi ancaman keselamatan.',
             settingTitle1: 'Mesej Selamat Datang Tersuai',
-            settingContent1: 'Tetapkan mesej selamat datang tersuai pada halaman log masuk 1Panel.',
+            settingContent1: 'Tetapkan mesej selamat datang tersuai pada halaman log masuk XPanel.',
             settingTitle2: 'Logo Tersuai',
             settingContent2: 'Benarkan memuat naik gambar logo yang mengandungi nama jenama atau teks lain.',
             settingTitle3: 'Ikon Laman Web Tersuai',
@@ -7678,7 +7684,7 @@ const message = {
             nodeAppTitle1: 'Pengurusan Naik Taraf Aplikasi',
             nodeAppContent1: 'Pemantauan bersatu kemas kini aplikasi berbilang nod, menyokong naik taraf satu klik',
             appTitle1: 'Pengurusan Panel yang Fleksibel',
-            appContent1: 'Uruskan pelayan 1Panel anda dengan mudah pada bila-bila masa dan di mana sahaja.',
+            appContent1: 'Uruskan pelayan XPanel anda dengan mudah pada bila-bila masa dan di mana sahaja.',
             appTitle2: 'Maklumat Perkhidmatan Komprehensif',
             appContent2:
                 'Uruskan aplikasi, laman web, Docker, pangkalan data, dll melalui aplikasi mudah alih dan sokong pembinaan pantas aplikasi dan laman web.',
@@ -7773,7 +7779,7 @@ const message = {
             addPanel: 'Tambah Panel',
             addPanelHelper:
                 'Selepas berjaya menambah panel, anda boleh mengakses panel sasaran dengan pantas di [Gambaran Keseluruhan - Panel].',
-            panel: 'Panel 1Panel',
+            panel: 'Panel XPanel',
             others: 'Panel Lain',
             addNode: 'Tambah Nod',
             connInfo: 'Maklumat Sambungan',
@@ -7841,7 +7847,7 @@ const message = {
             forceDeleteHelper:
                 'Hapus secara paksa akan mengabaikan ralat penghapusan nod dan menghapus metadata pangkalan data',
             uninstall: 'Padam data nod',
-            uninstallHelper: 'Ini akan memadamkan semua data berkaitan 1Panel bagi nod. Pilih dengan berhati-hati!',
+            uninstallHelper: 'Ini akan memadamkan semua data berkaitan XPanel bagi nod. Pilih dengan berhati-hati!',
             baseDir: 'Direktori Pemasangan',
             baseDirHelper: 'Apabila direktori pemasangan kosong, secara lalai akan dipasang di direktori /opt',
             nodePort: 'Port Nod',

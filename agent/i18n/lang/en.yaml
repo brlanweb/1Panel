@@ -70,6 +70,7 @@ Decrypt: "Decrypt"
 
 # agent
 ErrAgentAccountBound: 'Account is bound to an agent and cannot be deleted'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'This model service is currently used by Terminal AI. Switch the account in Terminal AI settings or disable Terminal AI and try again.'
 ErrFileAIAccountInUse: 'This model service is currently used by File Management AI. Switch the account in File Management AI settings or disable File Management AI and try again.'
 ErrAgentAccountUnavailable: 'Account connection unavailable: {{ .err }}'

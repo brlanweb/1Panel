@@ -16,7 +16,6 @@ var clusterMenuChildren = []dto.ShowMenu{
 	{ID: "1241", Disabled: false, Title: "menu.clusterOverview", IsShow: true, Label: "ClusterOverview", Path: "/cluster/overview", Sort: 10},
 	{ID: "1248", Disabled: false, Title: "menu.clusterResource", IsShow: true, Label: "ClusterResource", Path: "/cluster/resource", Sort: 15},
 	{ID: "1242", Disabled: false, Title: "menu.clusterNodes", IsShow: true, Label: "ClusterNodes", Path: "/cluster/nodes", Sort: 20},
-	{ID: "1243", Disabled: false, Title: "menu.clusterPanels", IsShow: true, Label: "ClusterPanels", Path: "/cluster/panels", Sort: 30},
 	{ID: "1245", Disabled: false, Title: "menu.clusterSync", IsShow: true, Label: "ClusterSync", Path: "/cluster/sync", Sort: 50},
 	{ID: "1246", Disabled: false, Title: "menu.clusterMonitor", IsShow: true, Label: "ClusterMonitor", Path: "/cluster/monitor", Sort: 60},
 	{ID: "1247", Disabled: false, Title: "menu.clusterDbReplication", IsShow: true, Label: "ClusterDbReplication", Path: "/cluster/db-replication", Sort: 70},
@@ -102,6 +101,29 @@ var ExpandClusterMenu = &gormigrate.Migration{
 				Label: "Cluster-Menu", Path: "/cluster", Sort: 1050,
 				Children: clusterMenuChildren,
 			})
+		})
+	},
+}
+
+// MergeClusterPanelsMenu removes the "Panel management" entry: its list was
+// a duplicate of node management, which now shows the same resource columns.
+var MergeClusterPanelsMenu = &gormigrate.Migration{
+	ID: "20261122-merge-cluster-panels-menu",
+	Migrate: func(tx *gorm.DB) error {
+		return helper.UpdateHideMenu(tx, func(menus []dto.ShowMenu) []dto.ShowMenu {
+			for i := range menus {
+				if menus[i].Label != "Cluster-Menu" {
+					continue
+				}
+				kept := make([]dto.ShowMenu, 0, len(menus[i].Children))
+				for _, child := range menus[i].Children {
+					if child.Label != "ClusterPanels" {
+						kept = append(kept, child)
+					}
+				}
+				menus[i].Children = kept
+			}
+			return menus
 		})
 	},
 }

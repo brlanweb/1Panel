@@ -70,6 +70,7 @@ Decrypt: "رمزگشایی"
 
 # عامل
 ErrAgentAccountBound: 'حساب به یک عامل متصل است و قابل حذف نیست'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'این سرویس مدل در حال حاضر توسط ترمینال هوش مصنوعی استفاده می‌شود. حساب را در تنظیمات ترمینال هوش مصنوعی تغییر دهید یا ترمینال هوش مصنوعی را غیرفعال کرده و دوباره تلاش کنید.'
 ErrFileAIAccountInUse: 'این سرویس مدل توسط هوش مصنوعی مدیریت فایل استفاده می‌شود. حساب را در تنظیمات آن تغییر دهید یا هوش مصنوعی مدیریت فایل را غیرفعال کرده و دوباره تلاش کنید.'
 ErrAgentAccountUnavailable: 'اتصال حساب در دسترس نیست: {{ .err }}'

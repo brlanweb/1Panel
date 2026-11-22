@@ -94,11 +94,30 @@
                             <span v-else>—</span>
                         </template>
                     </el-table-column>
-                    <el-table-column :label="$t('cluster.version')" prop="version" width="110px" align="center">
+                    <el-table-column :label="$t('cluster.version')" prop="version" width="140px" align="center">
                         <template #default="{ row }">
                             {{ row.version || '—' }}
                         </template>
                     </el-table-column>
+                    <el-table-column :label="$t('cluster.cpu')" prop="cpuUsedPercent" width="90px" align="center">
+                        <template #default="{ row }">
+                            <span v-if="row.status === 'online'">{{ (row.cpuUsedPercent || 0).toFixed(1) }}%</span>
+                            <span v-else>—</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column :label="$t('cluster.memory')" prop="memUsedPercent" width="90px" align="center">
+                        <template #default="{ row }">
+                            <span v-if="row.status === 'online'">{{ (row.memUsedPercent || 0).toFixed(1) }}%</span>
+                            <span v-else>—</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column :label="$t('cluster.appCount')" prop="appCount" width="80px" align="center" />
+                    <el-table-column
+                        :label="$t('cluster.websiteCount')"
+                        prop="websiteCount"
+                        width="80px"
+                        align="center"
+                    />
                     <el-table-column :label="$t('cluster.loginLock')" prop="loginLocked" width="150px" align="center">
                         <template #default="{ row }">
                             <el-tag :type="loginLockTag(row)" size="small">{{ loginLockLabel(row) }}</el-tag>

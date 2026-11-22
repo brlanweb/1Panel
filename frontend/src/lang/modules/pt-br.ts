@@ -633,7 +633,7 @@ const message = {
         revokeAuthorizationHelper: 'Revogar o acesso do usuário {0} ao banco de dados {1}?',
         supplementPassword: 'Adicionar senha',
         supplementPasswordHelper:
-            'Salva apenas a senha existente no 1Panel, sem alterar a senha do usuário do banco de dados.',
+            'Salva apenas a senha existente no XPanel, sem alterar a senha do usuário do banco de dados.',
         noUserBind: 'Sem vínculo',
         pgAuthorizationHelper:
             'Superusuários acessam todos os bancos desta instância sem vínculo. Para usuários comuns, são gerenciadas apenas permissões de banco, sem permissões de tabelas.',
@@ -641,7 +641,7 @@ const message = {
             'Revogar a autorização não exclui o usuário. O acesso por PUBLIC ou outros papéis pode permanecer.',
         pgSuperUser: 'Superusuário',
         loadFromRemoteHelper:
-            'Isso sincronizará bancos de dados, usuários e autorizações do servidor com o 1Panel. Deseja continuar?',
+            'Isso sincronizará bancos de dados, usuários e autorizações do servidor com o XPanel. Deseja continuar?',
         passwordHelper: 'Não é possível obter, clique para modificar',
         remote: 'Remoto',
         remoteDB: 'Servidor remoto | Servidores remotos',
@@ -815,7 +815,7 @@ const message = {
             hardware: 'Localização do hardware',
             editMembers: 'Editar membros',
             usageScope:
-                'As associações vêm das configurações de aplicativos gerenciados pelo 1Panel neste nó; a memória é medida para toda a GPU.',
+                'As associações vêm das configurações de aplicativos gerenciados pelo XPanel neste nó; a memória é medida para toda a GPU.',
             usageTitle: 'Uso de GPU',
             usageHelp:
                 'Outras implantações podem usar as GPUs selecionadas. Continuar pode causar falta de memória ou reduzir o desempenho. Você ainda pode prosseguir.',
@@ -1199,7 +1199,7 @@ const message = {
             localLayoutDirect: 'Colocar diretamente',
             localLayoutGrouped: 'Por organização (opcional)',
             serviceHelper:
-                'Conecte serviços de modelos de nuvens públicas, mecanismos de inferência locais e gateways de IA para uso pelos agentes integrados do 1Panel e agentes externos, como o WorkBuddy.',
+                'Conecte serviços de modelos de nuvens públicas, mecanismos de inferência locais e gateways de IA para uso pelos agentes integrados do XPanel e agentes externos, como o WorkBuddy.',
             gpuType: 'Tipo de GPU',
             vllmVersion: 'Versão do vLLM',
             vllmImage: 'Imagem do vLLM',
@@ -1263,7 +1263,7 @@ const message = {
             modelDirHelper:
                 'Diretório de download e listagem dos modelos locais. Alterá-lo não move os arquivos existentes.',
             featuredModelsHelper:
-                'Explore os modelos selecionados pelo 1Panel, consulte especificações, casos de uso e fontes de download e escolha um modelo para baixar.',
+                'Explore os modelos selecionados pelo XPanel, consulte especificações, casos de uso e fontes de download e escolha um modelo para baixar.',
             featuredModelsSyncHelper:
                 'A sincronização automática atualiza o catálogo de modelos em destaque diariamente de madrugada sem baixar arquivos de modelos. Você também pode sincronizar manualmente a qualquer momento.',
             recipeSyncHelper:
@@ -1334,7 +1334,7 @@ const message = {
             recipeArguments: 'Argumentos de inicialização',
             recipeImportCommand: 'Importar comando',
             recipeImportPlaceholder:
-                'Cole um comando de inicialização no formato pip/uv ou docker aqui. O 1Panel irá analisar e preencher o formulário automaticamente.',
+                'Cole um comando de inicialização no formato pip/uv ou docker aqui. O XPanel irá analisar e preencher o formulário automaticamente.',
             recipeVariablesNotSupported:
                 'Referências a variáveis não são aceitas nos comandos. Use valores explícitos; configure as variáveis de ambiente no campo correspondente.',
             recipeImportError:
@@ -1369,7 +1369,7 @@ const message = {
             ollama_doc:
                 'Busque modelos em {link}. O modelo será baixado automaticamente após ser adicionado. Verifique se o Ollama está em execução e se há espaço suficiente em disco.',
             container_conn_helper: 'Use este endereço para acesso ou conexão entre contêineres',
-            from_remote: 'Este modelo não foi baixado pelo 1Panel; não há logs de download relacionados.',
+            from_remote: 'Este modelo não foi baixado pelo XPanel; não há logs de download relacionados.',
             no_logs: 'Os logs de download deste modelo foram excluídos e não podem ser visualizados.',
             composeFile: 'Arquivo de Orquestração',
             imageCategory: 'Tipo de imagem',
@@ -1384,8 +1384,8 @@ const message = {
                 default:
                     'Versão padrão oficial da comunidade vLLM com CUDA 13.0, para drivers e arquiteturas de GPU mais recentes.',
                 rtxPro5000:
-                    'Versão personalizada para NVIDIA RTX Pro 5000, otimizada para DeepSeek-V4.1-Flash-1017. A imagem é mantida pelo 1Panel.',
-                dspark: 'Versão personalizada para dois dispositivos NVIDIA GB10, otimizada para DeepSeek-V4-Flash. A imagem é mantida pelo 1Panel.',
+                    'Versão personalizada para NVIDIA RTX Pro 5000, otimizada para DeepSeek-V4.1-Flash-1017. A imagem é mantida pelo XPanel.',
+                dspark: 'Versão personalizada para dois dispositivos NVIDIA GB10, otimizada para DeepSeek-V4-Flash. A imagem é mantida pelo XPanel.',
                 dspark4:
                     'Versão personalizada para quatro dispositivos NVIDIA GB10, otimizada para DeepSeek-V4.1-Flash.',
             },
@@ -1445,7 +1445,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI Gateway permite implantação independente',
             deploymentNoticeDescription:
-                'O AI Gateway agora permite implantação independente. O AI Gateway integrado ao 1Panel não receberá mais atualizações. Recomendamos instalar a versão independente pela loja de aplicativos. Você também pode continuar usando a versão atual.',
+                'O AI Gateway agora permite implantação independente. O AI Gateway integrado ao XPanel não receberá mais atualizações. Recomendamos instalar a versão independente pela loja de aplicativos. Você também pode continuar usando a versão atual.',
             deploymentNoticeContinue: 'Entendido, continuar usando',
             deploymentNoticeAppStore: 'Ir à loja de aplicativos',
             deploymentNoticeNoAppPermission:
@@ -2210,14 +2210,14 @@ const message = {
             protocolVersionHelper:
                 'Usado apenas pelo Streamable HTTP sem estado para inicializar automaticamente o MCP Server stdio a jusante',
             gatewayArgsHelper:
-                'Os argumentos são adicionados ao comando supergateway. Os parâmetros de transporte, porta, caminho e protocolo gerenciados pelo 1Panel não podem ser alterados',
+                'Os argumentos são adicionados ao comando supergateway. Os parâmetros de transporte, porta, caminho e protocolo gerenciados pelo XPanel não podem ser alterados',
             testConnection: 'Testar Conexão',
             connectionSuccess: 'Conexão bem-sucedida',
             connectionFailed: 'Falha na conexão',
         },
     },
     panelMCP: {
-        accessTitle: 'Acesso ao 1Panel MCP',
+        accessTitle: 'Acesso ao XPanel MCP',
         servicesTitle: 'Serviços MCP',
         websiteCancelPendingBind: 'Cancelar vinculação',
         websiteBinding: 'Vinculação de site',
@@ -2304,7 +2304,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2342,7 +2342,7 @@ const message = {
         allResults: 'Todos os status',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: 'Falha na verificação do serviço. Confira os logs e a compatibilidade de versões.',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2351,13 +2351,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: 'Excluir imagem anterior',
         deleteOldImageHelp:
             'Após a atualização bem-sucedida, remove a imagem anterior sem uso. Falhas na limpeza não afetam a atualização; consulte os logs da tarefa.',
         installEmpty:
-            'O serviço 1Panel MCP ainda não está instalado. Instale-o e ative-o para criar credenciais de acesso e chamar ferramentas MCP.',
+            'O serviço XPanel MCP ainda não está instalado. Instale-o e ative-o para criar credenciais de acesso e chamar ferramentas MCP.',
         installWithCredentials: 'MCP não está instalado. Credenciais mantidas; chamadas indisponíveis.',
         installTaskLog: 'Registro de instalação',
         installNow: 'Instalar agora',
@@ -2365,7 +2365,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: 'Recarregar e sobrescrever configurações não salvas?',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: 'Informe uma referência de imagem Docker válida com tag ou resumo SHA-256.',
@@ -2601,6 +2601,10 @@ const message = {
         missing: 'Não existe',
     },
     container: {
+        logDisconnected:
+            'O fluxo de logs foi desconectado. Reconecte para carregar os logs recentes e retomar a transmissão.',
+        logsUnavailable:
+            'O contêiner não existe ou foi excluído. Os logs do contêiner não estão disponíveis. Recrie o contêiner e tente novamente.',
         nvidiaSupport: 'Suporte a GPU NVIDIA',
         nvidiaHelper:
             'Registra o runtime de contêiner NVIDIA. Instale primeiro o NVIDIA Container Toolkit. Atribua GPUs a cada contêiner separadamente.',
@@ -2657,7 +2661,7 @@ const message = {
         operatorAppHelper:
             'A operação "{0}" será realizada no(s) seguinte(s) contêiner(es) e pode afetar os serviços em execução. Deseja continuar?',
         containerDeleteHelper:
-            "Detectado que o contêiner é da App Store. Excluir o contêiner não o removerá completamente do 1Panel. Para excluí-lo completamente, vá para a App Store -> menus 'Instalado' ou 'Ambiente de Execução'. Continuar?",
+            "Detectado que o contêiner é da App Store. Excluir o contêiner não o removerá completamente do XPanel. Para excluí-lo completamente, vá para a App Store -> menus 'Instalado' ou 'Ambiente de Execução'. Continuar?",
         start: 'Iniciar',
         stop: 'Parar',
         restart: 'Reiniciar',
@@ -2880,7 +2884,7 @@ const message = {
         composeNamePriorityHelper:
             'Prioridade do nome do projeto: nome definido na configuração do Docker Compose > diretório pai do arquivo > nome informado aqui.',
         composeHelper:
-            'A composição criada através do editor ou template do 1Panel será salva no diretório {0}/docker/compose.',
+            'A composição criada através do editor ou template do XPanel será salva no diretório {0}/docker/compose.',
         deleteFile: 'Excluir arquivo',
         deleteComposeHelper:
             'Excluir todos os arquivos relacionados à composição do container, incluindo arquivos de configuração e arquivos persistentes. Prossiga com cautela!',
@@ -2895,12 +2899,12 @@ const message = {
         exited: 'Finalizado',
         running: 'Em execução ( {0} / {1} )',
         composeDetailHelper:
-            'A composição foi criada externamente ao 1Panel. As operações de iniciar e parar não são suportadas.',
+            'A composição foi criada externamente ao XPanel. As operações de iniciar e parar não são suportadas.',
         composeOperatorHelper: 'A operação {1} será realizada no {0}. Deseja continuar?',
         composeDownHelper:
             'Isso irá parar e remover todos os containers e redes sob a composição {0}. Deseja continuar?',
         composeEnvHelper2:
-            'Esta orquestração foi criada pela Loja de Aplicativos 1Panel. Modifique as variáveis de ambiente nos aplicativos instalados.',
+            'Esta orquestração foi criada pela Loja de Aplicativos XPanel. Modifique as variáveis de ambiente nos aplicativos instalados.',
         composeContentPlaceholder: 'Escreva ou cole aqui o conteúdo do seu arquivo docker-compose',
         setting: 'Configuração | Configurações',
         restartHelper: 'As alterações de configuração exigem reiniciar o serviço Docker para entrarem em vigor',
@@ -3064,7 +3068,7 @@ const message = {
         noLogs: 'Ainda não há saída de tarefa...',
         errPath: 'Caminho de backup [{0}] com erro, não é possível fazer o download!',
         cutWebsiteLog: 'Rotação de log do site',
-        cutWebsiteLogHelper: 'Os arquivos de log rotacionados serão salvos no diretório de backup do 1Panel.',
+        cutWebsiteLogHelper: 'Os arquivos de log rotacionados serão salvos no diretório de backup do XPanel.',
         syncIpGroup: 'Sincronizar grupos de IP do WAF',
         syncIpGroupHelper: 'Sincroniza grupos de IP remotos usados nas listas negra/branca do WAF',
         requestExpirationTime: 'Tempo de expiração da solicitação de upload (Horas)',
@@ -3098,7 +3102,7 @@ const message = {
                 'Preparando para sincronizar a biblioteca de scripts do sistema. Esta operação afeta apenas scripts do sistema. Continuar?',
         },
         nextTime: 'Próximas 5 execuções',
-        logHelper1: '1. Log do sistema 1Panel',
+        logHelper1: '1. Log do sistema XPanel',
         cronSpecDoc:
             'Ciclos personalizados suportam apenas o formato [minuto hora dia mês semana], ex.: 0 0 * * *. Veja a documentação oficial.',
         backupContent: 'Conteúdo do backup',
@@ -3814,7 +3818,7 @@ const message = {
         previewTruncated: 'O arquivo é muito grande, mostrando apenas a última parte',
         previewEmpty: 'O arquivo está vazio ou não é um arquivo de texto',
         previewLargeFile: 'Visualizar',
-        panelInstallDir: 'O diretório de instalação do 1Panel não pode ser excluído',
+        panelInstallDir: 'O diretório de instalação do XPanel não pode ser excluído',
         wgetTask: 'Tarefa de Download',
         stopWgetConfirm: 'Tem certeza de que deseja parar esta tarefa de download?',
         useServerFilename: 'Usar o nome de arquivo fornecido pelo servidor',
@@ -4052,7 +4056,7 @@ const message = {
         timeZone: 'Fuso horário',
         timeZoneChangeHelper: 'Alterar o fuso horário exige reiniciar o serviço. Deseja continuar?',
         timeZoneHelper:
-            'A modificação de fuso horário depende do serviço timedatectl do sistema. Entrará em vigor após reiniciar o serviço 1Panel.',
+            'A modificação de fuso horário depende do serviço timedatectl do sistema. Entrará em vigor após reiniciar o serviço XPanel.',
         timeZoneCN: 'Pequim',
         timeZoneAM: 'Los Angeles',
         timeZoneNY: 'Nova York',
@@ -4162,7 +4166,7 @@ const message = {
             'Somente requisições originadas nesses IP/CIDR confiarão em Forwarded e X-Forwarded-Proto para detectar HTTPS',
         passkeyNotSupported: 'O navegador ou ambiente atual não suporta passkeys',
         passkeyPrereqTitle: 'Os seguintes pré-requisitos são necessários para Passkey',
-        passkeyPrereqBindDomain: 'Vinculação de domínio do 1Panel configurada',
+        passkeyPrereqBindDomain: 'Vinculação de domínio do XPanel configurada',
         passkeyPrereqHttps: 'Acesso seguro via HTTPS',
         passkeyPrereqBrowser: 'O ambiente suporta Passkey (WebAuthn + autenticador de plataforma)',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4215,10 +4219,10 @@ const message = {
         panelSSL: 'SSL do Painel',
         unBindDomainHelper:
             'A ação de desvincular um domínio pode causar insegurança no sistema. Você deseja continuar?',
-        bindDomainHelper: 'Após vincular o domínio, somente esse domínio poderá acessar o serviço 1Panel.',
+        bindDomainHelper: 'Após vincular o domínio, somente esse domínio poderá acessar o serviço XPanel.',
         bindDomainHelper1: 'Deixe em branco para desabilitar o vínculo de domínio.',
         bindDomainWarning:
-            'Após vincular o domínio, você será desconectado e poderá acessar o serviço 1Panel apenas através do domínio especificado nas configurações. Você deseja continuar?',
+            'Após vincular o domínio, você será desconectado e poderá acessar o serviço XPanel apenas através do domínio especificado nas configurações. Você deseja continuar?',
         allowIPs: 'IP Autorizado',
         unAllowIPs: 'IP Não Autorizado',
         unAllowIPsWarning:
@@ -4236,7 +4240,7 @@ const message = {
         secret: 'Segredo',
         mfaInterval: 'Intervalo de atualização (s)',
         mfaTitleHelper:
-            'O título é usado para distinguir diferentes hosts do 1Panel. Escaneie novamente ou adicione manualmente a chave secreta após modificar o título.',
+            'O título é usado para distinguir diferentes hosts do XPanel. Escaneie novamente ou adicione manualmente a chave secreta após modificar o título.',
         mfaIntervalHelper:
             'Após alterar o intervalo de atualização, escaneie novamente ou adicione a chave secreta manualmente.\nAlguns aplicativos autenticadores suportam apenas intervalo de 30 segundos (por exemplo, Google/Microsoft Authenticator).',
         mfaAlert:
@@ -4323,14 +4327,14 @@ const message = {
         ignoreRule: 'Ignorar regra',
         editIgnoreRule: '@:commons.button.edit @.lower:setting.ignoreRule',
         ignoreHelper:
-            'Esta regra será usada para comprimir e fazer backup do diretório de dados do 1Panel durante a criação do snapshot. Por padrão, arquivos de socket são ignorados.',
+            'Esta regra será usada para comprimir e fazer backup do diretório de dados do XPanel durante a criação do snapshot. Por padrão, arquivos de socket são ignorados.',
         ignoreHelper1: 'Um por linha. Exemplo,\n*.log\n/opt/1panel/cache',
-        panelInfo: 'Escrever informações básicas do 1Panel',
-        panelBin: 'Fazer backup dos arquivos do sistema 1Panel',
+        panelInfo: 'Escrever informações básicas do XPanel',
+        panelBin: 'Fazer backup dos arquivos do sistema XPanel',
         daemonJson: 'Fazer backup do arquivo de configuração do Docker',
-        appData: 'Fazer backup dos aplicativos instalados do 1Panel',
-        panelData: 'Fazer backup do diretório de dados do 1Panel',
-        backupData: 'Fazer backup do diretório de backup local do 1Panel',
+        appData: 'Fazer backup dos aplicativos instalados do XPanel',
+        panelData: 'Fazer backup do diretório de dados do XPanel',
+        backupData: 'Fazer backup do diretório de backup local do XPanel',
         compress: 'Criar arquivo de snapshot',
         upload: 'Fazer upload do arquivo de snapshot',
         recoverDetail: 'Detalhes da recuperação',
@@ -4343,7 +4347,7 @@ const message = {
             'Espaço em disco insuficiente detectado, por favor, verifique ou libere espaço e tente novamente!',
         recoverHelper:
             'Iniciando a recuperação do snapshot {0}, por favor, confirme as seguintes informações antes de prosseguir:',
-        recoverHelper1: 'A recuperação requer reiniciar os serviços Docker e 1Panel',
+        recoverHelper1: 'A recuperação requer reiniciar os serviços Docker e XPanel',
         recoverHelper2:
             'Por favor, assegure-se de que há espaço suficiente em disco no servidor (Tamanho do arquivo de snapshot: {0}, Espaço disponível: {1})',
         recoverHelper3:
@@ -4352,8 +4356,8 @@ const message = {
             'Esta operação faz rollback apenas do nó principal. Se houver nós secundários atualizados, faça o rollback deles primeiro antes de continuar.',
         rollback: 'Rollback',
         rollbackHelper:
-            'Reverter essa recuperação substituirá todos os arquivos dessa recuperação e pode exigir reiniciar os serviços Docker e 1Panel. Você deseja continuar?',
-        upgradeHelper: 'A atualização requer reiniciar o serviço 1Panel. Você deseja continuar?',
+            'Reverter essa recuperação substituirá todos os arquivos dessa recuperação e pode exigir reiniciar os serviços Docker e XPanel. Você deseja continuar?',
+        upgradeHelper: 'A atualização requer reiniciar o serviço XPanel. Você deseja continuar?',
         rollbackLocalHelper:
             'O nó principal não suporta rollback direto. Por favor, execute manualmente o comando [1pctl restore] para fazer o rollback!',
         noUpgrade: 'Esta é a versão mais recente',
@@ -4461,7 +4465,7 @@ const message = {
         importLicense: 'Licença',
         securityWarningTitle: 'Não use licenças crackeadas ou de fontes desconhecidas.',
         securityWarningContent:
-            'O 1Panel precisa ser executado por um usuário com privilégios de administração do sistema. Licenças não oficiais ou versões adulteradas podem causar perda de controle do servidor, vazamento de dados e outros riscos graves de segurança. Obtenha licenças e instaladores apenas pelos canais oficiais da FIT2CLOUD.',
+            'O XPanel precisa ser executado por um usuário com privilégios de administração do sistema. Licenças não oficiais ou versões adulteradas podem causar perda de controle do servidor, vazamento de dados e outros riscos graves de segurança. Obtenha licenças e instaladores apenas pelos canais oficiais da FIT2CLOUD.',
         importHelper: 'Clique ou arraste o arquivo de licença aqui',
         licenseRequiredTip:
             'A licença ainda não foi importada. Copie o ID do dispositivo, obtenha a licença e importe-a antes de fazer login.',
@@ -4506,7 +4510,7 @@ const message = {
         monitor:
             'Faça upgrade para a edição comercial para acompanhar o status do site em tempo real, tendências de visitantes, origens de tráfego, logs de requisições e mais.',
         alert: 'Faça upgrade para a edição comercial para receber alertas por SMS e consultar os logs de alertas.',
-        node: 'Atualize para a edição comercial para gerenciar vários servidores Linux com o 1Panel.',
+        node: 'Atualize para a edição comercial para gerenciar vários servidores Linux com o XPanel.',
         nodeApp:
             'Atualize para a edição comercial para atualizar versões de aplicativos multi-nó sem alternar manualmente entre os nós.',
         nodeDashboard:
@@ -4531,7 +4535,7 @@ const message = {
     },
     clean: {
         scan: 'Iniciar escaneamento',
-        scanHelper: 'Limpeza fácil de arquivos inúteis gerados durante a execução do 1Panel',
+        scanHelper: 'Limpeza fácil de arquivos inúteis gerados durante a execução do XPanel',
         clean: 'Limpar agora',
         reScan: 'Repetir escaneamento',
         cleanHelper: 'Arquivos e diretórios selecionados não podem ser revertidos após a limpeza. Continuar?',
@@ -5305,7 +5309,7 @@ const message = {
         execShell: 'Executar o script após a solicitação de certificação.',
         shell: 'Conteúdo do script',
         shellHelper:
-            'O diretório padrão de execução do script é o diretório de instalação do 1Panel. Se um certificado for enviado para o diretório local, o diretório de execução será o diretório de envio do certificado. O tempo limite padrão de execução é de 30 minutos.',
+            'O diretório padrão de execução do script é o diretório de instalação do XPanel. Se um certificado for enviado para o diretório local, o diretório de execução será o diretório de envio do certificado. O tempo limite padrão de execução é de 30 minutos.',
         customAcme: 'Serviço ACME Personalizado',
         customAcmeURL: 'URL do Serviço ACME',
         baiduCloud: 'Baidu Cloud',
@@ -5323,7 +5327,7 @@ const message = {
         ipv6DisableContainerHelper: 'Ocultar as informações de portas IPv6 dos contêineres.',
         ipv6DisableWhitelistHelper:
             'Remover as regras IPv6 da lista de permissões e manter as demais regras IPv6 existentes.',
-        ipv6DisableRulesHelper: 'Desativar as regras IPv6 de iptables e nftables gerenciadas pelo 1Panel.',
+        ipv6DisableRulesHelper: 'Desativar as regras IPv6 de iptables e nftables gerenciadas pelo XPanel.',
         ipv6DisableNetworkHelper: 'Isso não desativa a rede IPv6 do servidor.',
         ipv6DisableEffectHelper:
             'As restrições de acesso IPv6 e o encaminhamento de portas afetados deixarão de ser aplicados.',
@@ -5384,7 +5388,7 @@ const message = {
         systemFirewall: 'Firewall do host',
         systemFirewallHelper: 'Controla o acesso às portas do host e as regras de entrada.',
         forwardingHelper: 'Gerencia regras de encaminhamento de portas.',
-        dockerFirewallHelper: 'Seleciona como o 1Panel gerencia a proteção de portas de contêineres.',
+        dockerFirewallHelper: 'Seleciona como o XPanel gerencia a proteção de portas de contêineres.',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0, experimental',
         backendRecommendation: 'Recomenda-se usar iptables ou nftables.',
         configuredRules: '{0} regras configuradas',
@@ -5396,9 +5400,9 @@ const message = {
         importLimit: 'Importe até {0} regras (contadas após a expansão), com um arquivo de no máximo {1} KB.',
         ruleSyncTitle: 'Sincronizar regras',
         ruleSyncAction: 'Sincronizar regras',
-        ruleSyncDatabase: 'Banco de dados do 1Panel',
+        ruleSyncDatabase: 'Banco de dados do XPanel',
         ruleSyncDatabaseHelper:
-            'Sincroniza e ajusta as regras gerenciadas no firewall atual com base nas regras do banco de dados do 1Panel. As regras ausentes serão adicionadas e as excedentes serão removidas.',
+            'Sincroniza e ajusta as regras gerenciadas no firewall atual com base nas regras do banco de dados do XPanel. As regras ausentes serão adicionadas e as excedentes serão removidas.',
         ruleSyncDatabaseTotal: 'Regras do banco de dados',
         ruleSyncDatabaseConfirm:
             'Sincronizar {1} para corresponder exatamente às {0} regras do banco de dados? {2} regras do destino serão removidas e as ausentes serão adicionadas.',
@@ -5427,13 +5431,13 @@ const message = {
         importFileHelper:
             'Importe arquivos JSON de até 64 MB em lotes, na ordem do arquivo. Regras que não puderem ser convertidas serão informadas como erros.',
         resetDirectRulesHelper:
-            'Excluir todas as cadeias do firewall do host do 1Panel, regras ativas e arquivos persistentes de {0}.',
+            'Excluir todas as cadeias do firewall do host do XPanel, regras ativas e arquivos persistentes de {0}.',
         resetWhitelistRulesHelper:
             'Redefinir as configurações personalizadas de {0}, restaurar os padrões e desativá-lo.',
         cleanupForwardingBackendHelper:
-            'Exclua de {0} todas as regras e cadeias de encaminhamento do 1Panel e os arquivos de recuperação automática. Os backups JSON existentes são mantidos.',
+            'Exclua de {0} todas as regras e cadeias de encaminhamento do XPanel e os arquivos de recuperação automática. Os backups JSON existentes são mantidos.',
         cleanupDockerBackendHelper:
-            'Exclua de {0} todas as regras e cadeias de proteção Docker do 1Panel e os arquivos de recuperação automática. Os backups JSON existentes são mantidos.',
+            'Exclua de {0} todas as regras e cadeias de proteção Docker do XPanel e os arquivos de recuperação automática. Os backups JSON existentes são mantidos.',
         cleanupBeforeBackendSwitch:
             'Redefina o {0} atual antes de mudar para {1} e confirme como as regras serão restauradas.',
         backendSwitchNotice:
@@ -5569,6 +5573,8 @@ const message = {
         editRuleConfirm: 'Tem certeza de que deseja modificar esta regra?',
     },
     runtime: {
+        statusMessageUnavailable:
+            'Não há informações detalhadas sobre o status. Consulte os logs do ambiente de execução para obter mais detalhes.',
         importEnv: 'Importar variáveis de ambiente',
         envImportError: 'Linha {0}: {1}',
         envInvalidAssignment: 'Era esperada uma atribuição NOME=valor válida',
@@ -5705,7 +5711,7 @@ const message = {
             dir: 'Diretório',
             numprocs: 'Nº de processos',
             initWarn:
-                'Isso irá modificar o valor "files" na seção "[include"] do arquivo de configuração principal. O diretório de outros arquivos de configuração será: "{diretório de instalação do 1Panel}/1panel/tools/supervisord/supervisor.d/".',
+                'Isso irá modificar o valor "files" na seção "[include"] do arquivo de configuração principal. O diretório de outros arquivos de configuração será: "{diretório de instalação do XPanel}/1panel/tools/supervisord/supervisor.d/".',
             operatorHelper: 'A operação {1} será realizada em {0}, deseja continuar? ',
             uptime: 'Tempo de execução',
             notStartWarn: 'O Supervisor não foi iniciado. Inicie-o primeiro.',
@@ -6547,7 +6553,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: 'Tolerância de tempo do token',
                     clockSkewHelper:
-                        'Permite uma pequena diferença de horário entre o provedor de identidade e o 1Panel. Mantenha o padrão de 60 segundos.',
+                        'Permite uma pequena diferença de horário entre o provedor de identidade e o XPanel. Mantenha o padrão de 60 segundos.',
                     clockSkewRequired: 'Insira a tolerância de tempo do token.',
                     compatibilityMode: 'Modo de compatibilidade',
                     compatibilityModeHelper:
@@ -6662,13 +6668,13 @@ const message = {
                     nameClaimHelper: 'Informe o campo que contém o nome de usuário, como preferred_username.',
                     nameClaimRequired: 'Insira o Claim de nome de usuário.',
                     nameConflict: 'Política de conflito de nomes',
-                    panelURL: '1Panel público URL',
+                    panelURL: 'XPanel público URL',
                     panelURLHTTPWarning:
                         'HTTP não protege a resposta de autorização. Use-o apenas em um ambiente privado isolado aceito pelo Provider.',
                     panelURLHelper:
-                        'Informe o endereço usado para acessar o 1Panel. Ele será usado para gerar a URL de retorno.',
+                        'Informe o endereço usado para acessar o XPanel. Ele será usado para gerar a URL de retorno.',
                     panelURLInvalid: 'Insira uma origem contendo apenas esquema, host e porta opcional.',
-                    panelURLRequired: 'Insira o 1Panel público URL.',
+                    panelURLRequired: 'Insira o XPanel público URL.',
                     pkceDisabled: 'Desativado (somente compatibilidade)',
                     pkceDisabledWarning:
                         'A desativação do PKCE reduz a proteção contra interceptação de código de autorização.',
@@ -6730,7 +6736,7 @@ const message = {
                         'Prefira JWKS. Uma chave pública estática não pode ser rotacionada automaticamente.',
                     signingKeyStatic: 'Chave pública estática JWK ou PEM',
                     standardDiscovery: 'Padrão OIDC Discovery',
-                    standardDiscoveryDesc: '1Panel descobre endpoints e recursos e não armazena o documento bruto.',
+                    standardDiscoveryDesc: 'XPanel descobre endpoints e recursos e não armazena o documento bruto.',
                     standardMode: 'Modo padrão',
                     standardModeHelper: 'Descubra endpoints, recursos de assinatura e suporte PKCE do Issuer.',
                     standardProtocolPolicy: 'Política de protocolo padrão',
@@ -6850,7 +6856,7 @@ const message = {
                     metadataXMLPlaceholder: 'Cole <EntityDescriptor>...</EntityDescriptor>',
                     nameAttribute: 'Atributo de nome de usuário',
                     nameAttributeHelper:
-                        'Lê este atributo da asserção SAML verificada e o mapeia para o nome de usuário do 1Panel.',
+                        'Lê este atributo da asserção SAML verificada e o mapeia para o nome de usuário do XPanel.',
                     nameAttributePlaceholder: 'Por exemplo: uid, username ou account',
                     nameAttributeRequired: 'Insira o atributo de nome de usuário.',
                     notConfigured: 'Não configurado',
@@ -6886,7 +6892,7 @@ const message = {
                         'Usada para assinar AuthnRequest e mensagens de logout. É criptografada em repouso e nunca exibida.',
                     syncLogout: 'Logout sincronizado',
                     syncLogoutHelper:
-                        'Sair do 1Panel ou do provedor de identidade também encerra a sessão do outro lado.',
+                        'Sair do XPanel ou do provedor de identidade também encerra a sessão do outro lado.',
                     testBeforeBrowserTest:
                         'Teste a configuração atual antes de iniciar um teste de login do navegador.',
                     testBeforeEnable: 'Teste a configuração atual antes de ativar ou salvar alterações confidenciais.',
@@ -6918,14 +6924,14 @@ const message = {
                     passwordSaved: 'Deixe em branco para manter a senha salva',
                     userSearch: 'Pesquisa de usuário',
                     userSearchDesc:
-                        'Configure a base e o filtro de pesquisa e mapeie o atributo LDAP para o campo name do 1Panel.',
+                        'Configure a base e o filtro de pesquisa e mapeie o atributo LDAP para o campo name do XPanel.',
                     userFilter: 'Filtro de usuário',
                     userFilterTooltip:
                         'Substitua %(user)s pelo nome de usuário com escape ou por * para uma leitura completa do diretório.',
                     userFilterHelper: 'Os nomes de usuário têm escape antes de serem inseridos no filtro LDAP.',
                     attributeMap: 'Mapeamento de atributos',
-                    attributeMapTooltip: 'Mapeamento JSON do campo name do 1Panel para um atributo LDAP.',
-                    attributeMapHelper: 'Configure o atributo LDAP mapeado para o campo name do 1Panel.',
+                    attributeMapTooltip: 'Mapeamento JSON do campo name do XPanel para um atributo LDAP.',
+                    attributeMapHelper: 'Configure o atributo LDAP mapeado para o campo name do XPanel.',
                     advanced: 'Configurações avançadas',
                     advancedDesc: 'Configure a paginação de consulta TLS e LDAP.',
                     strictSync: 'Sincronização estrita',
@@ -6965,7 +6971,7 @@ const message = {
                     sync: {
                         title: 'Sincronização agendada',
                         description:
-                            'Leia o diretório LDAP completo de acordo com uma programação e mantenha os usuários LDAP importados em 1Panel.',
+                            'Leia o diretório LDAP completo de acordo com uma programação e mantenha os usuários LDAP importados em XPanel.',
                         enable: 'Ativar agendamento',
                         enableHelper:
                             'Quando desativado, a execução automática é interrompida; a sincronização manual permanece disponível.',
@@ -7025,7 +7031,7 @@ const message = {
                     },
                     testLoginTitle: 'Testar login AD/LDAP',
                     testLoginDesc:
-                        'Vincule com uma credencial de usuário AD/LDAP apenas para testar a autenticação. Nenhuma sessão 1Panel é criada.',
+                        'Vincule com uma credencial de usuário AD/LDAP apenas para testar a autenticação. Nenhuma sessão XPanel é criada.',
                     ldapUsername: 'Nome de usuário LDAP',
                     usernameRequired: 'Digite o nome de usuário LDAP.',
                     startTest: 'Iniciar teste',
@@ -7631,7 +7637,7 @@ const message = {
             tamperContent4:
                 'Registra logs de acesso e operações em arquivos para auditoria e análise posteriores, ajudando administradores a identificar ameaças de segurança potenciais.',
             settingTitle1: 'Mensagem de Boas-vindas Personalizada',
-            settingContent1: 'Defina uma mensagem de boas-vindas personalizada na página de login do 1Panel.',
+            settingContent1: 'Defina uma mensagem de boas-vindas personalizada na página de login do XPanel.',
             settingTitle2: 'Logo Personalizado',
             settingContent2: 'Permite o upload de imagens de logotipo contendo nomes de marcas ou outros textos.',
             settingTitle3: 'Ícone Personalizado do Site',
@@ -7730,7 +7736,7 @@ const message = {
             nodeAppContent1:
                 'Monitoramento unificado de atualizações de aplicativos multi-nó, suporta atualização com um clique',
             appTitle1: 'Gerenciamento Flexível do Painel',
-            appContent1: 'Gerencie facilmente seu servidor 1Panel a qualquer hora e em qualquer lugar.',
+            appContent1: 'Gerencie facilmente seu servidor XPanel a qualquer hora e em qualquer lugar.',
             appTitle2: 'Informações Completas do Serviço',
             appContent2:
                 'Gerencie aplicativos, sites, Docker, bancos de dados, etc. pelo app móvel e crie rapidamente aplicativos e sites.',
@@ -7828,7 +7834,7 @@ const message = {
             addPanel: 'Adicionar Painel',
             addPanelHelper:
                 'Após adicionar o painel com sucesso, você pode acessar rapidamente o painel de destino em [Visão Geral - Painéis].',
-            panel: 'Painel 1Panel',
+            panel: 'Painel XPanel',
             others: 'Outros Painéis',
             addNode: 'Adicionar Nó',
             connInfo: 'Informações de Conexão',
@@ -7895,7 +7901,7 @@ const message = {
             forceDeleteHelper:
                 'Excluir forçadamente ignorará erros de exclusão do nó e removerá os metadados do banco de dados',
             uninstall: 'Excluir dados do nó',
-            uninstallHelper: 'Isso excluirá todos os dados relacionados ao 1Panel do nó. Escolha com cuidado!',
+            uninstallHelper: 'Isso excluirá todos os dados relacionados ao XPanel do nó. Escolha com cuidado!',
             baseDir: 'Diretório de Instalação',
             baseDirHelper: 'Quando o diretório de instalação está vazio, será instalado por padrão no diretório /opt',
             nodePort: 'Porta do Nó',

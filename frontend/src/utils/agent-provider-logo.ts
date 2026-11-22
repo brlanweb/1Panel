@@ -55,10 +55,10 @@ const providerLogos: Record<string, AgentProviderLogo> = {
         source: 'https://vllm.ai/vLLM-Logo.svg',
     },
     '1panel-ai-gateway': {
-        src: `data:image/svg+xml,${encodeURIComponent(menuLogo.replace('currentColor', '#005eeb'))}`,
-        mark: '1P',
+        src: `data:image/svg+xml,${encodeURIComponent(menuLogo)}`,
+        mark: 'XP',
         background: '#ffffff',
-        color: '#005eeb',
+        color: '#0d9488',
     },
     deepseek: {
         src: asset('deepseek.svg'),

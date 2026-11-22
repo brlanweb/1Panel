@@ -70,6 +70,7 @@ Decrypt: 'Şifre Çöz'
 
 # ajan
 ErrAgentAccountBound: 'Hesap bir ajana bağlı'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'Bu model hizmeti su anda Terminal AI tarafindan kullaniliyor. Terminal AI ayarlarinda baska bir hesaba gecin veya Terminal AI yi devre disi birakip tekrar deneyin.'
 ErrFileAIAccountInUse: 'Bu model hizmeti dosya yönetimi yapay zekası tarafından kullanılıyor. Ayarlardan hesabı değiştirin veya yapay zekayı devre dışı bırakıp yeniden deneyin.'
 ErrAgentAccountUnavailable: 'Hesap bağlantısı yok: {{ .err }}'

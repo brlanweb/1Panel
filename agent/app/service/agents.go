@@ -1668,6 +1668,9 @@ func (a AgentService) DeleteAccount(req dto.AgentAccountDeleteReq) error {
 	if err != nil {
 		return err
 	}
+	if modelAlertUsesAccount(req.ID) {
+		return buserr.New("ErrAgentAccountUsedByAlert")
+	}
 
 	if err := global.DB.Transaction(func(tx *gorm.DB) error {
 		var agentCount int64

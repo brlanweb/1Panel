@@ -649,7 +649,7 @@ const tableData = computed(() => {
 const loadFrom = (row: any) => {
     switch (row.createdBy) {
         case '1Panel':
-            return '1Panel';
+            return 'XPanel';
         case 'Apps':
             return i18n.global.t('menu.apps');
         default:

@@ -627,13 +627,13 @@ const message = {
         revokeAuthorizationHelper: '사용자 {0}의 데이터베이스 {1} 접근 권한을 취소하시겠습니까?',
         supplementPassword: '비밀번호 추가',
         supplementPasswordHelper:
-            '기존 비밀번호를 1Panel에 저장하기만 하며 데이터베이스 사용자 비밀번호는 변경하지 않습니다.',
+            '기존 비밀번호를 XPanel에 저장하기만 하며 데이터베이스 사용자 비밀번호는 변경하지 않습니다.',
         pgAuthorizationHelper:
             '슈퍼유저는 연결 설정 없이 이 인스턴스의 모든 데이터베이스에 접근합니다. 일반 사용자는 데이터베이스 권한만 관리하며 테이블 권한은 포함하지 않습니다.',
         pgRevokeAuthorizationHelper:
             '권한을 철회해도 사용자는 삭제되지 않습니다. PUBLIC 또는 다른 역할을 통한 접근 권한은 남을 수 있습니다.',
         pgSuperUser: '슈퍼 사용자',
-        loadFromRemoteHelper: '서버의 데이터베이스, 사용자 및 권한 정보를 1Panel로 동기화합니다. 계속하시겠습니까?',
+        loadFromRemoteHelper: '서버의 데이터베이스, 사용자 및 권한 정보를 XPanel로 동기화합니다. 계속하시겠습니까?',
         passwordHelper: '확인 불가, 수정하려면 클릭',
         remote: '원격',
         remoteDB: '원격 서버 | 원격 서버들',
@@ -804,7 +804,7 @@ const message = {
             hardware: '하드웨어 배치',
             editMembers: '구성원 편집',
             usageScope:
-                '연결 정보는 이 노드에서 1Panel이 관리하는 앱 설정을 기준으로 합니다. 메모리는 전체 GPU의 측정값입니다.',
+                '연결 정보는 이 노드에서 XPanel이 관리하는 앱 설정을 기준으로 합니다. 메모리는 전체 GPU의 측정값입니다.',
             usageTitle: 'GPU 사용 현황',
             usageHelp:
                 '선택한 GPU를 다른 배포에서 사용 중일 수 있습니다. 계속하면 GPU 메모리가 부족하거나 성능이 저하될 수 있지만 진행할 수 있습니다.',
@@ -1166,7 +1166,7 @@ const message = {
             localLayoutDirect: '바로 배치',
             localLayoutGrouped: '조직별 분류 (선택)',
             serviceHelper:
-                '퍼블릭 클라우드, 로컬 추론 엔진, AI 게이트웨이 등의 모델 서비스를 통합하여 1Panel 내장 에이전트와 WorkBuddy 같은 외부 에이전트에서 사용할 수 있습니다.',
+                '퍼블릭 클라우드, 로컬 추론 엔진, AI 게이트웨이 등의 모델 서비스를 통합하여 XPanel 내장 에이전트와 WorkBuddy 같은 외부 에이전트에서 사용할 수 있습니다.',
             gpuType: 'GPU 유형',
             vllmVersion: 'vLLM 버전',
             vllmImage: 'vLLM 이미지',
@@ -1229,7 +1229,7 @@ const message = {
             modelDirHelper:
                 '모델 다운로드 저장 경로이자 로컬 모델 목록을 읽는 경로입니다. 변경해도 기존 파일은 이동하지 않습니다.',
             featuredModelsHelper:
-                '1Panel이 선정한 모델의 사양, 활용 사례 및 다운로드 소스를 확인하고 적합한 모델을 선택하여 다운로드하세요.',
+                'XPanel이 선정한 모델의 사양, 활용 사례 및 다운로드 소스를 확인하고 적합한 모델을 선택하여 다운로드하세요.',
             featuredModelsSyncHelper:
                 '자동 동기화를 켜면 매일 새벽 추천 모델 목록을 업데이트하며 모델 파일은 다운로드하지 않습니다. 언제든지 수동으로 동기화할 수도 있습니다.',
             recipeSyncHelper:
@@ -1296,7 +1296,7 @@ const message = {
             recipeArguments: '시작 인수',
             recipeImportCommand: '명령 가져오기',
             recipeImportPlaceholder:
-                '여기에 pip/uv 또는 docker 형식의 실행 명령을 붙여넣으면 1Panel이 자동으로 분석하여 양식을 채웁니다.',
+                '여기에 pip/uv 또는 docker 형식의 실행 명령을 붙여넣으면 XPanel이 자동으로 분석하여 양식을 채웁니다.',
             recipeVariablesNotSupported:
                 '명령에서 변수 참조는 지원되지 않습니다. 구체적인 값을 입력하고 환경 변수는 환경 변수 필드에서 설정하세요.',
             recipeImportError:
@@ -1328,7 +1328,7 @@ const message = {
             ollama_doc:
                 '{link}에서 모델을 검색하세요. 추가 후 모델을 자동으로 가져옵니다. Ollama 서비스가 정상적으로 실행 중이고 디스크 공간이 충분한지 확인하세요.',
             container_conn_helper: '컨테이너 간 접근 또는 연결에 이 주소를 사용',
-            from_remote: '이 모델은 1Panel을 통해 다운로드되지 않았으며 관련 풀 로그가 없습니다.',
+            from_remote: '이 모델은 XPanel을 통해 다운로드되지 않았으며 관련 풀 로그가 없습니다.',
             no_logs: '이 모델의 풀 로그가 삭제되어 관련 로그를 볼 수 없습니다.',
             composeFile: '컴포즈 파일',
             imageCategory: '이미지 유형',
@@ -1343,8 +1343,8 @@ const message = {
                 default:
                     'vLLM 공식 커뮤니티 표준 버전으로, CUDA 13.0을 사용하며 최신 드라이버와 최신 GPU 아키텍처에 적합합니다.',
                 rtxPro5000:
-                    'NVIDIA RTX Pro 5000용 맞춤 버전으로, DeepSeek-V4.1-Flash-1017에 최적화되어 있습니다. 이미지는 1Panel이 유지 관리합니다.',
-                dspark: 'NVIDIA GB10 장치 2대 구성용 맞춤 버전으로, DeepSeek-V4-Flash에 최적화되어 있습니다. 이미지는 1Panel이 유지 관리합니다.',
+                    'NVIDIA RTX Pro 5000용 맞춤 버전으로, DeepSeek-V4.1-Flash-1017에 최적화되어 있습니다. 이미지는 XPanel이 유지 관리합니다.',
+                dspark: 'NVIDIA GB10 장치 2대 구성용 맞춤 버전으로, DeepSeek-V4-Flash에 최적화되어 있습니다. 이미지는 XPanel이 유지 관리합니다.',
                 dspark4: 'NVIDIA GB10 장치 4대 구성용 맞춤 버전으로, DeepSeek-V4.1-Flash에 최적화되어 있습니다.',
             },
             syncModelAccount: '모델 서비스에 동기화',
@@ -1403,7 +1403,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI 게이트웨이 독립 배포 지원',
             deploymentNoticeDescription:
-                'AI 게이트웨이가 독립 배포를 지원합니다. 1Panel 내장 AI 게이트웨이는 더 이상 업데이트되지 않습니다. 앱 스토어에서 독립 버전을 설치하는 것을 권장합니다. 현재 버전을 계속 사용할 수도 있습니다.',
+                'AI 게이트웨이가 독립 배포를 지원합니다. XPanel 내장 AI 게이트웨이는 더 이상 업데이트되지 않습니다. 앱 스토어에서 독립 버전을 설치하는 것을 권장합니다. 현재 버전을 계속 사용할 수도 있습니다.',
             deploymentNoticeContinue: '확인, 계속 사용',
             deploymentNoticeAppStore: '앱 스토어로 이동',
             deploymentNoticeNoAppPermission: '앱 스토어 접근 권한이 없습니다. 관리자에게 독립 버전 설치를 요청하세요.',
@@ -2143,14 +2143,14 @@ const message = {
             protocolVersionHelper:
                 '상태 비저장 Streamable HTTP에서 하위 stdio MCP Server를 자동 초기화할 때만 사용합니다',
             gatewayArgsHelper:
-                '인수는 supergateway 시작 명령에 추가됩니다. 1Panel에서 관리하는 전송, 포트, 경로 및 프로토콜 인수는 변경할 수 없습니다',
+                '인수는 supergateway 시작 명령에 추가됩니다. XPanel에서 관리하는 전송, 포트, 경로 및 프로토콜 인수는 변경할 수 없습니다',
             testConnection: '연결 테스트',
             connectionSuccess: '연결 성공',
             connectionFailed: '연결 실패',
         },
     },
     panelMCP: {
-        accessTitle: '1Panel MCP 연결',
+        accessTitle: 'XPanel MCP 연결',
         servicesTitle: 'MCP 서비스',
         websiteCancelPendingBind: '연결 취소',
         websiteBinding: '웹사이트 연결',
@@ -2235,7 +2235,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2273,7 +2273,7 @@ const message = {
         allResults: '모든 상태',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: '서비스 확인에 실패했습니다. 로그와 버전 호환성을 확인하세요.',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2282,13 +2282,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: '이전 이미지 삭제',
         deleteOldImageHelp:
             '업그레이드 성공 후 사용하지 않는 이전 이미지를 삭제합니다. 정리 실패는 업그레이드에 영향을 주지 않으며 작업 로그에서 확인할 수 있습니다.',
         installEmpty:
-            '1Panel MCP 서비스가 아직 설치되지 않았습니다. 설치하고 활성화하면 액세스 자격 증명을 생성하고 MCP 도구를 호출할 수 있습니다.',
+            'XPanel MCP 서비스가 아직 설치되지 않았습니다. 설치하고 활성화하면 액세스 자격 증명을 생성하고 MCP 도구를 호출할 수 있습니다.',
         installWithCredentials: 'MCP가 설치되지 않았습니다. 자격 증명은 보존되며 호출은 불가합니다.',
         installTaskLog: '설치 로그',
         installNow: '지금 설치',
@@ -2296,7 +2296,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: '다시 불러와 저장하지 않은 설정을 덮어쓸까요?',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: '태그 또는 SHA-256 다이제스트가 포함된 올바른 Docker 이미지 참조를 입력하세요.',
@@ -2519,6 +2519,10 @@ const message = {
         missing: '없음',
     },
     container: {
+        logDisconnected:
+            '로그 스트림 연결이 끊어졌습니다. 다시 연결하여 최근 로그를 불러오고 실시간 로그 수신을 재개하세요.',
+        logsUnavailable:
+            '컨테이너가 존재하지 않거나 삭제되었습니다. 컨테이너 로그를 확인할 수 없습니다. 컨테이너를 다시 생성한 후 재시도하세요.',
         nvidiaSupport: 'NVIDIA GPU 지원',
         nvidiaHelper:
             'NVIDIA 컨테이너 런타임을 등록합니다. 먼저 NVIDIA Container Toolkit을 설치하세요. GPU는 각 컨테이너에 별도로 할당해야 합니다.',
@@ -2569,7 +2573,7 @@ const message = {
         operatorAppHelper:
             '"{0}" 작업이 다음 컨테이너에서 수행되며, 실행 중인 서비스에 영향을 미칠 수 있습니다. 계속하시겠습니까?',
         containerDeleteHelper:
-            "컨테이너가 앱 스토어에서 생성된 것으로 감지되었습니다. 컨테이너를 삭제해도 1Panel에서 완전히 제거되지 않습니다. 완전히 삭제하려면 앱 스토어 -> '설치됨' 또는 '런타임 환경' 메뉴로 이동하여 작업하십시오. 계속하시겠습니까?",
+            "컨테이너가 앱 스토어에서 생성된 것으로 감지되었습니다. 컨테이너를 삭제해도 XPanel에서 완전히 제거되지 않습니다. 완전히 삭제하려면 앱 스토어 -> '설치됨' 또는 '런타임 환경' 메뉴로 이동하여 작업하십시오. 계속하시겠습니까?",
         start: '시작',
         stop: '중지',
         restart: '재시작',
@@ -2784,7 +2788,7 @@ const message = {
             'Compose 파일 저장 경로: {0}. Docker Compose에 프로젝트 이름이 지정되어 있으면 해당 이름을 우선 사용하고, 지정되어 있지 않으면 {1}을(를) 사용합니다.',
         composeNamePriorityHelper:
             '프로젝트 이름 우선순위: Docker Compose 구성에 지정된 이름 > 파일의 상위 디렉터리 이름 > 여기에 입력한 이름.',
-        composeHelper: '1Panel 에디터나 템플릿을 통해 생성된 컴포지션은 {0}/docker/compose 디렉토리에 저장됩니다.',
+        composeHelper: 'XPanel 에디터나 템플릿을 통해 생성된 컴포지션은 {0}/docker/compose 디렉토리에 저장됩니다.',
         deleteFile: '파일 삭제',
         deleteComposeHelper:
             '이 작업은 컴포즈와 관련된 모든 파일을 삭제합니다. 구성을 포함한 지속적인 파일도 포함됩니다. 신중히 진행해 주세요!',
@@ -2798,12 +2802,12 @@ const message = {
         containerStatus: '컨테이너 상태',
         exited: '종료됨',
         running: '실행 중 ( {0} / {1} )',
-        composeDetailHelper: '이 컴포즈는 1Panel 외부에서 생성되었습니다. 시작 및 중지 작업은 지원되지 않습니다.',
+        composeDetailHelper: '이 컴포즈는 XPanel 외부에서 생성되었습니다. 시작 및 중지 작업은 지원되지 않습니다.',
         composeOperatorHelper: '{1} 작업이 {0}에서 수행됩니다. 계속 하시겠습니까?',
         composeDownHelper:
             '이 작업은 {0} 컴포즈 아래의 모든 컨테이너와 네트워크를 중지하고 제거합니다. 계속 하시겠습니까?',
         composeEnvHelper2:
-            '이 오케스트레이션은 1Panel 앱 스토어에서 생성되었습니다. 설치된 애플리케이션에서 환경 변수를 수정하세요.',
+            '이 오케스트레이션은 XPanel 앱 스토어에서 생성되었습니다. 설치된 애플리케이션에서 환경 변수를 수정하세요.',
         composeContentPlaceholder: '여기에 docker-compose 파일 내용을 작성하거나 붙여넣으세요',
         setting: '설정 | 설정들',
         restartHelper: '구성 변경 사항을 적용하려면 Docker 서비스를 재시작해야 합니다',
@@ -2968,7 +2972,7 @@ const message = {
         noLogs: '작업 출력이 아직 없습니다...',
         errPath: '백업 경로 [{0}] 오류, 다운로드할 수 없습니다!',
         cutWebsiteLog: '웹사이트 로그 회전',
-        cutWebsiteLogHelper: '회전된 로그 파일은 1Panel 의 백업 디렉토리로 백업됩니다.',
+        cutWebsiteLogHelper: '회전된 로그 파일은 XPanel 의 백업 디렉토리로 백업됩니다.',
         syncIpGroup: 'WAF IP 그룹 동기화',
         syncIpGroupHelper: 'WAF 블랙/화이트리스트에서 사용하는 원격 IP 그룹을 동기화합니다',
         requestExpirationTime: '업로드 요청 만료 시간(시간)',
@@ -2998,7 +3002,7 @@ const message = {
                 '시스템 스크립트 라이브러리를 동기화합니다. 이 작업은 시스템 스크립트에만 적용됩니다. 계속하시겠습니까?',
         },
         nextTime: '다음 5회 실행',
-        logHelper1: '1. 1Panel 시스템 로그',
+        logHelper1: '1. XPanel 시스템 로그',
         backupContent: '백업 내용',
         cronSpecRule2: '실행 주기 형식이 올바르지 않습니다. 확인 후 다시 시도하세요.',
         executor: '실행자',
@@ -3671,7 +3675,7 @@ const message = {
         previewTruncated: '파일이 너무 커서 마지막 부분만 표시됩니다',
         previewEmpty: '파일이 비어 있거나 텍스트 파일이 아닙니다',
         previewLargeFile: '미리보기',
-        panelInstallDir: '1Panel 설치 디렉터리는 삭제할 수 없습니다.',
+        panelInstallDir: 'XPanel 설치 디렉터리는 삭제할 수 없습니다.',
         wgetTask: '다운로드 작업',
         stopWgetConfirm: '이 다운로드 작업을 중지하시겠습니까?',
         useServerFilename: '서버에서 제공한 파일 이름 사용',
@@ -3897,7 +3901,7 @@ const message = {
         syncTime: '서버 시간',
         timeZone: '시간대',
         timeZoneChangeHelper: '시간대를 변경하면 서비스를 재시작해야 합니다. 계속하시겠습니까?',
-        timeZoneHelper: '시간대 변경은 시스템 timedatectl 서비스에 따라 작동하며, 1Panel 서비스 재시작 후 적용됩니다.',
+        timeZoneHelper: '시간대 변경은 시스템 timedatectl 서비스에 따라 작동하며, XPanel 서비스 재시작 후 적용됩니다.',
         timeZoneCN: '베이징',
         timeZoneAM: '로스앤젤레스',
         timeZoneNY: '뉴욕',
@@ -4002,7 +4006,7 @@ const message = {
             '이 IP/CIDR 출처의 요청만 Forwarded와 X-Forwarded-Proto 헤더를 HTTPS 판단에 사용합니다',
         passkeyNotSupported: '브라우저/환경이 패스키를 지원하지 않습니다. 도메인과 HTTPS를 확인하세요',
         passkeyPrereqTitle: 'Passkey 사용을 위해 다음 전제 조건이 필요합니다',
-        passkeyPrereqBindDomain: '1Panel 도메인 바인딩 구성됨',
+        passkeyPrereqBindDomain: 'XPanel 도메인 바인딩 구성됨',
         passkeyPrereqHttps: 'HTTPS를 통해 안전하게 접속됨',
         passkeyPrereqBrowser: '현재 환경이 Passkey를 지원합니다 (WebAuthn + 플랫폼 인증기)',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4047,10 +4051,10 @@ const message = {
         unBindDomain: '도메인 바인딩 해제',
         panelSSL: '패널 SSL',
         unBindDomainHelper: '도메인 이름 바인딩 해제 작업은 시스템 보안에 영향을 미칠 수 있습니다. 계속하시겠습니까?',
-        bindDomainHelper: '도메인을 바인딩한 후에는 해당 도메인을 통해서만 1Panel 서비스에 접근할 수 있습니다.',
+        bindDomainHelper: '도메인을 바인딩한 후에는 해당 도메인을 통해서만 XPanel 서비스에 접근할 수 있습니다.',
         bindDomainHelper1: '공백으로 남기면 도메인 이름 바인딩이 비활성화됩니다.',
         bindDomainWarning:
-            '도메인 바인딩 후 로그아웃되며 설정에 지정된 도메인 이름을 통해서만 1Panel 서비스에 접근할 수 있습니다. 계속하시겠습니까?',
+            '도메인 바인딩 후 로그아웃되며 설정에 지정된 도메인 이름을 통해서만 XPanel 서비스에 접근할 수 있습니다. 계속하시겠습니까?',
         allowIPs: '허가된 IP',
         unAllowIPs: '허가되지 않은 IP',
         unAllowIPsWarning:
@@ -4067,7 +4071,7 @@ const message = {
         secret: '비밀키',
         mfaInterval: '갱신 간격(초)',
         mfaTitleHelper:
-            '제목은 다른 1Panel 호스트를 구별하는 데 사용됩니다. 제목을 수정한 후 다시 스캔하거나 비밀키를 수동으로 추가하세요.',
+            '제목은 다른 XPanel 호스트를 구별하는 데 사용됩니다. 제목을 수정한 후 다시 스캔하거나 비밀키를 수동으로 추가하세요.',
         mfaIntervalHelper:
             '갱신 간격을 변경한 후 다시 스캔하거나 비밀키를 수동으로 추가하세요.\n일부 인증 앱은 30초 간격만 지원합니다(예: Google/Microsoft Authenticator).',
         mfaAlert:
@@ -4150,14 +4154,14 @@ const message = {
         ignoreRule: '무시 규칙',
         editIgnoreRule: '@:commons.button.edit @.lower:setting.ignoreRule',
         ignoreHelper:
-            '이 규칙은 스냅샷을 생성할 때 1Panel 데이터 디렉토리를 압축하고 백업하는 데 사용됩니다. 기본적으로 소켓 파일은 무시됩니다.',
+            '이 규칙은 스냅샷을 생성할 때 XPanel 데이터 디렉토리를 압축하고 백업하는 데 사용됩니다. 기본적으로 소켓 파일은 무시됩니다.',
         ignoreHelper1: '한 줄에 하나씩 입력하세요. 예:\n*.log\n/opt/1panel/cache',
-        panelInfo: '1Panel 기본 정보 쓰기',
-        panelBin: '1Panel 시스템 파일 백업',
+        panelInfo: 'XPanel 기본 정보 쓰기',
+        panelBin: 'XPanel 시스템 파일 백업',
         daemonJson: 'Docker 구성 파일 백업',
-        appData: '1Panel 에서 설치된 앱 백업',
-        panelData: '1Panel 데이터 디렉토리 백업',
-        backupData: '1Panel 의 로컬 백업 디렉토리 백업',
+        appData: 'XPanel 에서 설치된 앱 백업',
+        panelData: 'XPanel 데이터 디렉토리 백업',
+        backupData: 'XPanel 의 로컬 백업 디렉토리 백업',
         compress: '스냅샷 파일 생성',
         upload: '스냅샷 파일 업로드',
         recoverDetail: '복구 세부정보',
@@ -4168,7 +4172,7 @@ const message = {
         recoverErrArch: '서버 아키텍처가 다른 스냅샷 복구는 지원되지 않습니다!',
         recoverErrSize: '디스크 공간이 부족합니다. 확인하거나 정리 후 다시 시도하세요!',
         recoverHelper: '스냅샷 {0} 에서 복구를 시작합니다. 계속하기 전에 다음 정보를 확인하세요:',
-        recoverHelper1: '복구에는 Docker 및 1Panel 서비스를 재시작해야 합니다.',
+        recoverHelper1: '복구에는 Docker 및 XPanel 서비스를 재시작해야 합니다.',
         recoverHelper2: '서버에 충분한 디스크 공간이 있는지 확인하세요. (스냅샷 파일 크기: {0}, 사용 가능한 공간: {1})',
         recoverHelper3:
             '서버 아키텍처가 스냅샷이 생성된 서버의 아키텍처와 일치하는지 확인하세요. (현재 서버 아키텍처: {0})',
@@ -4176,8 +4180,8 @@ const message = {
             '이 작업은 기본 노드만 롤백합니다. 업그레이드된 하위 노드가 있다면 먼저 하위 노드를 롤백한 후 계속 진행하세요.',
         rollback: '롤백',
         rollbackHelper:
-            '이 복구를 롤백하면 해당 복구의 모든 파일이 대체되며 Docker 및 1Panel 서비스를 재시작해야 할 수 있습니다. 계속하시겠습니까?',
-        upgradeHelper: '업그레이드에는 1Panel 서비스를 재시작해야 합니다. 계속하시겠습니까?',
+            '이 복구를 롤백하면 해당 복구의 모든 파일이 대체되며 Docker 및 XPanel 서비스를 재시작해야 할 수 있습니다. 계속하시겠습니까?',
+        upgradeHelper: '업그레이드에는 XPanel 서비스를 재시작해야 합니다. 계속하시겠습니까?',
         rollbackLocalHelper:
             '마스터 노드는 직접 롤백을 지원하지 않습니다. 수동으로 [1pctl restore] 명령어를 실행하여 롤백하세요!',
         noUpgrade: '현재 최신 버전입니다',
@@ -4275,7 +4279,7 @@ const message = {
         import: '가져오기',
         securityWarningTitle: '크랙 버전 또는 출처를 알 수 없는 라이선스를 사용하지 마세요.',
         securityWarningContent:
-            '1Panel은 시스템 관리 권한을 가진 사용자로 실행해야 합니다. 비공식 라이선스 또는 변조된 버전은 서버 제어 상실, 데이터 유출 등 심각한 보안 위험을 초래할 수 있습니다. 라이선스와 설치 패키지는 FIT2CLOUD 공식 채널을 통해 받으세요.',
+            'XPanel은 시스템 관리 권한을 가진 사용자로 실행해야 합니다. 비공식 라이선스 또는 변조된 버전은 서버 제어 상실, 데이터 유출 등 심각한 보안 위험을 초래할 수 있습니다. 라이선스와 설치 패키지는 FIT2CLOUD 공식 채널을 통해 받으세요.',
         importHelper: '라이센스 파일을 여기에 클릭하거나 드래그하세요',
         licenseRequiredTip:
             '아직 라이선스를 가져오지 않았습니다. 장치 ID를 복사해 라이선스를 받은 뒤 가져와야 로그인할 수 있습니다.',
@@ -4317,7 +4321,7 @@ const message = {
         monitor:
             '상용 버전으로 업그레이드하면 웹사이트의 실시간 상태, 방문자 추세, 유입 경로, 요청 로그 등을 확인할 수 있습니다.',
         alert: '상용 버전으로 업그레이드하면 SMS 알림을 받고 알림 로그를 확인할 수 있습니다.',
-        node: '상용 버전으로 업그레이드하면 1Panel에서 여러 Linux 서버를 관리할 수 있습니다.',
+        node: '상용 버전으로 업그레이드하면 XPanel에서 여러 Linux 서버를 관리할 수 있습니다.',
         nodeApp:
             '상용 버전으로 업그레이드하면 노드를 수동으로 전환하지 않고도 다중 노드 애플리케이션 버전을 일괄 업그레이드할 수 있습니다.',
         nodeDashboard:
@@ -4340,7 +4344,7 @@ const message = {
     },
     clean: {
         scan: '스캔 시작',
-        scanHelper: '1Panel 실행 중에 생성된 불필요한 파일을 쉽게 정리합니다.',
+        scanHelper: 'XPanel 실행 중에 생성된 불필요한 파일을 쉽게 정리합니다.',
         clean: '지금 정리',
         reScan: '다시 스캔',
         cleanHelper: '선택된 파일 및 디렉터리는 정리 후 롤백할 수 없습니다. 계속하시겠습니까?',
@@ -5087,7 +5091,7 @@ const message = {
         execShell: '인증 요청 후 스크립트 실행',
         shell: '스크립트 내용',
         shellHelper:
-            '스크립트의 기본 실행 디렉토리는 1Panel 설치 디렉토리입니다. 인증서가 로컬 디렉토리에 푸시되는 경우 실행 디렉토리는 인증서 푸시 디렉토리가 됩니다. 기본 실행 제한 시간은 30분입니다.',
+            '스크립트의 기본 실행 디렉토리는 XPanel 설치 디렉토리입니다. 인증서가 로컬 디렉토리에 푸시되는 경우 실행 디렉토리는 인증서 푸시 디렉토리가 됩니다. 기본 실행 제한 시간은 30분입니다.',
         customAcme: '사용자 정의 ACME 서비스',
         customAcmeURL: 'ACME 서비스 URL',
         baiduCloud: '바이두 클라우드',
@@ -5104,7 +5108,7 @@ const message = {
             'IPv6 방화벽 규칙의 관리 및 적용을 제어하며 서버의 IPv6 네트워크 기능에는 영향을 주지 않습니다.',
         ipv6DisableContainerHelper: '컨테이너의 IPv6 포트 정보를 숨깁니다.',
         ipv6DisableWhitelistHelper: '허용 목록의 IPv6 규칙을 제거하고 나머지 기존 IPv6 규칙은 유지합니다.',
-        ipv6DisableRulesHelper: '1Panel이 관리하는 iptables 및 nftables의 IPv6 규칙을 비활성화합니다.',
+        ipv6DisableRulesHelper: 'XPanel이 관리하는 iptables 및 nftables의 IPv6 규칙을 비활성화합니다.',
         ipv6DisableNetworkHelper: '서버의 IPv6 네트워크 기능은 비활성화되지 않습니다.',
         ipv6DisableEffectHelper: '해당 IPv6 접근 제한과 포트 포워딩은 더 이상 적용되지 않습니다.',
         ipv6Disabled: 'IPv6 지원이 비활성화되어 있습니다. 먼저 방화벽 설정에서 활성화하세요.',
@@ -5159,7 +5163,7 @@ const message = {
         systemFirewall: '호스트 방화벽',
         systemFirewallHelper: '호스트 포트 접근과 인바운드 규칙을 관리합니다.',
         forwardingHelper: '포트 포워딩 규칙을 관리합니다.',
-        dockerFirewallHelper: '1Panel 컨테이너 포트 보호 관리 방식을 선택합니다.',
+        dockerFirewallHelper: 'XPanel 컨테이너 포트 보호 관리 방식을 선택합니다.',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0, 실험적',
         backendRecommendation: 'iptables 또는 nftables 사용을 권장합니다.',
         configuredRules: '{0}개 규칙 설정됨',
@@ -5170,9 +5174,9 @@ const message = {
         importLimit: '최대 {0}개의 규칙(확장 후 기준)을 가져올 수 있으며, 파일 크기는 {1} KB를 초과할 수 없습니다.',
         ruleSyncTitle: '규칙 동기화',
         ruleSyncAction: '규칙 동기화',
-        ruleSyncDatabase: '1Panel 데이터베이스',
+        ruleSyncDatabase: 'XPanel 데이터베이스',
         ruleSyncDatabaseHelper:
-            '1Panel 데이터베이스 규칙을 기준으로 현재 방화벽의 관리 규칙을 동기화하고 조정합니다. 누락된 규칙은 추가되고 불필요한 규칙은 삭제됩니다.',
+            'XPanel 데이터베이스 규칙을 기준으로 현재 방화벽의 관리 규칙을 동기화하고 조정합니다. 누락된 규칙은 추가되고 불필요한 규칙은 삭제됩니다.',
         ruleSyncDatabaseTotal: '데이터베이스 규칙',
         ruleSyncDatabaseConfirm:
             '데이터베이스 규칙 {0}개와 정확히 일치하도록 {1}을 동기화하시겠습니까? 대상 규칙 {2}개가 삭제되고 누락된 규칙이 추가됩니다.',
@@ -5200,12 +5204,12 @@ const message = {
         downloadRuleBackup: '규칙 백업 다운로드',
         importFileHelper:
             '최대 64 MB의 JSON 파일을 파일 순서대로 나누어 가져옵니다. 변환할 수 없는 규칙은 오류로 보고됩니다.',
-        resetDirectRulesHelper: '{0}의 모든 1Panel 호스트 방화벽 체인, 실행 중인 규칙 및 영구 저장 파일을 삭제합니다.',
+        resetDirectRulesHelper: '{0}의 모든 XPanel 호스트 방화벽 체인, 실행 중인 규칙 및 영구 저장 파일을 삭제합니다.',
         resetWhitelistRulesHelper: '{0}의 사용자 설정을 초기화하고 기본 상태로 복원한 후 비활성화합니다.',
         cleanupForwardingBackendHelper:
-            '{0}의 모든 1Panel 전달 규칙, 체인 및 자동 복구 파일을 삭제합니다. 기존 JSON 백업은 유지됩니다.',
+            '{0}의 모든 XPanel 전달 규칙, 체인 및 자동 복구 파일을 삭제합니다. 기존 JSON 백업은 유지됩니다.',
         cleanupDockerBackendHelper:
-            '{0}의 모든 1Panel Docker 보호 규칙, 체인 및 자동 복구 파일을 삭제합니다. 기존 JSON 백업은 유지됩니다.',
+            '{0}의 모든 XPanel Docker 보호 규칙, 체인 및 자동 복구 파일을 삭제합니다. 기존 JSON 백업은 유지됩니다.',
         cleanupBeforeBackendSwitch: '{1}(으)로 전환하기 전에 현재 {0}을(를) 초기화하고 규칙 복원 방법을 확인하세요.',
         backendSwitchNotice:
             '하나의 방화벽 관리 방식만 활성화하는 것이 좋습니다. 여러 방화벽을 동시에 실행하면 규칙 충돌, 상태 불일치 또는 컨테이너 포트 접근 오류가 발생할 수 있습니다.',
@@ -5334,6 +5338,7 @@ const message = {
         editRuleConfirm: '이 규칙을 수정하시겠습니까?',
     },
     runtime: {
+        statusMessageUnavailable: '자세한 상태 정보가 없습니다. 실행 환경 로그에서 자세한 내용을 확인하세요.',
         importEnv: '환경 변수 가져오기',
         envImportError: '{0}행: {1}',
         envInvalidAssignment: '유효한 NAME=value 형식이 필요합니다',
@@ -5464,7 +5469,7 @@ const message = {
             dir: '디렉토리',
             numprocs: '프로세스 수',
             initWarn:
-                '이 작업은 주 설정 파일의 "[include]" 섹션에 있는 "files" 값을 수정합니다. 다른 설정 파일의 디렉토리는 "{1Panel 설치 디렉토리}/1panel/tools/supervisord/supervisor.d/"입니다.',
+                '이 작업은 주 설정 파일의 "[include]" 섹션에 있는 "files" 값을 수정합니다. 다른 설정 파일의 디렉토리는 "{XPanel 설치 디렉토리}/1panel/tools/supervisord/supervisor.d/"입니다.',
             operatorHelper: '{1} 작업을 {0}에서 수행합니다. 계속하시겠습니까?',
             uptime: '운영 시간',
             notStartWarn: 'Supervisor 가 시작되지 않았습니다. 먼저 시작하세요.',
@@ -6283,7 +6288,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: '토큰 시간 오차 허용',
                     clockSkewHelper:
-                        'ID 공급자와 1Panel 사이의 약간의 시간 차이를 허용합니다. 기본값인 60초를 유지하세요.',
+                        'ID 공급자와 XPanel 사이의 약간의 시간 차이를 허용합니다. 기본값인 60초를 유지하세요.',
                     clockSkewRequired: '토큰 시간 오차 허용 값을 입력하세요.',
                     compatibilityMode: '호환 모드',
                     compatibilityModeHelper:
@@ -6393,12 +6398,12 @@ const message = {
                     nameClaimHelper: '사용자 이름이 포함된 필드 이름을 입력하세요. 예: preferred_username',
                     nameClaimRequired: '사용자 이름 Claim을 입력하세요.',
                     nameConflict: '이름 충돌 정책',
-                    panelURL: '1Panel 공개 URL',
+                    panelURL: 'XPanel 공개 URL',
                     panelURLHTTPWarning:
                         'HTTP는 인가 응답을 보호하지 않습니다. 공급자가 허용한 격리된 사설 환경에서만 사용하세요.',
-                    panelURLHelper: '사용자가 1Panel에 접속하는 주소를 입력하세요. 콜백 URL 생성에 사용됩니다.',
+                    panelURLHelper: '사용자가 XPanel에 접속하는 주소를 입력하세요. 콜백 URL 생성에 사용됩니다.',
                     panelURLInvalid: '구성표, 호스트 및 선택적 포트만 포함하는 원본을 입력하세요.',
-                    panelURLRequired: '1Panel 공개 URL을 입력하세요.',
+                    panelURLRequired: 'XPanel 공개 URL을 입력하세요.',
                     pkceDisabled: '비활성화됨(호환성만 해당)',
                     pkceDisabledWarning: 'PKCE를 비활성화하면 인증 코드 가로채기에 대한 보호가 줄어듭니다.',
                     pkceHelper: 'S256를 선호하세요. plain 챌린지 방법은 절대 제공되지 않습니다.',
@@ -6453,7 +6458,7 @@ const message = {
                     signingKeySourceHelper: 'JWKS를 선호합니다. 정적 공개 키는 자동으로 순환될 수 없습니다.',
                     signingKeyStatic: '정적 JWK 또는 PEM 공개 키',
                     standardDiscovery: '표준 OIDC Discovery',
-                    standardDiscoveryDesc: '1Panel은 엔드포인트와 기능을 검색하지만 원시 문서는 저장하지 않습니다.',
+                    standardDiscoveryDesc: 'XPanel은 엔드포인트와 기능을 검색하지만 원시 문서는 저장하지 않습니다.',
                     standardMode: '표준 모드',
                     standardModeHelper: 'Issuer의 엔드포인트, 서명 기능 및 PKCE 지원을 알아보세요.',
                     standardProtocolPolicy: '표준 프로토콜 정책',
@@ -6565,7 +6570,7 @@ const message = {
                     metadataXMLInvalid: '유효한 EntityDescriptor 메타데이터 XML을 입력하세요.',
                     metadataXMLPlaceholder: '<EntityDescriptor>...</EntityDescriptor> 붙여넣기',
                     nameAttribute: '사용자 이름 속성',
-                    nameAttributeHelper: '검증된 SAML Assertion에서 이 속성을 읽어 1Panel 사용자 이름에 매핑합니다.',
+                    nameAttributeHelper: '검증된 SAML Assertion에서 이 속성을 읽어 XPanel 사용자 이름에 매핑합니다.',
                     nameAttributePlaceholder: '예: uid, username 또는 account',
                     nameAttributeRequired: '사용자 이름 속성을 입력하세요.',
                     notConfigured: '구성되지 않음',
@@ -6598,7 +6603,7 @@ const message = {
                     spPrivateKeyHelper:
                         'AuthnRequest 및 로그아웃 메시지 서명에 사용됩니다. 저장 시 암호화되며 표시되지 않습니다.',
                     syncLogout: '동기화 로그아웃',
-                    syncLogoutHelper: '1Panel 또는 IdP에서 로그아웃하면 다른 쪽에서도 함께 로그아웃됩니다.',
+                    syncLogoutHelper: 'XPanel 또는 IdP에서 로그아웃하면 다른 쪽에서도 함께 로그아웃됩니다.',
                     testBeforeBrowserTest: '브라우저 테스트 로그인을 시작하기 전에 현재 구성을 테스트하세요.',
                     testBeforeEnable: '민감한 변경 사항을 활성화하거나 저장하기 전에 현재 구성을 테스트하세요.',
                     testConfiguration: '구성 테스트',
@@ -6627,14 +6632,14 @@ const message = {
                     passwordSaved: '저장된 비밀번호를 유지하려면 비워두세요.',
                     userSearch: '사용자 검색',
                     userSearchDesc:
-                        '사용자 검색 기반 및 필터를 설정한 다음 1Panel name로 사용되는 LDAP 속성을 매핑합니다.',
+                        '사용자 검색 기반 및 필터를 설정한 다음 XPanel name로 사용되는 LDAP 속성을 매핑합니다.',
                     userFilter: '사용자 필터',
                     userFilterTooltip:
                         '%(user)s를 이스케이프된 사용자 이름으로 바꾸거나 전체 디렉터리 읽기를 위해 *로 바꿉니다.',
                     userFilterHelper: '사용자 이름은 LDAP 필터에 삽입되기 전에 이스케이프됩니다.',
                     attributeMap: '속성 매핑',
-                    attributeMapTooltip: '1Panel name 필드에서 LDAP 속성으로 매핑되는 JSON.',
-                    attributeMapHelper: '1Panel name 필드에 매핑된 LDAP 속성을 설정합니다.',
+                    attributeMapTooltip: 'XPanel name 필드에서 LDAP 속성으로 매핑되는 JSON.',
+                    attributeMapHelper: 'XPanel name 필드에 매핑된 LDAP 속성을 설정합니다.',
                     advanced: '고급 설정',
                     advancedDesc: 'TLS 및 LDAP 쿼리 페이징을 구성합니다.',
                     strictSync: '엄격한 동기화',
@@ -6673,7 +6678,7 @@ const message = {
                     searchPageSizeRequired: 'LDAP 쿼리 페이지 크기를 입력합니다.',
                     sync: {
                         title: '예약된 동기화',
-                        description: '일정에 따라 전체 LDAP 디렉터리를 읽고 가져온 LDAP 사용자를 1Panel에 유지합니다.',
+                        description: '일정에 따라 전체 LDAP 디렉터리를 읽고 가져온 LDAP 사용자를 XPanel에 유지합니다.',
                         enable: '일정 활성화',
                         enableHelper: '비활성화되면 자동 실행이 중지됩니다. 수동 동기화는 계속 사용할 수 있습니다.',
                         schedule: '일정',
@@ -6731,7 +6736,7 @@ const message = {
                     },
                     testLoginTitle: 'AD/LDAP 로그인 테스트',
                     testLoginDesc:
-                        '인증을 테스트하기 위해 AD/LDAP 사용자 자격 증명으로 바인딩합니다. 1Panel 세션이 생성되지 않습니다.',
+                        '인증을 테스트하기 위해 AD/LDAP 사용자 자격 증명으로 바인딩합니다. XPanel 세션이 생성되지 않습니다.',
                     ldapUsername: 'LDAP 사용자 이름',
                     usernameRequired: 'LDAP 사용자 이름을 입력하세요.',
                     startTest: '테스트 시작',
@@ -7313,7 +7318,7 @@ const message = {
             tamperContent4:
                 '파일 접근 및 작업 로그를 기록하여 관리자가 감사 및 분석을 수행할 수 있도록 하고, 잠재적 보안 위협을 식별합니다.',
             settingTitle1: '사용자 정의 환영 메시지',
-            settingContent1: '1Panel 로그인 페이지에 사용자 정의 환영 메시지를 설정합니다.',
+            settingContent1: 'XPanel 로그인 페이지에 사용자 정의 환영 메시지를 설정합니다.',
             settingTitle2: '사용자 정의 로고',
             settingContent2: '브랜드명이나 텍스트가 포함된 로고 이미지를 업로드할 수 있습니다.',
             settingTitle3: '사용자 정의 웹사이트 아이콘',
@@ -7394,7 +7399,7 @@ const message = {
             nodeAppTitle1: '애플리케이션 업그레이드 관리',
             nodeAppContent1: '다중 노드 애플리케이션 업데이트 통합 모니터링, 원클릭 업그레이드 지원',
             appTitle1: '유연한 패널 관리',
-            appContent1: '언제 어디서나 1Panel 서버를 쉽게 관리하세요.',
+            appContent1: '언제 어디서나 XPanel 서버를 쉽게 관리하세요.',
             appTitle2: '종합적인 서비스 정보',
             appContent2:
                 '모바일 앱에서 애플리케이션, 웹사이트, Docker, 데이터베이스 등의 기본 관리를 하고, 애플리케이션과 웹사이트의 빠른 생성을 지원합니다.',
@@ -7486,7 +7491,7 @@ const message = {
             panelItem: '패널 관리',
             addPanel: '패널 추가',
             addPanelHelper: '패널을 추가한 후 [개요 - 패널]에서 대상 패널에 빠르게 접근할 수 있습니다.',
-            panel: '1Panel 패널',
+            panel: 'XPanel 패널',
             others: '기타 패널',
             addNode: '노드 추가',
             connInfo: '연결 정보',
@@ -7553,7 +7558,7 @@ const message = {
             operatePanelHelper: '다음 패널에 대해 {0} 작업을 수행합니다. 계속하시겠습니까?',
             forceDeleteHelper: '강제 삭제는 노드 삭제 오류를 무시하고 데이터베이스 메타데이터를 삭제합니다',
             uninstall: '노드 데이터 삭제',
-            uninstallHelper: '이 작업은 노드의 모든 1Panel 관련 데이터를 삭제합니다. 신중하게 선택하세요!',
+            uninstallHelper: '이 작업은 노드의 모든 XPanel 관련 데이터를 삭제합니다. 신중하게 선택하세요!',
             baseDir: '설치 디렉토리',
             baseDirHelper: '설치 디렉토리가 비어 있으면 기본적으로 /opt 디렉토리에 설치됩니다',
             nodePort: '노드 포트',

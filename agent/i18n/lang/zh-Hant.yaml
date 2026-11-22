@@ -70,6 +70,7 @@ Decrypt: '解密'
 
 # 智慧體
 ErrAgentAccountBound: '該帳號已綁定到智能體，無法刪除，請重試。'
+ErrAgentAccountUsedByAlert: "該模型服務正被模型 API 檢測告警使用，請先刪除或修改相關告警規則"
 ErrTerminalAIAccountInUse: '該模型服務正被終端 AI 使用，請在終端 AI 設定中更換帳號或關閉終端 AI 後再試。'
 ErrFileAIAccountInUse: '該模型服務正被檔案管理 AI 使用，請在檔案管理 AI 設定中更換帳號或關閉檔案管理 AI 後再試。'
 ErrAgentAccountUnavailable: '帳號連線資訊不可用，錯誤：{{ .err }}，請重試'

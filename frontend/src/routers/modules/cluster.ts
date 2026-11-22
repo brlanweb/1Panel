@@ -40,13 +40,10 @@ const clusterRouter = {
             },
         },
         {
+            // Panel management was merged into node management.
             path: '/cluster/panels',
-            name: 'ClusterPanels',
-            component: () => import('@/views/cluster/panels/index.vue'),
-            meta: {
-                title: 'menu.clusterPanels',
-                permission: 'cluster_node_view',
-            },
+            redirect: '/cluster/nodes',
+            hidden: true,
         },
         {
             // Sidebar entry; the five sync pages below are hidden children

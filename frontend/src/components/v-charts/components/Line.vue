@@ -58,11 +58,11 @@ const seriesStyle = [
         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
             {
                 offset: 0,
-                color: 'rgba(0, 94, 235, .3)',
+                color: 'rgba(13, 148, 136, .3)',
             },
             {
                 offset: 1,
-                color: 'rgba(0, 94, 235, .4)',
+                color: 'rgba(13, 148, 136, .4)',
             },
         ]),
     },

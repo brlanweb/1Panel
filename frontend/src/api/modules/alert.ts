@@ -45,6 +45,10 @@ export const ListClusterAlertStates = (id: number) => {
     return http.post<Alert.ClusterTargetState[]>(`/alert/cluster/states`, { id });
 };
 
+export const LoadClusterAlertSummary = () => {
+    return http.get<Alert.ClusterAlertSummary>(`/alert/cluster/summary`);
+};
+
 export const ListDisks = () => {
     return http.get<Alert.DisksDTO[]>(`/alert/disks/list`);
 };

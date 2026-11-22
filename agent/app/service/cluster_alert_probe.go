@@ -17,10 +17,10 @@ import (
 	"time"
 
 	"github.com/1Panel-dev/1Panel/agent/app/dto"
+	providercatalog "github.com/1Panel-dev/1Panel/agent/app/provider"
 	"github.com/1Panel-dev/1Panel/agent/app/repo"
 	"github.com/1Panel-dev/1Panel/agent/constant"
 	"github.com/1Panel-dev/1Panel/agent/global"
-	"github.com/1Panel-dev/1Panel/agent/utils/encrypt"
 	"github.com/1Panel-dev/1Panel/agent/utils/req_helper"
 )
 
@@ -331,29 +331,60 @@ func simplifyProbeError(err error) string {
 
 // -------------------------------------------------------------------- model
 
+func isProbeableModelAPIType(apiType string) bool {
+	switch apiType {
+	case "openai-completions", "openai-responses", "anthropic-messages", "gemini-generate-content":
+		return true
+	}
+	return false
+}
+
+// responseFormat maps a model service API type to the response shape
+// checked by validateModelResponse.
+func responseFormat(apiType string) string {
+	switch apiType {
+	case "anthropic-messages":
+		return "anthropic"
+	case "gemini-generate-content":
+		return "gemini"
+	case "openai-responses":
+		return "openai-responses"
+	}
+	return "openai"
+}
+
 func probeModel(params dto.ClusterAlertParams) dto.ClusterAlertTargetResult {
-	result := dto.ClusterAlertTargetResult{Key: "model", Label: params.Provider + "/" + params.Model}
+	result := dto.ClusterAlertTargetResult{Key: "model", Label: params.Model}
 	fail := func(format string, args ...interface{}) dto.ClusterAlertTargetResult {
 		result.Failed = true
 		result.Error = truncateRunes(fmt.Sprintf(format, args...), probeMaxErrorBytes)
 		return result
 	}
-	apiKey, err := encrypt.StringDecrypt(params.APIKey)
-	if err != nil || apiKey == "" {
-		return fail("API key cannot be decrypted, please save the rule again")
+	account, err := agentAccountRepo.GetFirst(repo.WithByID(params.AccountID))
+	if err != nil || account == nil || account.ID == 0 {
+		return fail("model service #%d no longer exists", params.AccountID)
 	}
+	result.Label = account.Name + " / " + params.Model
+	if !isProbeableModelAPIType(account.APIType) {
+		return fail("model service API type %s cannot be checked", account.APIType)
+	}
+	apiKey := account.APIKey
 	timeout := probeTimeout(params, 30)
 	client, err := probeHTTPClient(params, timeout, true, true)
 	if err != nil {
 		return fail("%v", err)
 	}
-	req, err := buildModelRequest(params, apiKey)
+	built := providercatalog.BuildVerifyRequest(account.Provider, account.APIType, account.AuthMode, account.BaseURL, apiKey, params.Model)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, built.Method, built.URL, bytes.NewReader(built.Body))
 	if err != nil {
 		return fail("%v", err)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), timeout)
-	defer cancel()
-	req = req.WithContext(ctx)
+	for key, value := range built.Headers {
+		req.Header.Set(key, value)
+	}
+	req.Header.Set("Accept", "application/json")
 	start := time.Now()
 	resp, err := client.Do(req)
 	if err != nil {
@@ -369,75 +400,12 @@ func probeModel(params dto.ClusterAlertParams) dto.ClusterAlertTargetResult {
 	if resp.StatusCode != http.StatusOK {
 		return fail("HTTP %d: %s", resp.StatusCode, redactKey(extractAPIError(body), apiKey))
 	}
-	if err := validateModelResponse(params, body); err != nil {
+	check := params
+	check.Provider = responseFormat(account.APIType)
+	if err := validateModelResponse(check, body); err != nil {
 		return fail("%v", err)
 	}
 	return result
-}
-
-func buildModelRequest(params dto.ClusterAlertParams, apiKey string) (*http.Request, error) {
-	maxTokens := params.MaxTokens
-	if maxTokens <= 0 {
-		maxTokens = 16
-	}
-	base := strings.TrimRight(strings.TrimSpace(params.BaseURL), "/")
-	var (
-		endpoint string
-		payload  interface{}
-		headers  = map[string]string{"Content-Type": "application/json"}
-	)
-	switch params.Provider {
-	case "openai":
-		if base == "" {
-			base = "https://api.openai.com/v1"
-		}
-		endpoint = base + "/chat/completions"
-		payload = map[string]interface{}{
-			"model":      params.Model,
-			"max_tokens": maxTokens,
-			"messages":   []map[string]string{{"role": "user", "content": "ping"}},
-		}
-		headers["Authorization"] = "Bearer " + apiKey
-	case "anthropic":
-		if base == "" {
-			base = "https://api.anthropic.com"
-		}
-		if !strings.HasSuffix(base, "/v1") {
-			base += "/v1"
-		}
-		endpoint = base + "/messages"
-		payload = map[string]interface{}{
-			"model":      params.Model,
-			"max_tokens": maxTokens,
-			"messages":   []map[string]string{{"role": "user", "content": "ping"}},
-		}
-		headers["x-api-key"] = apiKey
-		headers["anthropic-version"] = "2023-06-01"
-	case "gemini":
-		if base == "" {
-			base = "https://generativelanguage.googleapis.com/v1beta"
-		}
-		endpoint = base + "/models/" + url.PathEscape(params.Model) + ":generateContent"
-		payload = map[string]interface{}{
-			"contents":         []map[string]interface{}{{"role": "user", "parts": []map[string]string{{"text": "ping"}}}},
-			"generationConfig": map[string]interface{}{"maxOutputTokens": maxTokens},
-		}
-		headers["x-goog-api-key"] = apiKey
-	default:
-		return nil, errors.New("unsupported provider")
-	}
-	data, err := json.Marshal(payload)
-	if err != nil {
-		return nil, err
-	}
-	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(data))
-	if err != nil {
-		return nil, err
-	}
-	for key, value := range headers {
-		req.Header.Set(key, value)
-	}
-	return req, nil
 }
 
 // validateModelResponse checks the response shape. With strictContent the
@@ -461,6 +429,32 @@ func validateModelResponse(params dto.ClusterAlertParams, body []byte) error {
 			if strings.TrimSpace(text) == "" && strings.TrimSpace(res.Choices[0].Message.ReasoningContent) == "" {
 				return errors.New("empty reply content")
 			}
+		}
+	case "openai-responses":
+		var res struct {
+			Status     string `json:"status"`
+			OutputText string `json:"output_text"`
+			Output     []struct {
+				Content []struct {
+					Text string `json:"text"`
+				} `json:"content"`
+			} `json:"output"`
+		}
+		if err := json.Unmarshal(body, &res); err != nil || (res.Status == "" && len(res.Output) == 0) {
+			return errors.New("invalid response: no output")
+		}
+		if params.StrictContent {
+			if strings.TrimSpace(res.OutputText) != "" {
+				return nil
+			}
+			for _, item := range res.Output {
+				for _, part := range item.Content {
+					if strings.TrimSpace(part.Text) != "" {
+						return nil
+					}
+				}
+			}
+			return errors.New("empty reply content")
 		}
 	case "anthropic":
 		var res struct {

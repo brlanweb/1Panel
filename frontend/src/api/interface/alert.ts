@@ -34,6 +34,23 @@ export namespace Alert {
         lastError: string;
     }
 
+    export interface ClusterAlertSummaryItem {
+        alertId: number;
+        alertType: string;
+        alertTitle: string;
+        targetLabel: string;
+        status: string;
+        detail: string;
+        lastChangeAt: number;
+    }
+
+    export interface ClusterAlertSummary {
+        ruleCount: number;
+        targetCount: number;
+        failingCount: number;
+        items: ClusterAlertSummaryItem[];
+    }
+
     export interface ClusterAlertParams {
         nodeIds?: number[];
         cpu?: number;
@@ -48,6 +65,7 @@ export namespace Alert {
         followRedirect?: boolean;
         verifyTLS?: boolean;
         headers?: Record<string, string>;
+        accountId?: number;
         provider?: string;
         baseUrl?: string;
         model?: string;

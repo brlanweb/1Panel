@@ -70,6 +70,7 @@ Decrypt: '復号化'
 
 # エージェント
 ErrAgentAccountBound: 'アカウントはエージェントに紐づいています'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'このモデルサービスは Terminal AI で使用中です。Terminal AI の設定で別のアカウントへ切り替えるか、Terminal AI を無効にしてから再試行してください。'
 ErrFileAIAccountInUse: 'このモデルサービスはファイル管理 AI で使用中です。ファイル管理 AI の設定で別のアカウントへ切り替えるか、ファイル管理 AI を無効にしてから再試行してください。'
 ErrAgentAccountUnavailable: 'アカウント接続不可: {{ .err }}'

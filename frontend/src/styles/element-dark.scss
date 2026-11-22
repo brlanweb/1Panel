@@ -1,14 +1,14 @@
 html.dark {
-    --panel-color-primary: #3d8eff;
-    --panel-color-primary-light-8: #3674cc;
-    --panel-color-primary-light-1: #6eaaff;
-    --panel-color-primary-light-2: #366fc2;
-    --panel-color-primary-light-3: #3364ad;
-    --panel-color-primary-light-4: #2f558f;
-    --panel-color-primary-light-5: #372e46;
-    --panel-color-primary-light-6: #2a4066;
-    --panel-color-primary-light-7: #2d4a7a;
-    --panel-color-primary-light-9: #2d4a7a;
+    --panel-color-primary: #2dd4bf;
+    --panel-color-primary-light-8: #28af9f;
+    --panel-color-primary-light-1: #62dfcf;
+    --panel-color-primary-light-2: #269c8e;
+    --panel-color-primary-light-3: #24897e;
+    --panel-color-primary-light-4: #22766e;
+    --panel-color-primary-light-5: #1d514e;
+    --panel-color-primary-light-6: #1f645e;
+    --panel-color-primary-light-7: #1d514e;
+    --panel-color-primary-light-9: #1b3e3d;
 
     --panel-main-bg-color-1: #e3e6f3;
     --panel-main-bg-color-2: #c0c2cf;
@@ -383,7 +383,7 @@ html.dark {
 
     .el-avatar {
         --el-avatar-bg-color: var(--panel-text-color-white) !important;
-        box-shadow: 0 0 4px rgba(0, 94, 235, 0.1);
+        box-shadow: 0 0 4px rgba(45, 212, 191, 0.1);
         border: 0.5px solid var(--panel-main-bg-color-7);
     }
     .el-drawer {

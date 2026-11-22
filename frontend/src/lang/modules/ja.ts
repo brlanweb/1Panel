@@ -634,13 +634,13 @@ const message = {
         revokeAuthorizationHelper: 'ユーザー {0} のデータベース {1} へのアクセス権を取り消しますか？',
         supplementPassword: 'パスワードを登録',
         supplementPasswordHelper:
-            '既存のパスワードを 1Panel に保存するだけで、データベースユーザーのパスワードは変更しません。',
+            '既存のパスワードを XPanel に保存するだけで、データベースユーザーのパスワードは変更しません。',
         pgAuthorizationHelper:
             'スーパーユーザーは紐付けなしでこのインスタンスの全データベースにアクセスできます。一般ユーザーはデータベース単位の権限のみ管理し、テーブル権限は含みません。',
         pgRevokeAuthorizationHelper:
             '権限を取り消してもユーザーは削除されません。PUBLIC や他のロール経由のアクセスが残る場合があります。',
         pgSuperUser: 'スーパーユーザー',
-        loadFromRemoteHelper: 'サーバー上のデータベース、ユーザー、権限情報を 1Panel に同期します。続行しますか？',
+        loadFromRemoteHelper: 'サーバー上のデータベース、ユーザー、権限情報を XPanel に同期します。続行しますか？',
         passwordHelper: '取得できません、クリックして修正',
         remote: 'リモート',
         remoteDB: 'リモートサーバー|リモートサーバー',
@@ -811,7 +811,7 @@ const message = {
             hardware: 'ハードウェア配置',
             editMembers: 'メンバーを編集',
             usageScope:
-                '関連情報は、このノードで 1Panel が管理するアプリの設定に基づきます。メモリ値は GPU 全体の測定値です。',
+                '関連情報は、このノードで XPanel が管理するアプリの設定に基づきます。メモリ値は GPU 全体の測定値です。',
             usageTitle: 'GPU 使用状況',
             usageHelp:
                 '選択した GPU は他のデプロイで使用されている可能性があります。続行すると GPU メモリ不足や性能低下が発生する場合がありますが、続行できます。',
@@ -1177,7 +1177,7 @@ const message = {
             localLayoutDirect: '直接配置',
             localLayoutGrouped: '組織別に分類（任意）',
             serviceHelper:
-                'パブリッククラウド、ローカル推論エンジン、AI ゲートウェイなどのモデルサービスを統合し、1Panel 内蔵エージェントや WorkBuddy などの外部エージェントから利用できます。',
+                'パブリッククラウド、ローカル推論エンジン、AI ゲートウェイなどのモデルサービスを統合し、XPanel 内蔵エージェントや WorkBuddy などの外部エージェントから利用できます。',
             gpuType: 'GPU タイプ',
             vllmVersion: 'vLLM バージョン',
             vllmImage: 'vLLM イメージ',
@@ -1240,7 +1240,7 @@ const message = {
             modelDirHelper:
                 'モデルの保存先とローカルモデル一覧の読み込み先です。変更しても既存ファイルは移動されません。',
             featuredModelsHelper:
-                '1Panel が厳選したモデルの仕様、用途、ダウンロード元を確認し、適切なモデルを選んでダウンロードできます。',
+                'XPanel が厳選したモデルの仕様、用途、ダウンロード元を確認し、適切なモデルを選んでダウンロードできます。',
             featuredModelsSyncHelper:
                 '自動同期を有効にすると、毎日未明に厳選モデルのカタログを更新します。モデルファイルはダウンロードしません。いつでも手動で同期できます。',
             recipeSyncHelper:
@@ -1308,7 +1308,7 @@ const message = {
             recipeArguments: '起動引数',
             recipeImportCommand: 'コマンドをインポート',
             recipeImportPlaceholder:
-                'ここに pip/uv または docker 形式の起動コマンドを貼り付けると、1Panel が自動的に解析し、フォームに入力します。',
+                'ここに pip/uv または docker 形式の起動コマンドを貼り付けると、XPanel が自動的に解析し、フォームに入力します。',
             recipeVariablesNotSupported:
                 'コマンド内の変数参照はサポートされていません。具体的な値を入力し、環境変数は環境変数欄で設定してください。',
             recipeImportError:
@@ -1341,7 +1341,7 @@ const message = {
             ollama_doc:
                 '{link} でモデルを検索できます。追加後、モデルは自動的に取得されます。Ollama が正常に動作し、十分なディスク容量があることを確認してください。',
             container_conn_helper: 'コンテナ間のアクセスまたは接続にこのアドレスを使用',
-            from_remote: 'このモデルは1Panelを介してダウンロードされておらず、関連するプルログはありません。',
+            from_remote: 'このモデルはXPanelを介してダウンロードされておらず、関連するプルログはありません。',
             no_logs: 'このモデルのプルログは削除されており、関連するログを表示できません。',
             composeFile: 'オーケストレーションファイル',
             imageCategory: 'イメージの種類',
@@ -1356,8 +1356,8 @@ const message = {
                 default:
                     'vLLM 公式コミュニティの標準版。CUDA 13.0 を使用し、新しいドライバーと新しい GPU アーキテクチャに対応します。',
                 rtxPro5000:
-                    'NVIDIA RTX Pro 5000 向けカスタム版。DeepSeek-V4.1-Flash-1017 向けに最適化されており、イメージは 1Panel が保守しています。',
-                dspark: 'NVIDIA GB10 の 2 台構成向けカスタム版。DeepSeek-V4-Flash 向けに最適化されており、イメージは 1Panel が保守しています。',
+                    'NVIDIA RTX Pro 5000 向けカスタム版。DeepSeek-V4.1-Flash-1017 向けに最適化されており、イメージは XPanel が保守しています。',
+                dspark: 'NVIDIA GB10 の 2 台構成向けカスタム版。DeepSeek-V4-Flash 向けに最適化されており、イメージは XPanel が保守しています。',
                 dspark4: 'NVIDIA GB10 の 4 台構成向けカスタム版。DeepSeek-V4.1-Flash 向けに最適化されています。',
             },
             syncModelAccount: 'モデルサービスに同期',
@@ -1416,7 +1416,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI ゲートウェイの独立したデプロイに対応',
             deploymentNoticeDescription:
-                'AI ゲートウェイは独立したデプロイに対応しました。1Panel 内蔵の AI ゲートウェイは今後更新されません。アプリストアから独立版をインストールすることをお勧めします。現在のバージョンを引き続き使用することもできます。',
+                'AI ゲートウェイは独立したデプロイに対応しました。XPanel 内蔵の AI ゲートウェイは今後更新されません。アプリストアから独立版をインストールすることをお勧めします。現在のバージョンを引き続き使用することもできます。',
             deploymentNoticeContinue: '了解して使用を継続',
             deploymentNoticeAppStore: 'アプリストアへ',
             deploymentNoticeNoAppPermission:
@@ -2163,14 +2163,14 @@ const message = {
             protocolVersionHelper:
                 'ステートレス Streamable HTTP で、下流の stdio MCP Server を自動初期化する場合にのみ使用します',
             gatewayArgsHelper:
-                '引数は supergateway の起動コマンドに追加されます。1Panel が管理する転送方式、ポート、パス、プロトコルの引数は変更できません',
+                '引数は supergateway の起動コマンドに追加されます。XPanel が管理する転送方式、ポート、パス、プロトコルの引数は変更できません',
             testConnection: '接続テスト',
             connectionSuccess: '接続に成功しました',
             connectionFailed: '接続に失敗しました',
         },
     },
     panelMCP: {
-        accessTitle: '1Panel MCP 接続',
+        accessTitle: 'XPanel MCP 接続',
         servicesTitle: 'MCP サービス',
         websiteCancelPendingBind: '関連付けを取り消す',
         websiteBinding: 'ウェブサイトの関連付け',
@@ -2256,7 +2256,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2294,7 +2294,7 @@ const message = {
         allResults: 'すべての状態',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: 'サービス確認に失敗しました。ログとバージョン互換性を確認してください。',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2303,13 +2303,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: '古いイメージを削除',
         deleteOldImageHelp:
             'アップグレード成功後、使用されていない古いイメージを削除します。削除の失敗はアップグレードに影響しません。タスクログを確認してください。',
         installEmpty:
-            '1Panel MCP サービスはまだインストールされていません。インストールして有効にすると、アクセス認証情報を作成して MCP ツールを呼び出せます。',
+            'XPanel MCP サービスはまだインストールされていません。インストールして有効にすると、アクセス認証情報を作成して MCP ツールを呼び出せます。',
         installWithCredentials: 'MCP は未インストールです。認証情報は保持されますが、呼び出せません。',
         installTaskLog: 'インストールログ',
         installNow: '今すぐインストール',
@@ -2317,7 +2317,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: '未保存の設定を上書きして再読み込みしますか？',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: 'タグまたは SHA-256 ダイジェストを含む有効な Docker イメージ参照を入力してください。',
@@ -2549,6 +2549,10 @@ const message = {
         missing: '存在しない',
     },
     container: {
+        logDisconnected:
+            'ログストリームが切断されました。再接続して最近のログを読み込み、リアルタイムのログ受信を再開してください。',
+        logsUnavailable:
+            'コンテナが存在しないか、削除されています。コンテナのログは表示できません。コンテナを再作成してから、もう一度お試しください。',
         nvidiaSupport: 'NVIDIA GPU サポート',
         nvidiaHelper:
             'NVIDIA コンテナーランタイムを登録します。先に NVIDIA Container Toolkit をインストールしてください。GPU はコンテナーごとに割り当てる必要があります。',
@@ -2602,7 +2606,7 @@ const message = {
         operatorAppHelper:
             '「{0}」操作は次のコンテナで実行され、実行中のサービスに影響を与える可能性があります。続けたいですか？',
         containerDeleteHelper:
-            'コンテナがアプリストアから作成されたことを検出しました。コンテナを削除しても、1Panel から完全には削除されません。完全に削除するには、アプリストアの「インストール済み」または「実行環境」などのメニューに移動して操作してください。続行しますか？',
+            'コンテナがアプリストアから作成されたことを検出しました。コンテナを削除しても、XPanel から完全には削除されません。完全に削除するには、アプリストアの「インストール済み」または「実行環境」などのメニューに移動して操作してください。続行しますか？',
         start: '始める',
         stop: '停止',
         restart: '再起動',
@@ -2838,7 +2842,7 @@ const message = {
         composeDownHelper:
             'これにより、{0}構成の下のすべてのコンテナとネットワークが停止して削除されます。続けたいですか？',
         composeEnvHelper2:
-            'このオーケストレーションは1Panelアプリストアで作成されました。インストール済みアプリケーションで環境変数を変更してください。',
+            'このオーケストレーションはXPanelアプリストアで作成されました。インストール済みアプリケーションで環境変数を変更してください。',
         composeContentPlaceholder: 'ここに docker-compose ファイルの内容を記述または貼り付けてください',
         setting: '設定|設定',
         restartHelper: '設定変更を有効にするには Docker サービスの再起動が必要です',
@@ -3032,7 +3036,7 @@ const message = {
             remoteLibrary: 'リモートスクリプトライブラリ',
         },
         nextTime: '次の5回の実行',
-        logHelper1: '1. 1Panel システムログ',
+        logHelper1: '1. XPanel システムログ',
         backupContent: 'バックアップ内容',
         cronSpecRule2: '実行周期の形式が不正です。確認して再試行してください。',
         perMonthHelper: '毎月 {0} 日 {1}:{2} に実行',
@@ -3725,7 +3729,7 @@ const message = {
         previewTruncated: 'ファイルが大きすぎるため、末尾の内容のみ表示しています',
         previewEmpty: 'ファイルが空であるか、テキストファイルではありません',
         previewLargeFile: 'プレビュー',
-        panelInstallDir: '1Panelインストールディレクトリは削除できません',
+        panelInstallDir: 'XPanelインストールディレクトリは削除できません',
         wgetTask: 'ダウンロードタスク',
         stopWgetConfirm: 'このダウンロードタスクを停止しますか？',
         useServerFilename: 'サーバーが指定したファイル名を使用',
@@ -4059,7 +4063,7 @@ const message = {
             '以下の IP/CIDR からのリクエストのみが Forwarded/X-Forwarded-Proto を HTTPS 判定に使います',
         passkeyNotSupported: 'ブラウザまたは環境がパスキー非対応です。ドメインと HTTPS を確認してください',
         passkeyPrereqTitle: 'Passkey を使用するには次の前提条件が必要です',
-        passkeyPrereqBindDomain: '1Panel のドメインバインド設定済み',
+        passkeyPrereqBindDomain: 'XPanel のドメインバインド設定済み',
         passkeyPrereqHttps: 'HTTPS で安全にアクセス済み',
         passkeyPrereqBrowser: '現在の環境が Passkey（WebAuthn + プラットフォーム認証器）に対応',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4351,7 +4355,7 @@ const message = {
         import: 'インポート',
         securityWarningTitle: 'クラック版または出所不明のライセンスを使用しないでください。',
         securityWarningContent:
-            '1Panel はシステム管理者権限を持つユーザーで実行する必要があります。非公式ライセンスや改ざんされたバージョンは、サーバーの制御不能、データ漏えいなどの重大なセキュリティリスクを引き起こす可能性があります。ライセンスとインストールパッケージは FIT2CLOUD 公式チャネルから入手してください。',
+            'XPanel はシステム管理者権限を持つユーザーで実行する必要があります。非公式ライセンスや改ざんされたバージョンは、サーバーの制御不能、データ漏えいなどの重大なセキュリティリスクを引き起こす可能性があります。ライセンスとインストールパッケージは FIT2CLOUD 公式チャネルから入手してください。',
         importHelper: 'ここでライセンスファイルをクリックまたはドラッグしてください',
         licenseRequiredTip:
             'まだライセンスがインポートされていません。デバイス ID をコピーしてライセンスを取得し、インポートしてからログインしてください。',
@@ -4395,7 +4399,7 @@ const message = {
             '商用版にアップグレードすると、Web サイトのリアルタイム状態、訪問者トレンド、流入元、リクエストログなどを確認できます。',
         alert: '商用版にアップグレードすると、SMS アラートの受信やアラートログの確認が可能になります。',
         app: '商用版にアップグレードすると、モバイルアプリでサービス情報や異常監視を確認できます。',
-        node: '商用版にアップグレードすると、1Panel で複数の Linux サーバーを管理できます。',
+        node: '商用版にアップグレードすると、XPanel で複数の Linux サーバーを管理できます。',
         nodeApp:
             '商用版にアップグレードすると、ノードを手動で切り替えずにマルチノードアプリのバージョンを一括アップグレードできます。',
         nodeDashboard:
@@ -5180,7 +5184,7 @@ const message = {
         execShell: '認定リクエスト後にスクリプトを実行します。',
         shell: 'スクリプトコンテンツ',
         shellHelper:
-            'スクリプトのデフォルトの実行ディレクトリは、1Panelインストールディレクトリです。証明書がローカルディレクトリにプッシュされた場合、実行ディレクトリは証明書プッシュディレクトリになります。デフォルトの実行タイムアウトは30分です。',
+            'スクリプトのデフォルトの実行ディレクトリは、XPanelインストールディレクトリです。証明書がローカルディレクトリにプッシュされた場合、実行ディレクトリは証明書プッシュディレクトリになります。デフォルトの実行タイムアウトは30分です。',
         customAcme: 'カスタム ACME サービス',
         customAcmeURL: 'ACME サービス URL',
         baiduCloud: '百度クラウド',
@@ -5197,7 +5201,7 @@ const message = {
             'IPv6 ファイアウォールルールの管理と適用を制御します。サーバーの IPv6 ネットワーク機能には影響しません。',
         ipv6DisableContainerHelper: 'コンテナの IPv6 ポート情報を非表示にします。',
         ipv6DisableWhitelistHelper: '許可リスト内の IPv6 ルールを削除し、それ以外の既存の IPv6 ルールは保持します。',
-        ipv6DisableRulesHelper: '1Panel が管理する iptables、nftables の IPv6 ルールを無効にします。',
+        ipv6DisableRulesHelper: 'XPanel が管理する iptables、nftables の IPv6 ルールを無効にします。',
         ipv6DisableNetworkHelper: 'サーバーの IPv6 ネットワーク機能は無効になりません。',
         ipv6DisableEffectHelper: '対象の IPv6 アクセス制限とポート転送は適用されなくなります。',
         ipv6Disabled: 'IPv6 サポートは無効です。先にファイアウォール設定で有効にしてください。',
@@ -5254,7 +5258,7 @@ const message = {
         systemFirewall: 'ホストファイアウォール',
         systemFirewallHelper: 'ホストのポートアクセスと受信ルールを管理します。',
         forwardingHelper: 'ポート転送ルールを管理します。',
-        dockerFirewallHelper: '1Panel のコンテナポート保護の管理方法を選択します。',
+        dockerFirewallHelper: 'XPanel のコンテナポート保護の管理方法を選択します。',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0、実験的',
         backendRecommendation: 'iptables または nftables の使用を推奨します。',
         configuredRules: '{0} 件設定済み',
@@ -5265,9 +5269,9 @@ const message = {
         importLimit: '最大 {0} 件のルール（展開後の件数）をインポートできます。ファイルサイズの上限は {1} KB です。',
         ruleSyncTitle: 'ルールを同期',
         ruleSyncAction: 'ルールを同期',
-        ruleSyncDatabase: '1Panel データベース',
+        ruleSyncDatabase: 'XPanel データベース',
         ruleSyncDatabaseHelper:
-            '1Panel データベースのルールを基準に、現在のファイアウォールの管理対象ルールを同期・調整します。不足しているルールは追加され、余分なルールは削除されます。',
+            'XPanel データベースのルールを基準に、現在のファイアウォールの管理対象ルールを同期・調整します。不足しているルールは追加され、余分なルールは削除されます。',
         ruleSyncDatabaseTotal: 'データベースルール',
         ruleSyncDatabaseConfirm:
             'データベースの {0} 件のルールに完全一致するよう {1} を同期しますか？対象側の {2} 件のルールを削除し、不足ルールを追加します。',
@@ -5296,12 +5300,12 @@ const message = {
         importFileHelper:
             '最大 64 MB の JSON ファイルをファイル順に分割してインポートします。変換できないルールはエラーとして報告します。',
         resetDirectRulesHelper:
-            '{0} のすべての 1Panel ホストファイアウォールチェーン、実行中のルール、永続化ファイルを削除します。',
+            '{0} のすべての XPanel ホストファイアウォールチェーン、実行中のルール、永続化ファイルを削除します。',
         resetWhitelistRulesHelper: '{0} のカスタム設定をリセットし、既定の状態に戻して無効にします。',
         cleanupForwardingBackendHelper:
-            '{0} の 1Panel 転送ルール、チェーン、自動復元ファイルをすべて削除します。既存の JSON バックアップは保持されます。',
+            '{0} の XPanel 転送ルール、チェーン、自動復元ファイルをすべて削除します。既存の JSON バックアップは保持されます。',
         cleanupDockerBackendHelper:
-            '{0} の 1Panel Docker 保護ルール、チェーン、自動復元ファイルをすべて削除します。既存の JSON バックアップは保持されます。',
+            '{0} の XPanel Docker 保護ルール、チェーン、自動復元ファイルをすべて削除します。既存の JSON バックアップは保持されます。',
         cleanupBeforeBackendSwitch: '{1} に切り替える前に現在の {0} をリセットし、ルールの復元方法を確認してください。',
         backendSwitchNotice:
             'ファイアウォールの管理方式は 1 つだけ有効にすることを推奨します。複数のファイアウォールを同時に実行すると、ルールの競合、状態の不一致、コンテナーポートへのアクセス異常が発生する可能性があります。',
@@ -5432,6 +5436,7 @@ const message = {
         editRuleConfirm: 'このルールを変更してもよろしいですか？',
     },
     runtime: {
+        statusMessageUnavailable: '詳細なステータス情報はありません。実行環境のログで詳細を確認してください。',
         importEnv: '環境変数をインポート',
         envImportError: '{0} 行目：{1}',
         envInvalidAssignment: '有効な NAME=value 形式で入力してください',
@@ -5565,7 +5570,7 @@ const message = {
             dir: 'ディレクトリ',
             numprocs: '番号。プロセスの',
             initWarn:
-                'これにより、メイン構成ファイルの[[include] [include]セクションの「ファイル」値が変更されます。他の構成ファイルのディレクトリは、「{1Panel Installation Directory} /1Panel/tools/supervisord/supervisor.d/」になります。',
+                'これにより、メイン構成ファイルの[[include] [include]セクションの「ファイル」値が変更されます。他の構成ファイルのディレクトリは、「{XPanel Installation Directory} /1Panel/tools/supervisord/supervisor.d/」になります。',
             operatorHelper: '操作{1}は{0}で実行されます、続行しますか？',
             uptime: '実行時間',
             notStartWarn: 'スーパーバイザーは開始されません。最初に開始します。',
@@ -6401,7 +6406,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: 'トークン時刻の許容差',
                     clockSkewHelper:
-                        'ID プロバイダーと 1Panel のわずかな時刻差を許容します。通常は 60 秒のままにしてください。',
+                        'ID プロバイダーと XPanel のわずかな時刻差を許容します。通常は 60 秒のままにしてください。',
                     clockSkewRequired: 'トークン時刻の許容差を入力してください。',
                     compatibilityMode: '互換モード',
                     compatibilityModeHelper:
@@ -6516,13 +6521,13 @@ const message = {
                     nameClaimHelper: 'ユーザー名を含むフィールド名を入力してください（例：preferred_username）。',
                     nameClaimRequired: 'ユーザー名 Claim を入力してください。',
                     nameConflict: '名前の競合ポリシー',
-                    panelURL: '1Panel 公開 URL',
+                    panelURL: 'XPanel 公開 URL',
                     panelURLHTTPWarning:
                         'HTTP は認可応答を保護しません。プロバイダーが許可した隔離されたプライベート環境でのみ使用してください。',
                     panelURLHelper:
-                        'ユーザーが 1Panel へアクセスするアドレスを入力してください。コールバック URL の生成に使用します。',
+                        'ユーザーが XPanel へアクセスするアドレスを入力してください。コールバック URL の生成に使用します。',
                     panelURLInvalid: 'スキーム、ホスト、およびオプションのポートのみを含むオリジンを入力します。',
-                    panelURLRequired: '1Panel の公開 URL を入力してください。',
+                    panelURLRequired: 'XPanel の公開 URL を入力してください。',
                     pkceDisabled: '無効（互換性のみ）',
                     pkceDisabledWarning: 'PKCE を無効にすると、認証コードの傍受に対する保護が低下します。',
                     pkceHelper: 'S256 を優先します。 plain チャレンジ メソッドは決して提供されません。',
@@ -6578,7 +6583,7 @@ const message = {
                     signingKeySourceHelper: 'JWKS を推奨します。静的公開キーは自動的にローテーションできません。',
                     signingKeyStatic: '静的 JWK または PEM 公開キー',
                     standardDiscovery: '標準 OIDC Discovery',
-                    standardDiscoveryDesc: '1Panel はエンドポイントと機能を検出し、生のドキュメントは保存しません。',
+                    standardDiscoveryDesc: 'XPanel はエンドポイントと機能を検出し、生のドキュメントは保存しません。',
                     standardMode: '標準モード',
                     standardModeHelper: 'エンドポイント、署名機能、Issuer の PKCE サポートを確認します。',
                     standardProtocolPolicy: '標準プロトコル ポリシー',
@@ -6698,7 +6703,7 @@ const message = {
                     metadataXMLPlaceholder: '<EntityDescriptor>...</EntityDescriptor> を貼り付け',
                     nameAttribute: 'ユーザー名属性',
                     nameAttributeHelper:
-                        '検証済みの SAML Assertion からこの属性を読み取り、1Panel のユーザー名にマッピングします。',
+                        '検証済みの SAML Assertion からこの属性を読み取り、XPanel のユーザー名にマッピングします。',
                     nameAttributePlaceholder: '例: uid、username、account',
                     nameAttributeRequired: 'ユーザー名属性を入力してください。',
                     notConfigured: '未設定',
@@ -6733,7 +6738,7 @@ const message = {
                     spPrivateKeyHelper:
                         'AuthnRequest とログアウトメッセージの署名に使用します。保存時に暗号化され、表示されることはありません。',
                     syncLogout: '同期ログアウト',
-                    syncLogoutHelper: '1Panel または IdP の一方からログアウトすると、もう一方からもログアウトします。',
+                    syncLogoutHelper: 'XPanel または IdP の一方からログアウトすると、もう一方からもログアウトします。',
                     testBeforeBrowserTest: 'ブラウザのログイン テストを開始する前に、現在の設定をテストします。',
                     testBeforeEnable: '機密変更を有効にするか保存する前に、現在の設定をテストしてください。',
                     testConfiguration: '設定をテスト',
@@ -6763,14 +6768,14 @@ const message = {
                     passwordSaved: '保存したパスワードを保持するには空白のままにしてください',
                     userSearch: 'ユーザー検索',
                     userSearchDesc:
-                        'ユーザー検索ベースとフィルターを設定し、1Panel name として使用される LDAP 属性をマップします。',
+                        'ユーザー検索ベースとフィルターを設定し、XPanel name として使用される LDAP 属性をマップします。',
                     userFilter: 'ユーザーフィルター',
                     userFilterTooltip:
                         '%(user)s をエスケープされたユーザー名に置き換えるか、ディレクトリ全体を読み取る場合は * に置き換えます。',
                     userFilterHelper: 'ユーザー名は、LDAP フィルターに挿入される前にエスケープされます。',
                     attributeMap: '属性マッピング',
-                    attributeMapTooltip: '1Panel name フィールドから LDAP 属性への JSON マッピング。',
-                    attributeMapHelper: '1Panel name フィールドにマップされる LDAP 属性を設定します。',
+                    attributeMapTooltip: 'XPanel name フィールドから LDAP 属性への JSON マッピング。',
+                    attributeMapHelper: 'XPanel name フィールドにマップされる LDAP 属性を設定します。',
                     advanced: '詳細設定',
                     advancedDesc: 'TLS および LDAP クエリ ページングを構成します。',
                     strictSync: '厳密な同期',
@@ -6810,7 +6815,7 @@ const message = {
                     sync: {
                         title: 'スケジュールされた同期',
                         description:
-                            'スケジュールに従って完全な LDAP ディレクトリを読み取り、インポートされた LDAP ユーザーを 1Panel に維持します。',
+                            'スケジュールに従って完全な LDAP ディレクトリを読み取り、インポートされた LDAP ユーザーを XPanel に維持します。',
                         enable: 'スケジュールを有効にする',
                         enableHelper: '無効にすると、自動実行が停止します。手動同期は引き続き利用可能です。',
                         schedule: 'スケジュール',
@@ -6868,7 +6873,7 @@ const message = {
                     },
                     testLoginTitle: 'AD/LDAP ログインテスト',
                     testLoginDesc:
-                        '認証のみをテストするために、AD/LDAP ユーザー資格情報をバインドします。 1Panel セッションは作成されません。',
+                        '認証のみをテストするために、AD/LDAP ユーザー資格情報をバインドします。 XPanel セッションは作成されません。',
                     ldapUsername: 'LDAP ユーザー名',
                     usernameRequired: 'LDAP ユーザー名を入力します。',
                     startTest: 'テストの開始',
@@ -7462,7 +7467,7 @@ const message = {
             tamperContent4:
                 'ファイルのアクセスおよび操作ログを記録し、後の監査および分析に使用、また潜在的なセキュリティ脅威を特定。',
             settingTitle1: 'カスタムウェルカムメッセージ',
-            settingContent1: '1Panelのログインページにカスタムウェルカムメッセージを設定。',
+            settingContent1: 'XPanelのログインページにカスタムウェルカムメッセージを設定。',
             settingTitle2: 'カスタムロゴ',
             settingContent2: 'ブランド名やその他のテキストを含むロゴ画像をアップロードできる。',
             settingTitle3: 'カスタムウェブサイトアイコン',
@@ -7553,7 +7558,7 @@ const message = {
             nodeAppTitle1: 'アプリケーションアップグレード管理',
             nodeAppContent1: 'マルチノードアプリケーションの更新状況を統一監視、ワンクリックアップグレードをサポート',
             appTitle1: '柔軟なパネル管理',
-            appContent1: 'いつでもどこでも1Panelサーバーを簡単に管理できます。',
+            appContent1: 'いつでもどこでもXPanelサーバーを簡単に管理できます。',
             appTitle2: '包括的なサービス情報',
             appContent2:
                 'モバイル端末でアプリケーション、ウェブサイト、Docker、データベースなどの基本的な管理を行い、アプリやウェブサイトの迅速な作成をサポートします。',
@@ -7646,7 +7651,7 @@ const message = {
             panelItem: 'パネル管理',
             addPanel: 'パネル追加',
             addPanelHelper: 'パネルを追加すると、[概要 - パネル] から対象のパネルにすばやくアクセスできます。',
-            panel: '1Panel パネル',
+            panel: 'XPanel パネル',
             others: 'その他のパネル',
             addNode: 'ノードを追加',
             connInfo: '接続情報',
@@ -7685,14 +7690,14 @@ const message = {
             checkService: 'ノードの既存サービス情報を確認',
             checkPort: 'ノードポート到達性を確認',
             panelExist:
-                'このノードで1Panel V1サービスが実行中です。追加前に移行スクリプトでV2へアップグレードしてください。',
+                'このノードでXPanel V1サービスが実行中です。追加前に移行スクリプトでV2へアップグレードしてください。',
             coreExist:
                 '現在のノードはマスターノードとして有効化済みのため、直接スレーブノードとして追加できません。追加する前にまずスレーブノードにダウングレードしてください。詳細はドキュメントを参照してください。',
             agentExist:
                 'このノードに1panel-agentが既にインストールされています。続行すると既存データを保持し、1panel-agentサービスのみを置換します。',
             agentNotExist:
                 'このノードに1panel-agentがインストールされていないため、ノード情報を直接編集できません。一度削除してから再度追加してください。',
-            oldDataExist: 'このノードに1Panel V2の過去データが検出されました。以下の情報で現在の設定を上書きします:',
+            oldDataExist: 'このノードにXPanel V2の過去データが検出されました。以下の情報で現在の設定を上書きします:',
             errLicense: 'このノードに紐づけられたライセンスが利用できません。確認して再試行してください！',
             errNodePort:
                 'ノードポート[ {0} ]にアクセスできないことが検出されました。ファイアウォールまたはセキュリティグループでこのポートが開放されているか確認してください。',
@@ -7712,7 +7717,7 @@ const message = {
             operatePanelHelper: '以下のパネルに対して {0} 操作を実行します。続行しますか？',
             forceDeleteHelper: '強制削除はノード削除エラーを無視し、データベースメタデータを削除します',
             uninstall: 'ノードデータを削除',
-            uninstallHelper: 'ノードに関連するすべての1Panelデータが削除されます。慎重に選択してください！',
+            uninstallHelper: 'ノードに関連するすべてのXPanelデータが削除されます。慎重に選択してください！',
             baseDir: 'インストールディレクトリ',
             baseDirHelper: 'インストールディレクトリが空の場合、デフォルトで/optディレクトリにインストールされます',
             nodePort: 'ノードポート',

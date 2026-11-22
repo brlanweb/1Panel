@@ -108,6 +108,7 @@ const form = reactive({
 const formRef = ref<FormInstance>();
 const STORAGE_KEY = 'theme-predefine-colors';
 const lightPredefineColors = ref([
+    '#0d9488',
     '#005eeb',
     '#238636',
     '#3D8EFF',
@@ -120,6 +121,7 @@ const lightPredefineColors = ref([
     '#333539',
 ]);
 const darkPredefineColors = ref([
+    '#2dd4bf',
     '#238636',
     '#3D8EFF',
     '#005eeb',
@@ -274,7 +276,7 @@ const onReSet = async () => {
         cancelButtonText: i18n.global.t('commons.button.cancel'),
         type: 'info',
     }).then(async () => {
-        form.themeColor = { light: '#005eeb', dark: '#F0BE96', themePredefineColors: themeColors.value };
+        form.themeColor = { light: '#0d9488', dark: '#2dd4bf', themePredefineColors: themeColors.value };
         if (isXpackOrEE.value) {
             localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultColors));
             themeColors.value = { ...defaultColors };
@@ -287,9 +289,9 @@ const onReSet = async () => {
             let color: string;
             if (form.theme === 'auto') {
                 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)');
-                color = prefersDark.matches ? '#F0BE96' : '#005eeb';
+                color = prefersDark.matches ? '#2dd4bf' : '#0d9488';
             } else {
-                color = form.theme === 'dark' ? '#F0BE96' : '#005eeb';
+                color = form.theme === 'dark' ? '#2dd4bf' : '#0d9488';
             }
             themeConfig.value.primary = color;
             setPrimaryColor(color);

@@ -17,7 +17,6 @@ import (
 	"github.com/1Panel-dev/1Panel/agent/constant"
 	"github.com/1Panel-dev/1Panel/agent/global"
 	alertUtil "github.com/1Panel-dev/1Panel/agent/utils/alert"
-	"github.com/1Panel-dev/1Panel/agent/utils/encrypt"
 	"gorm.io/gorm"
 )
 
@@ -84,7 +83,6 @@ func maskClusterAlertParams(alertType, raw string) string {
 		return raw
 	}
 	params := parseClusterAlertParams(raw)
-	params.APIKeySet = params.APIKey != ""
 	params.APIKey = ""
 	data, err := json.Marshal(params)
 	if err != nil {
@@ -96,7 +94,7 @@ func maskClusterAlertParams(alertType, raw string) string {
 // prepareClusterAlert validates and normalises a cluster rule before it is
 // stored. previousParams is the stored AdvancedParams of the rule being
 // updated (empty on create); an empty API key keeps the stored one.
-func prepareClusterAlert(alertType string, cycle, count, sendCount *uint, method, advanced, previousParams string) (string, error) {
+func prepareClusterAlert(alertType string, cycle, count, sendCount *uint, method, advanced, _ string) (string, error) {
 	if err := validateClusterAlertMethods(method); err != nil {
 		return "", err
 	}
@@ -176,21 +174,19 @@ func prepareClusterAlert(alertType string, cycle, count, sendCount *uint, method
 			return "", err
 		}
 	case dto.ClusterAlertModel:
-		switch params.Provider {
-		case "openai", "anthropic", "gemini":
-		default:
-			return "", clusterParamErr("provider must be openai, anthropic or gemini")
+		if params.AccountID == 0 {
+			return "", clusterParamErr("select a model service")
+		}
+		account, err := agentAccountRepo.GetFirst(repo.WithByID(params.AccountID))
+		if err != nil || account == nil || account.ID == 0 {
+			return "", clusterParamErr("the model service does not exist")
+		}
+		if !isProbeableModelAPIType(account.APIType) {
+			return "", clusterParamErr("only text model services (OpenAI / Anthropic / Gemini protocol) can be checked")
 		}
 		params.Model = strings.TrimSpace(params.Model)
 		if params.Model == "" {
 			return "", clusterParamErr("model is required")
-		}
-		params.BaseURL = strings.TrimSpace(params.BaseURL)
-		if params.BaseURL != "" {
-			parsed, err := url.Parse(params.BaseURL)
-			if err != nil || (parsed.Scheme != "http" && parsed.Scheme != "https") || parsed.Host == "" {
-				return "", clusterParamErr("base URL must be an http(s) address")
-			}
 		}
 		if params.MaxTokens <= 0 || params.MaxTokens > 1024 {
 			params.MaxTokens = 16
@@ -198,22 +194,9 @@ func prepareClusterAlert(alertType string, cycle, count, sendCount *uint, method
 		if err := checkTimeout(30); err != nil {
 			return "", err
 		}
-		key := strings.TrimSpace(params.APIKey)
-		if key == "" {
-			key = parseClusterAlertParams(previousParams).APIKey
-			if key == "" {
-				return "", clusterParamErr("API key is required")
-			}
-		} else {
-			encrypted, err := encrypt.StringEncrypt(key)
-			if err != nil {
-				return "", err
-			}
-			key = encrypted
-		}
-		params.APIKey = key
+		// Connection details live in the model service; never duplicate them.
+		params.Provider, params.BaseURL, params.APIKey = account.Provider, "", ""
 	}
-	params.APIKeySet = false
 	data, err := json.Marshal(params)
 	if err != nil {
 		return "", err
@@ -503,4 +486,86 @@ func truncateRunes(value string, max int) string {
 		return value
 	}
 	return string(runes[:max]) + "…"
+}
+
+// modelAlertUsesAccount reports whether a model API alert rule references
+// the given model service.
+func modelAlertUsesAccount(accountID uint) bool {
+	if global.AlertDB == nil || accountID == 0 {
+		return false
+	}
+	rules, err := alertRepo.List(alertRepo.WithByType(dto.ClusterAlertModel))
+	if err != nil {
+		return false
+	}
+	for _, rule := range rules {
+		if parseClusterAlertParams(rule.AdvancedParams).AccountID == accountID {
+			return true
+		}
+	}
+	return false
+}
+
+// ClusterAlertSummary lists failing targets first, then the most recent
+// state changes, across all enabled cluster alert rules.
+func ClusterAlertSummary(limit int) (dto.ClusterAlertSummary, error) {
+	var res dto.ClusterAlertSummary
+	if global.AlertDB == nil {
+		return res, nil
+	}
+	if limit <= 0 || limit > 50 {
+		limit = 20
+	}
+	rules, err := alertRepo.List(repo.WithByStatus(constant.AlertEnable),
+		alertRepo.WithByTypeIn([]string{dto.ClusterAlertResource, dto.ClusterAlertSite, dto.ClusterAlertModel}))
+	if err != nil {
+		return res, err
+	}
+	res.RuleCount = len(rules)
+	if len(rules) == 0 {
+		return res, nil
+	}
+	byID := make(map[uint]model.Alert, len(rules))
+	ids := make([]uint, 0, len(rules))
+	for _, rule := range rules {
+		byID[rule.ID] = rule
+		ids = append(ids, rule.ID)
+	}
+	var states []model.AlertTargetState
+	if err := global.AlertDB.Where("alert_id IN (?)", ids).Find(&states).Error; err != nil {
+		return res, err
+	}
+	res.TargetCount = len(states)
+	sort.SliceStable(states, func(i, j int) bool {
+		fi, fj := states[i].Status == clusterTargetFail, states[j].Status == clusterTargetFail
+		if fi != fj {
+			return fi
+		}
+		return states[i].LastChangeAt > states[j].LastChangeAt
+	})
+	for _, state := range states {
+		if state.Status == clusterTargetFail {
+			res.FailingCount++
+		}
+	}
+	for _, state := range states {
+		if len(res.Items) >= limit {
+			break
+		}
+		// Healthy targets that never changed are not interesting.
+		if state.Status != clusterTargetFail && state.LastChangeAt == 0 {
+			continue
+		}
+		rule := byID[state.AlertID]
+		res.Items = append(res.Items, dto.ClusterAlertSummaryItem{
+			AlertID:      state.AlertID,
+			AlertType:    rule.Type,
+			AlertTitle:   rule.Title,
+			TargetLabel:  state.TargetLabel,
+			Status:       state.Status,
+			Detail:       firstNonBlank(state.LastError, state.LastValue),
+			LastChangeAt: state.LastChangeAt,
+		})
+	}
+	return res, nil
 }

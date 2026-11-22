@@ -21,17 +21,38 @@
                 <div class="metric-grid">
                     <div class="metric-row">
                         <el-checkbox v-model="metricOn.cpu">CPU</el-checkbox>
-                        <el-input-number v-model="params.cpu" :min="1" :max="100" :disabled="!metricOn.cpu" />
+                        <el-input-number
+                            v-model="params.cpu"
+                            class="metric-input"
+                            style="width: 140px"
+                            :min="1"
+                            :max="100"
+                            :disabled="!metricOn.cpu"
+                        />
                         <span class="input-help">%</span>
                     </div>
                     <div class="metric-row">
                         <el-checkbox v-model="metricOn.memory">{{ $t('xpack.alert.clusterMemory') }}</el-checkbox>
-                        <el-input-number v-model="params.memory" :min="1" :max="100" :disabled="!metricOn.memory" />
+                        <el-input-number
+                            v-model="params.memory"
+                            class="metric-input"
+                            style="width: 140px"
+                            :min="1"
+                            :max="100"
+                            :disabled="!metricOn.memory"
+                        />
                         <span class="input-help">%</span>
                     </div>
                     <div class="metric-row">
                         <el-checkbox v-model="metricOn.disk">{{ $t('xpack.alert.clusterDisk') }}</el-checkbox>
-                        <el-input-number v-model="params.disk" :min="1" :max="100" :disabled="!metricOn.disk" />
+                        <el-input-number
+                            v-model="params.disk"
+                            class="metric-input"
+                            style="width: 140px"
+                            :min="1"
+                            :max="100"
+                            :disabled="!metricOn.disk"
+                        />
                         <span class="input-help">%</span>
                     </div>
                     <div class="metric-row">
@@ -88,32 +109,37 @@
             <el-form-item :label="$t('xpack.alert.probeName')" prop="title">
                 <el-input v-model.trim="row.title" maxlength="64" />
             </el-form-item>
-            <el-form-item :label="$t('xpack.alert.modelProvider')" required>
-                <el-radio-group v-model="params.provider">
-                    <el-radio-button value="openai" label="OpenAI" />
-                    <el-radio-button value="anthropic" label="Anthropic" />
-                    <el-radio-button value="gemini" label="Gemini" />
-                </el-radio-group>
-                <span class="input-help">{{ $t('xpack.alert.modelProviderHelper') }}</span>
-            </el-form-item>
-            <el-form-item label="Base URL">
-                <el-input v-model.trim="params.baseUrl" :placeholder="baseUrlPlaceholder" />
-                <span class="input-help">{{ $t('xpack.alert.modelBaseUrlHelper') }}</span>
+            <el-form-item :label="$t('xpack.alert.modelService')" required>
+                <el-select
+                    class="selectClass"
+                    v-model="params.accountId"
+                    filterable
+                    :loading="accountLoading"
+                    @change="onAccountChange"
+                >
+                    <el-option v-for="item in accounts" :key="item.id" :value="item.id" :label="item.name">
+                        <span>{{ item.name }}</span>
+                        <el-tag class="option-tag" size="small">{{ item.providerName || item.provider }}</el-tag>
+                    </el-option>
+                </el-select>
+                <span class="input-help">
+                    {{ $t('xpack.alert.modelServiceHelper') }}
+                    <el-link class="ml-1" type="primary" :underline="false" @click="goModelServices">
+                        {{ $t('xpack.alert.modelServiceManage') }}
+                    </el-link>
+                </span>
             </el-form-item>
             <el-form-item :label="$t('xpack.alert.modelName')" required>
-                <el-input
-                    v-model.trim="params.model"
-                    placeholder="gpt-4o-mini / claude-3-5-haiku-latest / gemini-2.0-flash"
-                />
-            </el-form-item>
-            <el-form-item label="API Key" :required="!params.apiKeySet">
-                <el-input
-                    v-model.trim="params.apiKey"
-                    type="password"
-                    show-password
-                    autocomplete="new-password"
-                    :placeholder="params.apiKeySet ? $t('xpack.alert.modelKeyKeep') : ''"
-                />
+                <el-select
+                    class="selectClass"
+                    v-model="params.model"
+                    filterable
+                    allow-create
+                    default-first-option
+                    :disabled="!params.accountId"
+                >
+                    <el-option v-for="m in accountModels" :key="m.id" :value="m.id" :label="m.name || m.id" />
+                </el-select>
             </el-form-item>
             <el-form-item>
                 <el-checkbox v-model="params.strictContent">{{ $t('xpack.alert.modelStrict') }}</el-checkbox>
@@ -186,6 +212,9 @@ import { computed, reactive, ref, watch } from 'vue';
 import { Alert } from '@/api/interface/alert';
 import { listClusterNodeOptions } from '@/api/modules/cluster';
 import { ListClusterAlertStates } from '@/api/modules/alert';
+import { pageAgentAccounts } from '@/api/modules/ai';
+import { AI } from '@/api/interface/ai';
+import { routerToName } from '@/utils/router';
 import i18n from '@/lang';
 
 const props = defineProps<{ row: Alert.AlertInfo; isEdit: boolean }>();
@@ -202,17 +231,30 @@ const states = ref<Alert.ClusterTargetState[]>([]);
 const nowSec = Math.floor(Date.now() / 1000);
 const intervalChoices = [1, 2, 3, 5, 10, 15, 30, 60];
 
-const maxTimeout = computed(() => Math.min(300, Math.max(1, (row.cycle || 1) * 60 - 1)));
-const baseUrlPlaceholder = computed(() => {
-    switch (params.provider) {
-        case 'anthropic':
-            return 'https://api.anthropic.com';
-        case 'gemini':
-            return 'https://generativelanguage.googleapis.com/v1beta';
-        default:
-            return 'https://api.openai.com/v1';
+const accounts = ref<AI.AgentAccountItem[]>([]);
+const accountLoading = ref(false);
+const accountModels = computed(() => accounts.value.find((a) => a.id === params.accountId)?.models || []);
+const loadAccounts = async () => {
+    accountLoading.value = true;
+    try {
+        const res = await pageAgentAccounts({ page: 1, pageSize: 1000, provider: '', textOnly: true, name: '' });
+        accounts.value = res.data?.items || [];
+    } catch {
+        accounts.value = [];
+    } finally {
+        accountLoading.value = false;
     }
-});
+};
+const onAccountChange = () => {
+    const account = accounts.value.find((a) => a.id === params.accountId);
+    const models = account?.models || [];
+    params.model = account?.verifyModel || models[0]?.id || '';
+};
+const goModelServices = () => {
+    routerToName('ModelServices');
+};
+
+const maxTimeout = computed(() => Math.min(300, Math.max(1, (row.cycle || 1) * 60 - 1)));
 
 const defaults = (t: string): Alert.ClusterAlertParams => {
     switch (t) {
@@ -230,7 +272,8 @@ const defaults = (t: string): Alert.ClusterAlertParams => {
             };
         case 'modelApi':
             return {
-                provider: 'openai',
+                accountId: undefined,
+                model: '',
                 maxTokens: 16,
                 strictContent: false,
                 treat429AsFail: false,
@@ -251,7 +294,6 @@ const load = () => {
         } catch {}
     }
     Object.assign(params, defaults(row.type), stored);
-    params.apiKey = '';
     metricOn.cpu = !props.isEdit || !!stored.cpu;
     metricOn.memory = !props.isEdit || !!stored.memory;
     metricOn.disk = !props.isEdit || !!stored.disk;
@@ -272,6 +314,9 @@ const load = () => {
         }
         row.sendCount = 3;
         row.project = '';
+    }
+    if (row.type === 'modelApi') {
+        loadAccounts();
     }
     if (row.type === 'clusterResource') {
         listClusterNodeOptions()
@@ -330,14 +375,11 @@ const build = (): string => {
         });
     }
     if (row.type === 'modelApi') {
+        if (!params.accountId) return t('xpack.alert.modelServiceRequired');
         if (!params.model) return t('xpack.alert.modelNameRequired');
-        if (!params.apiKey && !params.apiKeySet) return t('xpack.alert.modelKeyRequired');
-        if (params.baseUrl && !/^https?:\/\/.+/i.test(params.baseUrl)) return t('xpack.alert.probeUrlInvalid');
         Object.assign(out, {
-            provider: params.provider,
-            baseUrl: params.baseUrl,
+            accountId: params.accountId,
             model: params.model,
-            apiKey: params.apiKey || '',
             maxTokens: params.maxTokens || 16,
             strictContent: !!params.strictContent,
             treat429AsFail: !!params.treat429AsFail,
@@ -351,6 +393,11 @@ defineExpose({ build });
 </script>
 
 <style scoped lang="scss">
+.option-tag {
+    float: right;
+    margin-left: 10px;
+    margin-top: 5px;
+}
 .metric-grid {
     display: flex;
     flex-direction: column;
@@ -362,7 +409,11 @@ defineExpose({ build });
     align-items: center;
     gap: 10px;
     .el-checkbox {
-        min-width: 110px;
+        min-width: 150px;
+    }
+    .metric-input {
+        width: 140px !important;
+        flex: 0 0 140px;
     }
 }
 </style>

@@ -272,7 +272,7 @@ const message = {
             codeInput: 'ປ້ອນລະຫັດ MFA 6 ຫຼັກ',
             mfaTitle: 'ການຢືນຢັນ MFA',
             mfaCode: 'ລະຫັດຢືນຢັນ MFA',
-            title: 'ລະບົບຈັດການເຊີເວີ Linux (1Panel)',
+            title: 'ລະບົບຈັດການເຊີເວີ Linux (XPanel)',
             licenseHelper: '<ຂໍ້ຕົກລົງອະນຸຍາດການໃຊ້ງານຄອມມູນິຕີ້>',
             errorAgree: 'ກະລຸນາອ່ານ ແລະ ຍອມຮັບຂໍ້ຕົກລົງອະນຸຍາດການໃຊ້ງານ',
             logout: 'ອອກຈາກລະບົບ',
@@ -624,13 +624,13 @@ const message = {
         revokeAuthorization: 'ຖອນສິດ',
         revokeAuthorizationHelper: 'ຖອນສິດຜູ້ໃຊ້ {0} ໃນຖານຂໍ້ມູນ {1} ຫຼືບໍ່?',
         supplementPassword: 'ເພີ່ມລະຫັດຜ່ານ',
-        supplementPasswordHelper: 'ບັນທຶກລະຫັດຜ່ານທີ່ມີຢູ່ໃນ 1Panel ເທົ່ານັ້ນ ໂດຍບໍ່ປ່ຽນລະຫັດຜ່ານຜູ້ໃຊ້ຖານຂໍ້ມູນ.',
+        supplementPasswordHelper: 'ບັນທຶກລະຫັດຜ່ານທີ່ມີຢູ່ໃນ XPanel ເທົ່ານັ້ນ ໂດຍບໍ່ປ່ຽນລະຫັດຜ່ານຜູ້ໃຊ້ຖານຂໍ້ມູນ.',
         noUserBind: 'ບໍ່ມີການຜູກມັດ',
         pgAuthorizationHelper:
             'ຜູ້ໃຊ້ຂັ້ນສູງເຂົ້າເຖິງທຸກຖານຂໍ້ມູນໃນອິນສະແຕນນີ້ໄດ້ໂດຍບໍ່ຕ້ອງຜູກ. ຜູ້ໃຊ້ທົ່ວໄປຈັດການສະເພາະສິດລະດັບຖານຂໍ້ມູນ ບໍ່ລວມສິດຕາຕະລາງ.',
         pgRevokeAuthorizationHelper: 'ການຍົກເລີກສິດບໍ່ລຶບຜູ້ໃຊ້. ການເຂົ້າເຖິງຜ່ານ PUBLIC ຫຼືບົດບາດອື່ນອາດຍັງຄົງຢູ່.',
         pgSuperUser: 'ຊຸບເປີຢູເຊີ',
-        loadFromRemoteHelper: 'ຊິ້ງຄ໌ຖານຂໍ້ມູນ, ຜູ້ໃຊ້ ແລະສິດຈາກເຊີເວີມາຍັງ 1Panel ຫຼືບໍ່?',
+        loadFromRemoteHelper: 'ຊິ້ງຄ໌ຖານຂໍ້ມູນ, ຜູ້ໃຊ້ ແລະສິດຈາກເຊີເວີມາຍັງ XPanel ຫຼືບໍ່?',
         passwordHelper: 'ບໍ່ສາມາດໃຊ້ໄດ້, ຄລິກເພື່ອອັບເດດ',
         remote: 'ທາງໄກ',
         remoteDB: 'ເຊີເວີທາງໄກ | ເຊີເວີທາງໄກ',
@@ -798,7 +798,7 @@ const message = {
             hardware: 'ຕຳແໜ່ງຮາດແວ',
             editMembers: 'ແກ້ໄຂສະມາຊິກ',
             usageScope:
-                'ຂໍ້ມູນທີ່ກ່ຽວຂ້ອງມາຈາກການຕັ້ງຄ່າແອັບທີ່ 1Panel ຈັດການໃນໂນດນີ້; ຄ່າໜ່ວຍຄວາມຈຳແມ່ນວັດຈາກ GPU ທັງໝົດ.',
+                'ຂໍ້ມູນທີ່ກ່ຽວຂ້ອງມາຈາກການຕັ້ງຄ່າແອັບທີ່ XPanel ຈັດການໃນໂນດນີ້; ຄ່າໜ່ວຍຄວາມຈຳແມ່ນວັດຈາກ GPU ທັງໝົດ.',
             usageTitle: 'ການໃຊ້ GPU',
             usageHelp:
                 'GPU ທີ່ເລືອກອາດຖືກໃຊ້ໂດຍການຕິດຕັ້ງອື່ນ. ການດຳເນີນຕໍ່ອາດເຮັດໃຫ້ໜ່ວຍຄວາມຈຳບໍ່ພຽງພໍ ຫຼື ປະສິດທິພາບຫຼຸດລົງ. ທ່ານຍັງສາມາດດຳເນີນຕໍ່ໄດ້.',
@@ -1156,7 +1156,7 @@ const message = {
             localLayoutDirect: 'ວາງໂດຍກົງ',
             localLayoutGrouped: 'ແຍກຕາມອົງກອນ (ທາງເລືອກ)',
             serviceHelper:
-                'ເຊື່ອມຕໍ່ບໍລິການໂມເດວຈາກຄລາວສາທາລະນະ, ເຄື່ອງຈັກອະນຸມານພາຍໃນ ແລະ ເກດເວ AI ເພື່ອໃຫ້ຕົວແທນໃນ 1Panel ແລະ ຕົວແທນພາຍນອກເຊັ່ນ WorkBuddy ໃຊ້ງານ.',
+                'ເຊື່ອມຕໍ່ບໍລິການໂມເດວຈາກຄລາວສາທາລະນະ, ເຄື່ອງຈັກອະນຸມານພາຍໃນ ແລະ ເກດເວ AI ເພື່ອໃຫ້ຕົວແທນໃນ XPanel ແລະ ຕົວແທນພາຍນອກເຊັ່ນ WorkBuddy ໃຊ້ງານ.',
             gpuType: 'ປະເພດ GPU',
             vllmVersion: 'ເວີຊັນ vLLM',
             vllmImage: 'ອິມເມຈ vLLM',
@@ -1216,7 +1216,7 @@ const message = {
             tokenizerDirHelper: 'ໂຟນເດີສຳລັບດາວໂຫຼດ ແລະ ອ່ານລາຍການ tokenizer ໃນເຄື່ອງ. ການປ່ຽນຈະບໍ່ຍ້າຍໄຟລ໌ເກົ່າ.',
             modelDirHelper: 'ໂຟນເດີດາວໂຫຼດໂມເດວ ແລະ ແຫຼ່ງລາຍການໂມເດວພາຍໃນເຄື່ອງ. ການປ່ຽນຈະບໍ່ຍ້າຍໄຟລ໌ເກົ່າ.',
             featuredModelsHelper:
-                'ເບິ່ງໂມເດລທີ່ 1Panel ຄັດເລືອກ, ກວດເບິ່ງຂໍ້ກຳນົດ, ການນຳໃຊ້ ແລະແຫຼ່ງດາວໂຫຼດ ແລ້ວເລືອກໂມເດລທີ່ເໝາະສົມເພື່ອດາວໂຫຼດ.',
+                'ເບິ່ງໂມເດລທີ່ XPanel ຄັດເລືອກ, ກວດເບິ່ງຂໍ້ກຳນົດ, ການນຳໃຊ້ ແລະແຫຼ່ງດາວໂຫຼດ ແລ້ວເລືອກໂມເດລທີ່ເໝາະສົມເພື່ອດາວໂຫຼດ.',
             featuredModelsSyncHelper:
                 'ເມື່ອເປີດການຊິງຄ໌ອັດຕະໂນມັດ ລາຍການໂມເດລທີ່ຄັດເລືອກຈະຖືກອັບເດດທຸກມື້ໃນຕອນເຊົ້າມືດ ໂດຍບໍ່ດາວໂຫຼດໄຟລ໌ໂມເດລ. ທ່ານສາມາດຊິງຄ໌ດ້ວຍຕົນເອງໄດ້ທຸກເວລາ.',
             recipeSyncHelper:
@@ -1282,7 +1282,7 @@ const message = {
             recipeArguments: 'ພາລາມິເຕີເລີ່ມຕົ້ນ',
             recipeImportCommand: 'ນຳເຂົ້າຄຳສັ່ງ',
             recipeImportPlaceholder:
-                'ວາງຄຳສັ່ງເລີ່ມຕົ້ນໃນຮູບແບບ pip/uv ຫຼື docker ທີ່ນີ້. 1Panel ຈະວິເຄາະ ແລະ ຕື່ມແບບຟອມອັດຕະໂນມັດ.',
+                'ວາງຄຳສັ່ງເລີ່ມຕົ້ນໃນຮູບແບບ pip/uv ຫຼື docker ທີ່ນີ້. XPanel ຈະວິເຄາະ ແລະ ຕື່ມແບບຟອມອັດຕະໂນມັດ.',
             recipeVariablesNotSupported:
                 'ຄຳສັ່ງບໍ່ຮອງຮັບການອ້າງອີງຕົວແປ. ກະລຸນາປ້ອນຄ່າໂດຍກົງ ແລະຕັ້ງຄ່າຕົວແປສະພາບແວດລ້ອມໃນຊ່ອງທີ່ກ່ຽວຂ້ອງ.',
             recipeImportError: 'ບໍ່ພົບຄຳສັ່ງເລີ່ມຕົ້ນທີ່ຖືກຕ້ອງ. ກະລຸນາວາງຄຳສັ່ງ pip/uv ຫຼື docker ທີ່ມີໂມເດວ.',
@@ -1314,7 +1314,7 @@ const message = {
             ollama_doc:
                 'ຄົ້ນຫາໂມເດວທີ່ {link}. ລະບົບຈະດາວໂຫຼດໂມເດວອັດຕະໂນມັດຫຼັງຈາກເພີ່ມ. ກະລຸນາກວດສອບວ່າ Ollama ເຮັດວຽກປົກກະຕິ ແລະ ມີພື້ນທີ່ດິສກ໌ພຽງພໍ.',
             container_conn_helper: 'ໃຊ້ທີ່ຢູ່ນີ້ສຳລັບການເຂົ້າເຖິງ ຫຼື ເຊື່ອມຕໍ່ລະຫວ່າງຄອນເທນເນີ',
-            from_remote: 'ໂມເດວນີ້ບໍ່ໄດ້ດາວໂຫຼດຜ່ານ 1Panel, ບໍ່ມີລັອກການດຶງຂໍ້ມູນທີ່ກ່ຽວຂ້ອງ.',
+            from_remote: 'ໂມເດວນີ້ບໍ່ໄດ້ດາວໂຫຼດຜ່ານ XPanel, ບໍ່ມີລັອກການດຶງຂໍ້ມູນທີ່ກ່ຽວຂ້ອງ.',
             no_logs: 'ລັອກການດຶງຂໍ້ມູນຂອງໂມເດວນີ້ຖືກລຶບແລ້ວ ແລະ ບໍ່ສາມາດເບິ່ງໄດ້.',
             composeFile: 'ໄຟລ໌ Compose',
             imageCategory: 'ປະເພດອິມເມຈ',
@@ -1329,8 +1329,8 @@ const message = {
                 default:
                     'ເວີຊັນມາດຕະຖານທາງການຂອງຊຸມຊົນ vLLM ພ້ອມ CUDA 13.0, ເໝາະສຳລັບໄດຣເວີ ແລະ ສະຖາປັດຕະຍະກຳ GPU ລຸ້ນໃໝ່.',
                 rtxPro5000:
-                    'ເວີຊັນປັບແຕ່ງສຳລັບ NVIDIA RTX Pro 5000, ປັບໃຫ້ເໝາະກັບ DeepSeek-V4.1-Flash-1017. ອິມເມຈດູແລໂດຍ 1Panel.',
-                dspark: 'ເວີຊັນປັບແຕ່ງສຳລັບ NVIDIA GB10 ສອງອຸປະກອນ, ປັບໃຫ້ເໝາະກັບ DeepSeek-V4-Flash. ອິມເມຈດູແລໂດຍ 1Panel.',
+                    'ເວີຊັນປັບແຕ່ງສຳລັບ NVIDIA RTX Pro 5000, ປັບໃຫ້ເໝາະກັບ DeepSeek-V4.1-Flash-1017. ອິມເມຈດູແລໂດຍ XPanel.',
+                dspark: 'ເວີຊັນປັບແຕ່ງສຳລັບ NVIDIA GB10 ສອງອຸປະກອນ, ປັບໃຫ້ເໝາະກັບ DeepSeek-V4-Flash. ອິມເມຈດູແລໂດຍ XPanel.',
                 dspark4: 'ເວີຊັນປັບແຕ່ງສຳລັບ NVIDIA GB10 ສີ່ອຸປະກອນ, ປັບໃຫ້ເໝາະກັບ DeepSeek-V4.1-Flash.',
             },
             syncModelAccount: 'ຊິ້ງຄ໌ໄປຍັງບໍລິການໂມເດວ',
@@ -1389,7 +1389,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI Gateway ຮອງຮັບການຕິດຕັ້ງແບບແຍກຕ່າງຫາກ',
             deploymentNoticeDescription:
-                'AI Gateway ຮອງຮັບການຕິດຕັ້ງແບບແຍກຕ່າງຫາກແລ້ວ. AI Gateway ທີ່ມາພ້ອມກັບ 1Panel ຈະບໍ່ໄດ້ຮັບການອັບເດດອີກ. ແນະນຳໃຫ້ຕິດຕັ້ງລຸ້ນແຍກຕ່າງຫາກຈາກຮ້ານແອັບ. ທ່ານຍັງສາມາດໃຊ້ລຸ້ນປັດຈຸບັນຕໍ່ໄດ້.',
+                'AI Gateway ຮອງຮັບການຕິດຕັ້ງແບບແຍກຕ່າງຫາກແລ້ວ. AI Gateway ທີ່ມາພ້ອມກັບ XPanel ຈະບໍ່ໄດ້ຮັບການອັບເດດອີກ. ແນະນຳໃຫ້ຕິດຕັ້ງລຸ້ນແຍກຕ່າງຫາກຈາກຮ້ານແອັບ. ທ່ານຍັງສາມາດໃຊ້ລຸ້ນປັດຈຸບັນຕໍ່ໄດ້.',
             deploymentNoticeContinue: 'ຮັບຊາບ, ໃຊ້ຕໍ່',
             deploymentNoticeAppStore: 'ໄປທີ່ຮ້ານແອັບ',
             deploymentNoticeNoAppPermission:
@@ -2121,14 +2121,14 @@ const message = {
             protocolVersion: 'ເວີຊັນ Protocol',
             protocolVersionHelper: 'ໃຊ້ສະເພາະກັບ Streamable HTTP ເພື່ອເລີ່ມຕົ້ນ stdio MCP Server ອັດຕະໂນມັດ',
             gatewayArgsHelper:
-                'ອາກິວເມັນຈະຖືກຕໍ່ທ້າຍຄຳສັ່ງ supergateway. ບໍ່ສາມາດປ່ຽນອາກິວເມັນ transport, port, path ແລະ protocol ທີ່ 1Panel ຈັດການໄດ້',
+                'ອາກິວເມັນຈະຖືກຕໍ່ທ້າຍຄຳສັ່ງ supergateway. ບໍ່ສາມາດປ່ຽນອາກິວເມັນ transport, port, path ແລະ protocol ທີ່ XPanel ຈັດການໄດ້',
             testConnection: 'ທົດສອບການເຊື່ອມຕໍ່',
             connectionSuccess: 'ເຊື່ອມຕໍ່ສຳເລັດ',
             connectionFailed: 'ເຊື່ອມຕໍ່ລົ້ມເຫຼວ',
         },
     },
     panelMCP: {
-        accessTitle: 'ການເຂົ້າເຖິງ 1Panel MCP',
+        accessTitle: 'ການເຂົ້າເຖິງ XPanel MCP',
         servicesTitle: 'ບໍລິການ MCP',
         websiteCancelPendingBind: 'ຍົກເລີກການຜູກ',
         websiteBinding: 'ການຜູກເວັບໄຊ',
@@ -2213,7 +2213,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2251,7 +2251,7 @@ const message = {
         allResults: 'ທຸກສະຖານະ',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: 'ກວດບໍລິການລົ້ມເຫຼວ. ກວດບັນທຶກ ແລະຄວາມເຂົ້າກັນຂອງລຸ້ນ.',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2260,13 +2260,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: 'ລຶບອິມເມຈເກົ່າ',
         deleteOldImageHelp:
             'ຫຼັງຈາກອັບເກຣດສຳເລັດ ຈະລຶບອິມເມຈເກົ່າທີ່ບໍ່ໄດ້ໃຊ້. ການລຶບລົ້ມເຫຼວບໍ່ກະທົບການອັບເກຣດ; ເບິ່ງບັນທຶກວຽກ.',
         installEmpty:
-            'ຍັງບໍ່ໄດ້ຕິດຕັ້ງບໍລິການ 1Panel MCP. ຫຼັງຈາກຕິດຕັ້ງ ແລະເປີດໃຊ້ ທ່ານຈະສາມາດສ້າງຂໍ້ມູນຢືນຢັນການເຂົ້າເຖິງ ແລະເອີ້ນໃຊ້ເຄື່ອງມື MCP ໄດ້.',
+            'ຍັງບໍ່ໄດ້ຕິດຕັ້ງບໍລິການ XPanel MCP. ຫຼັງຈາກຕິດຕັ້ງ ແລະເປີດໃຊ້ ທ່ານຈະສາມາດສ້າງຂໍ້ມູນຢືນຢັນການເຂົ້າເຖິງ ແລະເອີ້ນໃຊ້ເຄື່ອງມື MCP ໄດ້.',
         installWithCredentials: 'ຍັງບໍ່ຕິດຕັ້ງ MCP. ເກັບຂໍ້ມູນຢືນຢັນໄວ້ ແຕ່ຍັງເອີ້ນບໍ່ໄດ້.',
         installTaskLog: 'ບັນທຶກການຕິດຕັ້ງ',
         installNow: 'ຕິດຕັ້ງດຽວນີ້',
@@ -2274,7 +2274,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: 'ໂຫຼດຄືນ ແລະຂຽນທັບຄ່າທີ່ຍັງບໍ່ບັນທຶກບໍ?',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: 'ປ້ອນຊື່ອ້າງອີງອິມເມຈ Docker ທີ່ຖືກຕ້ອງ ພ້ອມແທັກ ຫຼືຄ່າ SHA-256.',
@@ -2492,6 +2492,10 @@ const message = {
         missing: 'ບໍ່ມີ',
     },
     container: {
+        logDisconnected:
+            'ການເຊື່ອມຕໍ່ສະຕຣີມບັນທຶກຖືກຕັດ. ກະລຸນາເຊື່ອມຕໍ່ໃໝ່ເພື່ອໂຫຼດບັນທຶກຫຼ້າສຸດ ແລະ ຮັບບັນທຶກແບບເວລາຈິງຕໍ່.',
+        logsUnavailable:
+            'ຄອນເທນເນີບໍ່ມີຢູ່ ຫຼື ຖືກລຶບແລ້ວ. ບໍ່ສາມາດເບິ່ງບັນທຶກຂອງຄອນເທນເນີໄດ້. ກະລຸນາສ້າງຄອນເທນເນີໃໝ່ ແລ້ວລອງອີກຄັ້ງ.',
         nvidiaSupport: 'ຮອງຮັບ NVIDIA GPU',
         nvidiaHelper:
             'ລົງທະບຽນ NVIDIA runtime ສຳລັບຄອນເທນເນີ. ຕິດຕັ້ງ NVIDIA Container Toolkit ກ່ອນ ແລະ ຈັດສັນ GPU ໃຫ້ແຕ່ລະຄອນເທນເນີແຍກກັນ.',
@@ -2544,7 +2548,7 @@ const message = {
         operatorAppHelper:
             'ລັນ "{0}" ໃນຄອນເທນເນີເຫຼົ່ານີ້. ບໍລິການທີ່ກຳນົດລັນຢື່ອາດຈະໄດ້ຮັບຜົນກະທົບ. ຕ້ອງການຕໍ່ຫຼືບໍ່?',
         containerDeleteHelper:
-            "ກວດພົບວ່າຄອນເທນເນີນີ້ນຳມາຈາກ App Store. ການລຶບຄອນເທນເນີຈະບໍ່ເປັນການລຶບອອກຈາກ 1Panel ຢ່າງຖາວອນ. ເພື່ອລຶບອອກທັງໝົດ ໃຫ້ໄປທີ່ App Store -> 'ຕິດຕັ້ງແລ້ວ' ຫຼື 'Runtime Environment'. ຕ້ອງການຕໍ່ຫຼືບໍ່?",
+            "ກວດພົບວ່າຄອນເທນເນີນີ້ນຳມາຈາກ App Store. ການລຶບຄອນເທນເນີຈະບໍ່ເປັນການລຶບອອກຈາກ XPanel ຢ່າງຖາວອນ. ເພື່ອລຶບອອກທັງໝົດ ໃຫ້ໄປທີ່ App Store -> 'ຕິດຕັ້ງແລ້ວ' ຫຼື 'Runtime Environment'. ຕ້ອງການຕໍ່ຫຼືບໍ່?",
         start: 'ເລີ່ມ',
         stop: 'ຢຸດ',
         restart: 'ເລີ່ມໃໝ່',
@@ -2756,7 +2760,7 @@ const message = {
             'ເສັ້ນທາງບັນທຶກໄຟລ໌ Compose: {0}; ຖ້າມີການລະບຸຊື່ໂຄງການໃນ Docker Compose ຈະໃຊ້ຊື່ນັ້ນກ່ອນ, ຖ້າບໍ່ມີຈະໃຊ້ {1}.',
         composeNamePriorityHelper:
             'ລຳດັບຊື່ໂຄງການ: ຊື່ທີ່ລະບຸໃນການຕັ້ງຄ່າ Docker Compose > ໂຟນເດີແມ່ຂອງໄຟລ໌ > ຊື່ທີ່ປ້ອນຢູ່ນີ້.',
-        composeHelper: 'Compose ທີ່ສ້າງຜ່ານ 1Panel editor ຫຼື template ຈະຖືກບັນທຶກໄວ້ໃນໂຟນເດີ {0}/docker/compose.',
+        composeHelper: 'Compose ທີ່ສ້າງຜ່ານ XPanel editor ຫຼື template ຈະຖືກບັນທຶກໄວ້ໃນໂຟນເດີ {0}/docker/compose.',
         deleteFile: 'ລຶບໄຟລ໌',
         deleteComposeHelper:
             'ລຶບໄຟລ໌ທັງໝົດທີ່ກ່ຽວຂ້ອງກັບ compose, ລວມທັງໄຟລ໌ກຳນົດຄ່າ ແລະ ໄຟລ໌ຂໍ້ມູນຖາວອນ. ກະລຸນາເຮັດດ້ວຍຄວາມລະມັດລະວັງ!',
@@ -2770,11 +2774,11 @@ const message = {
         containerStatus: 'ສະຖານະຄອນເທນເນີ',
         exited: 'ຢຸດແລ້ວ',
         running: 'ກຳລັງລັນ ( {0} / {1} )',
-        composeDetailHelper: 'Compose ນີ້ຖືກສ້າງຈາກພາຍນອກ 1Panel. ບໍ່ຮອງຮັບການສັ່ງເລີ່ມ ແລະ ຢຸດ.',
+        composeDetailHelper: 'Compose ນີ້ຖືກສ້າງຈາກພາຍນອກ XPanel. ບໍ່ຮອງຮັບການສັ່ງເລີ່ມ ແລະ ຢຸດ.',
         composeOperatorHelper: 'ຈະດຳເນີນການ {1} ໃນ {0}. ຕ້ອງການຕໍ່ຫຼືບໍ່?',
         composeDownHelper: 'ຈະຢຸດ ແລະ ລຶບຄອນເທນເນີ ແລະ network ທັງໝົດພາຍໃຕ້ compose {0}. ຕ້ອງການຕໍ່ຫຼືບໍ່?',
         composeEnvHelper2:
-            'Compose ນີ້ຖືກສ້າງໂດຍ 1Panel App Store. ກະລຸນາແກ້ໄຂຕົວປ່ຽນສະພາບແວດລ້ອມໃນແອັບທີ່ຕິດຕັ້ງແລ້ວ.',
+            'Compose ນີ້ຖືກສ້າງໂດຍ XPanel App Store. ກະລຸນາແກ້ໄຂຕົວປ່ຽນສະພາບແວດລ້ອມໃນແອັບທີ່ຕິດຕັ້ງແລ້ວ.',
         composeContentPlaceholder: 'ຂຽນ ຫຼື ວາງເນື້ອຫາໄຟລ໌ docker-compose ຂອງທ່ານທີ່ນີ້',
 
         setting: 'ການຕັ້ງຄ່າ',
@@ -2843,7 +2847,7 @@ const message = {
         stopHelper: 'ການດຳເນີນການນີ້ຈະບັງຄັບຢຸດການເຮັດວຽກຂອງວຽກປັດຈຸບັນ. ຕ້ອງການຕໍ່ຫຼືບໍ່?',
         log: 'ສຳຮອງບັນທຶກ (Log)',
         logHelper: 'ສຳຮອງບັນທຶກລະບົບ',
-        logHelper1: '1. ບັນທຶກລະບົບ 1Panel',
+        logHelper1: '1. ບັນທຶກລະບົບ XPanel',
         logHelper2: '2. ບັນທຶກການເຂົ້າສູ່ລະບົບ SSH ຂອງ server ',
         logHelper3: '3. ບັນທຶກທັງໝົດຂອງເວັບໄຊ ',
         containerCheckBox: 'ໃນຄອນເທນເນີ (ບໍ່ຕ້ອງປ້ອນຄຳສັ່ງ container)',
@@ -2939,7 +2943,7 @@ const message = {
         noLogs: 'ຍັງບໍ່ມີ output ຂອງວຽກ...',
         errPath: 'ເສັ້ນທາງສຳຮອງ [{0}] ຜິດພາດ, ບໍ່ສາມາດດາວໂຫຼດໄດ້!',
         cutWebsiteLog: 'ການໝູນວຽນບັນທຶກເວັບໄຊ (Rotation)',
-        cutWebsiteLogHelper: 'ໄຟລ໌ບັນທຶກທີ່ໝູນວຽນຈະຖືກສຳຮອງໄວ້ໃນໂຟນເດີສຳຮອງຂອງ 1Panel.',
+        cutWebsiteLogHelper: 'ໄຟລ໌ບັນທຶກທີ່ໝູນວຽນຈະຖືກສຳຮອງໄວ້ໃນໂຟນເດີສຳຮອງຂອງ XPanel.',
         syncIpGroup: 'ຊິງໂຄໄນກຸ່ມ IP ຂອງ WAF',
         syncIpGroupHelper: 'ຊິງໂຄໄນກຸ່ມ IP ໄລຍະໄກທີ່ໃຊ້ໃນ WAF allowlists ແລະ blocklists',
         requestExpirationTime: 'ເວລາໝົດອາຍຸຂອງຄຳຂໍອັບໂຫຼດ (ຊົ່ວໂມງ)',
@@ -3638,7 +3642,7 @@ const message = {
         previewTruncated: 'ໄຟລ໌ໃຫຍ່ເກີນໄປ, ສະແດງສະເພາະສ່ວນທ້າຍ',
         previewEmpty: 'ໄຟລ໌ຫວ່າງ ຫຼື ບໍ່ແມ່ນໄຟລ໌ຂໍ້ຄວາມ',
         previewLargeFile: 'ເບິ່ງຕົວຢ່າງ',
-        panelInstallDir: 'ໄດເຣັກທໍຣີຕິດຕັ້ງ 1Panel ບໍ່ສາມາດລຶບໄດ້',
+        panelInstallDir: 'ໄດເຣັກທໍຣີຕິດຕັ້ງ XPanel ບໍ່ສາມາດລຶບໄດ້',
         wgetTask: 'ງານດາວໂຫຼດ',
         existFileTitle: 'ແຈ້ງເຕືອນໄຟລ໌ຊື່ດຽວກັນ',
         existFileHelper: 'ໄຟລ໌ທີ່ອັບໂຫຼດມີຊື່ດຽວກັນກັບໄຟລ໌ທີ່ມີຢູ່, ທ່ານຕ້ອງການຂຽນທັບບໍ?',
@@ -3862,7 +3866,7 @@ const message = {
         syncTime: 'ເວລາເຊີບເວີ',
         timeZone: 'ເຂດເວລາ',
         timeZoneChangeHelper: 'ການປ່ຽນເຂດເວລາຕ້ອງມີການເລີ່ມບໍລິການໃໝ່. ຕ້ອງການເຮັດຕໍ່ບໍ?',
-        timeZoneHelper: 'ການແກ້ໄຂເຂດເວລາຂຶ້ນກັບບໍລິການ timedatectl ຂອງລະບົບ. ຈະມີຜົນຫຼັງຈາກເລີ່ມບໍລິການ 1Panel ໃໝ່.',
+        timeZoneHelper: 'ການແກ້ໄຂເຂດເວລາຂຶ້ນກັບບໍລິການ timedatectl ຂອງລະບົບ. ຈະມີຜົນຫຼັງຈາກເລີ່ມບໍລິການ XPanel ໃໝ່.',
         timeZoneCN: 'ປັກກິ່ງ',
         timeZoneAM: 'ລອສ ແອງເຈລີສ',
         timeZoneNY: 'ນິວຢອກ',
@@ -3985,7 +3989,7 @@ const message = {
             'ສະເພາະການຮ້ອງຂໍຈາກ IP/CIDR ເຫຼົ່ານີ້ເທົ່ານັ້ນທີ່ຈະເຊື່ອຖືຄ່າ Forwarded ແລະ X-Forwarded-Proto ເມື່ອກວດສອບ HTTPS',
         passkeyNotSupported: 'ບຣາວເຊີ ຫຼື ສະພາບແວດລ້ອມປັດຈຸບັນບໍ່ຮອງຮັບ Passkey',
         passkeyPrereqTitle: 'ເງື່ອນໄຂເບື້ອງຕົ້ນສຳລັບການໃຊ້ Passkey',
-        passkeyPrereqBindDomain: 'ມີການຕັ້ງຄ່າຜູກໂດເມນ 1Panel',
+        passkeyPrereqBindDomain: 'ມີການຕັ້ງຄ່າຜູກໂດເມນ XPanel',
         passkeyPrereqHttps: 'ເຂົ້າເຖິງຢ່າງປອດໄພຜ່ານ HTTPS',
         passkeyPrereqBrowser: 'ສະພາບແວດລ້ອມຮອງຮັບ Passkey (WebAuthn + ອຸປະກອນຢືນຢັນຕົວຕົນ)',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4031,10 +4035,10 @@ const message = {
         unBindDomain: 'ຍົກເລີກການຜູກໂດເມນ',
         panelSSL: 'SSL ພາເນລ',
         unBindDomainHelper: 'ການຍົກເລີກການຜູກໂດເມນອາດເຮັດໃຫ້ລະບົບບໍ່ປອດໄພ. ຕ້ອງການເຮັດຕໍ່ບໍ?',
-        bindDomainHelper: 'ຫຼັງຈາກຜູກໂດເມນແລ້ວ, ຈະສາມາດເຂົ້າເຖິງບໍລິການ 1Panel ຜ່ານໂດເມນນັ້ນເທົ່ານັ້ນ.',
+        bindDomainHelper: 'ຫຼັງຈາກຜູກໂດເມນແລ້ວ, ຈະສາມາດເຂົ້າເຖິງບໍລິການ XPanel ຜ່ານໂດເມນນັ້ນເທົ່ານັ້ນ.',
         bindDomainHelper1: 'ປະຫວ່າງໄວ້ເພື່ອປິດການຜູກໂດເມນ.',
         bindDomainWarning:
-            'ຫຼັງຈາກຜູກໂດເມນ, ທ່ານຈະຖືກອອກຈາກລະບົບ ແລະ ສາມາດເຂົ້າເຖິງ 1Panel ຜ່ານໂດເມນທີ່ລະບຸໃນການຕັ້ງຄ່າເທົ່ານັ້ນ. ຕ້ອງການເຮັດຕໍ່ບໍ?',
+            'ຫຼັງຈາກຜູກໂດເມນ, ທ່ານຈະຖືກອອກຈາກລະບົບ ແລະ ສາມາດເຂົ້າເຖິງ XPanel ຜ່ານໂດເມນທີ່ລະບຸໃນການຕັ້ງຄ່າເທົ່ານັ້ນ. ຕ້ອງການເຮັດຕໍ່ບໍ?',
         allowIPs: 'IP ທີ່ໄດ້ຮັບອະນຸຍາດ',
         unAllowIPs: 'IP ທີ່ບໍ່ໄດ້ຮັບອະນຸຍາດ',
         unAllowIPsWarning:
@@ -4051,7 +4055,7 @@ const message = {
         secret: 'ຄີລັບ (Secret)',
         mfaInterval: 'ໄລຍະເວລາຣີເຟຣຊ (ວິນາທີ)',
         mfaTitleHelper:
-            'ຊື່ເລື່ອງໃຊ້ເພື່ອຈຳແນກໂຮສ໌ 1Panel ທີ່ຕ່າງກັນ. ກະລຸນາສະແກນໃໝ່ ຫຼື ເພີ່ມຄີລັບດ້ວຍຕົນເອງຫຼັງຈາກແກ້ໄຂຊື່ເລື່ອງ.',
+            'ຊື່ເລື່ອງໃຊ້ເພື່ອຈຳແນກໂຮສ໌ XPanel ທີ່ຕ່າງກັນ. ກະລຸນາສະແກນໃໝ່ ຫຼື ເພີ່ມຄີລັບດ້ວຍຕົນເອງຫຼັງຈາກແກ້ໄຂຊື່ເລື່ອງ.',
         mfaIntervalHelper:
             'ສະແກນໃໝ່ ຫຼື ເພີ່ມຄີລັບດ້ວຍຕົນເອງຫຼັງຈາກປ່ຽນໄລຍະເວລາຣີເຟຣຊ.\nບາງແອັບຢືນຢັນຕົວຕົນຮອງຮັບສະເພາະໄລຍະເວລາ 30 ວິນາທີ (ເຊັ່ນ Google/Microsoft Authenticator).',
         mfaAlert:
@@ -4135,14 +4139,14 @@ const message = {
         ignoreRule: 'ກົດການຍົກເວັ້ນ',
         editIgnoreRule: '@:commons.button.edit @.lower:setting.ignoreRule',
         ignoreHelper:
-            'ກົດນີ້ຈະຖືກໃຊ້ເພື່ອບີບອັດ ແລະ ສຳຮອງຂໍ້ມູນໄດເຣັກທໍຣີ 1Panel ລະຫວ່າງການສ້າງສະແນັບຊັອດ. ໂດຍຄ່າເລີ່ມຕົ້ນ, ໄຟລ໌ socket ຈະຖືກຍົກເວັ້ນ.',
+            'ກົດນີ້ຈະຖືກໃຊ້ເພື່ອບີບອັດ ແລະ ສຳຮອງຂໍ້ມູນໄດເຣັກທໍຣີ XPanel ລະຫວ່າງການສ້າງສະແນັບຊັອດ. ໂດຍຄ່າເລີ່ມຕົ້ນ, ໄຟລ໌ socket ຈະຖືກຍົກເວັ້ນ.',
         ignoreHelper1: 'ໜຶ່ງລາຍການຕໍ່ແຖວ. ຕົວຢ່າງ:\n*.log\n/opt/1panel/cache',
-        panelInfo: 'ຂຽນຂໍ້ມູນພື້ນຖານ 1Panel',
-        panelBin: 'ສຳຮອງໄຟລ໌ລະບົບ 1Panel',
+        panelInfo: 'ຂຽນຂໍ້ມູນພື້ນຖານ XPanel',
+        panelBin: 'ສຳຮອງໄຟລ໌ລະບົບ XPanel',
         daemonJson: 'ສຳຮອງໄຟລ໌ຕັ້ງຄ່າ Docker',
-        appData: 'ສຳຮອງແອັບທີ່ຕິດຕັ້ງຈາກ 1Panel',
-        panelData: 'ສຳຮອງໄດເຣັກທໍຣີຂໍ້ມູນ 1Panel',
-        backupData: 'ສຳຮອງໄດເຣັກທໍຣີສຳຮອງທ້ອງຖິ່ນສຳລັບ 1Panel',
+        appData: 'ສຳຮອງແອັບທີ່ຕິດຕັ້ງຈາກ XPanel',
+        panelData: 'ສຳຮອງໄດເຣັກທໍຣີຂໍ້ມູນ XPanel',
+        backupData: 'ສຳຮອງໄດເຣັກທໍຣີສຳຮອງທ້ອງຖິ່ນສຳລັບ XPanel',
         compress: 'ສ້າງໄຟລ໌ສະແນັບຊັອດ',
         upload: 'ອັບໂຫຼດໄຟລ໌ສະແນັບຊັອດ',
         recoverDetail: 'ລາຍລະອຽດການກູ້ຄືນ',
@@ -4154,7 +4158,7 @@ const message = {
         recoverErrArch: 'ບໍ່ຮອງຮັບການກູ້ຄືນສະແນັບຊັອດລະຫວ່າງສະຖາປັດຕະຍະກຳເຊີບເວີທີ່ຕ່າງກັນ!',
         recoverErrSize: 'ກວດພົບພື້ນທີ່ດິດບໍ່ພຽງພໍ, ກະລຸນາກວດສອບ ຫຼື ລ້າງຂໍ້ມູນແລ້ວລອງໃໝ່!',
         recoverHelper: 'ກຳລັງເລີ່ມການກູ້ຄືນຈາກສະແນັບຊັອດ {0}, ຢືນຢັນຂໍ້ມູນຕໍ່ໄປນີ້ກ່ອນດຳເນີນການ:',
-        recoverHelper1: 'ການກູ້ຄືນຕ້ອງມີການເລີ່ມບໍລິການ Docker ແລະ 1Panel ໃໝ່',
+        recoverHelper1: 'ການກູ້ຄືນຕ້ອງມີການເລີ່ມບໍລິການ Docker ແລະ XPanel ໃໝ່',
         recoverHelper2:
             'ກະລຸນາກວດສອບໃຫ້ແນ່ໃຈວ່າມີພື້ນທີ່ດິດພຽງພໍໃນເຊີບເວີ (ຂະໜາດໄຟລ໌ສະແນັບຊັອດ: {0}, ພື້ນທີ່ຫວ່າງ: {1})',
         recoverHelper3:
@@ -4163,10 +4167,10 @@ const message = {
             'ການດຳເນີນການນີ້ຈະຍ້ອນກັບສະເພາະໂນດຫຼັກເທົ່ານັ້ນ. ຫາກມີໂນດສຳຮອງທີ່ອັບເກຣດແລ້ວ, ໃຫ້ຍ້ອນກັບໂນດເຫຼົ່ານັ້ນກ່ອນ.',
         rollback: 'ຍ້ອນກັບ (Rollback)',
         rollbackHelper:
-            'ການຍ້ອນກັບການກູ້ຄືນນີ້ຈະແທນທີ່ທຸກໄຟລ໌ຈາກການກູ້ຄືນນີ້, ແລະ ອາດຕ້ອງເລີ່ມບໍລິການ Docker ແລະ 1Panel ໃໝ່. ຕ້ອງການເຮັດຕໍ່ບໍ?',
+            'ການຍ້ອນກັບການກູ້ຄືນນີ້ຈະແທນທີ່ທຸກໄຟລ໌ຈາກການກູ້ຄືນນີ້, ແລະ ອາດຕ້ອງເລີ່ມບໍລິການ Docker ແລະ XPanel ໃໝ່. ຕ້ອງການເຮັດຕໍ່ບໍ?',
         upgradeRecord: 'ບັນທຶກການອັບເກຣດ',
         upgrading: 'ກຳລັງອັບເກຣດ, ກະລຸນາລໍຖ້າ...',
-        upgradeHelper: 'ການອັບເກຣດຕ້ອງມີການເລີ່ມບໍລິການ 1Panel ໃໝ່. ຕ້ອງການເຮັດຕໍ່ບໍ?',
+        upgradeHelper: 'ການອັບເກຣດຕ້ອງມີການເລີ່ມບໍລິການ XPanel ໃໝ່. ຕ້ອງການເຮັດຕໍ່ບໍ?',
         noUpgrade: 'ປັດຈຸບັນເປັນເວີຊັນຫຼ້າສຸດແລ້ວ',
         versionHelper: 'ກົດການຕັ້ງຊື່: [major version].[functional version].[Bug fix version], ດັ່ງຕົວຢ່າງຕໍ່ໄປນີ້:',
         rollbackLocalHelper:
@@ -4243,7 +4247,7 @@ const message = {
         importLicense: 'ນຳເຂົ້າລິຂະສິດ',
         securityWarningTitle: 'ຢ່າໃຊ້ລິຂະສິດທີ່ຖືກແຮັກ (crack) ຫຼື ລິຂະສິດຈາກແຫຼ່ງທີ່ບໍ່ຮູ້ຈັກ.',
         securityWarningContent:
-            '1Panel ເຮັດວຽກດ້ວຍສິດບໍລິຫານລະບົບ. ລິຂະສິດທີ່ບໍ່ເປັນທາງການ ຫຼື ໄຟລ໌ຕິດຕັ້ງທີ່ຖືກດັດແກ້ອາດເຮັດໃຫ້ເຊີບເວີຖືກຄວບຄຸມ, ຂໍ້ມູນຮົ່ວໄຫຼ ແລະ ຄວາມສ່ຽງດ້ານຄວາມປອດໄພຮ້າຍແຮງອື່ນໆ. ກະລຸນາຮັບລິຂະສິດ ແລະ ໄຟລ໌ຕິດຕັ້ງຈາກຊ່ອງທາງທາງການຂອງ FIT2CLOUD ເທົ່ານັ້ນ.',
+            'XPanel ເຮັດວຽກດ້ວຍສິດບໍລິຫານລະບົບ. ລິຂະສິດທີ່ບໍ່ເປັນທາງການ ຫຼື ໄຟລ໌ຕິດຕັ້ງທີ່ຖືກດັດແກ້ອາດເຮັດໃຫ້ເຊີບເວີຖືກຄວບຄຸມ, ຂໍ້ມູນຮົ່ວໄຫຼ ແລະ ຄວາມສ່ຽງດ້ານຄວາມປອດໄພຮ້າຍແຮງອື່ນໆ. ກະລຸນາຮັບລິຂະສິດ ແລະ ໄຟລ໌ຕິດຕັ້ງຈາກຊ່ອງທາງທາງການຂອງ FIT2CLOUD ເທົ່ານັ້ນ.',
         importHelper: 'ຄລິກ ຫຼື ລາກໄຟລ໌ລິຂະສິດມາທີ່ນີ້',
         licenseRequiredTip: 'ຍັງບໍ່ໄດ້ນຳເຂົ້າລິຂະສິດ. ກະລຸນາຄັດລອກ ID ອຸປະກອນ, ຮັບລິຂະສິດ ແລະ ນຳເຂົ້າກ່ອນເຂົ້າລະບົບ.',
         licenseRequiredShortTip:
@@ -4285,7 +4289,7 @@ const message = {
         monitor:
             'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອເບິ່ງສະຖານະເວັບໄຊແບບສົດໆ, ແນວໂນ້ມຜູ້ເຂົ້າຊົມ, ແຫຼ່ງທີ່ມາຂອງທຣາຟຟິກ, ບັນທຶກການຮ້ອງຂໍ ແລະ ອື່ນໆ.',
         alert: 'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອຮັບການແຈ້ງເຕືອນຜ່ານ SMS, ກວດສອບບັນທຶກການແຈ້ງເຕືອນ ແລະ ຕິດຕາມເຫດການສຳຄັນ.',
-        node: 'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອຈັດການເຊີບເວີ Linux ຫຼາຍເຄື່ອງໃນ 1Panel.',
+        node: 'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອຈັດການເຊີບເວີ Linux ຫຼາຍເຄື່ອງໃນ XPanel.',
         nodeApp: 'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອອັບເກຣດເວີຊັນແອັບໃນຫຼາຍໂນດໂດຍບໍ່ຕ້ອງສະຫຼັບໂນດດ້ວຍຕົນເອງ.',
         nodeDashboard:
             'ອັບເກຣດເປັນເວີຊັນ Commercial ເພື່ອຈັດການແອັບ, ເວັບໄຊ, ຖານຂໍ້ມູນ ແລະ ງານຕາມກຳນົດເວລາຂອງຫຼາຍໂນດຢູ່ບ່ອນດຽວ.',
@@ -4303,7 +4307,7 @@ const message = {
     },
     clean: {
         scan: 'ເລີ່ມສະແກນ',
-        scanHelper: 'ລ້າງໄຟລ໌ຂີ້ເຫຍື້ອທີ່ເກີດຂຶ້ນລະຫວ່າງການເຮັດວຽກຂອງ 1Panel ໄດ້ງ່າຍໆ',
+        scanHelper: 'ລ້າງໄຟລ໌ຂີ້ເຫຍື້ອທີ່ເກີດຂຶ້ນລະຫວ່າງການເຮັດວຽກຂອງ XPanel ໄດ້ງ່າຍໆ',
         clean: 'ລ້າງດຽວນີ້',
         reScan: 'ສະແກນໃໝ່',
         cleanHelper: 'ໄຟລ໌ ແລະ ໄດເຣັກທໍຣີທີ່ເລືອກບໍ່ສາມາດຍ້ອນກັບໄດ້ຫຼັງຈາກການລ້າງ. ຕ້ອງການເຮັດຕໍ່ບໍ?',
@@ -5042,7 +5046,7 @@ const message = {
         execShell: 'ປະຕິບັດສະຄຣິບຫຼັງຈາກຂໍໃບຢັ້ງຢືນສຳເລັດ.',
         shell: 'ເນື້ອຫາສະຄຣິບ',
         shellHelper:
-            'ພາດເລີ່ມຕົ້ນຂອງສະຄຣິບແມ່ນໂຟນເດີຕິດຕັ້ງ 1Panel. ຖ້າມີການສົ່ງໃບຢັ້ງຢືນໄປໂຟນເດີອື່ນ, ພາດຈະປ່ຽນໄປຕາມນັ້ນ. ເວລາໝົດອາຍຸແມ່ນ 30 ນາທີ.',
+            'ພາດເລີ່ມຕົ້ນຂອງສະຄຣິບແມ່ນໂຟນເດີຕິດຕັ້ງ XPanel. ຖ້າມີການສົ່ງໃບຢັ້ງຢືນໄປໂຟນເດີອື່ນ, ພາດຈະປ່ຽນໄປຕາມນັ້ນ. ເວລາໝົດອາຍຸແມ່ນ 30 ນາທີ.',
         customAcme: 'ບໍລິການ ACME ທີ່ກຳນົດເອງ',
         customAcmeURL: 'URL ຂອງບໍລິການ ACME',
         baiduCloud: 'Baidu Cloud',
@@ -5058,7 +5062,7 @@ const message = {
         ipv6SupportHelper: 'ຄວບຄຸມການຈັດການ ແລະ ການນຳໃຊ້ກົດໄຟວໍ IPv6 ໂດຍບໍ່ກະທົບຕໍ່ເຄືອຂ່າຍ IPv6 ຂອງເຊີບເວີ.',
         ipv6DisableContainerHelper: 'ເຊື່ອງຂໍ້ມູນພອດ IPv6 ຂອງຄອນເທນເນີ.',
         ipv6DisableWhitelistHelper: 'ລຶບກົດ IPv6 ອອກຈາກລາຍການອະນຸຍາດ ແລະ ເກັບກົດ IPv6 ອື່ນທີ່ມີຢູ່ໄວ້.',
-        ipv6DisableRulesHelper: 'ປິດໃຊ້ງານກົດ IPv6 ໃນ iptables ແລະ nftables ທີ່ 1Panel ຈັດການ.',
+        ipv6DisableRulesHelper: 'ປິດໃຊ້ງານກົດ IPv6 ໃນ iptables ແລະ nftables ທີ່ XPanel ຈັດການ.',
         ipv6DisableNetworkHelper: 'ການດຳເນີນການນີ້ບໍ່ໄດ້ປິດເຄືອຂ່າຍ IPv6 ຂອງເຊີບເວີ.',
         ipv6DisableEffectHelper: 'ຂໍ້ຈຳກັດການເຂົ້າເຖິງ IPv6 ແລະ ການສົ່ງຕໍ່ພອດທີ່ກ່ຽວຂ້ອງຈະບໍ່ມີຜົນອີກຕໍ່ໄປ.',
         ipv6Disabled: 'ການຮອງຮັບ IPv6 ຖືກປິດ. ກະລຸນາເປີດໃນການຕັ້ງຄ່າໄຟວໍກ່ອນ.',
@@ -5112,7 +5116,7 @@ const message = {
         systemFirewall: 'ໄຟວໍໂຮສ',
         systemFirewallHelper: 'ຄວບຄຸມການເຂົ້າເຖິງພອດໂຮສ ແລະ ກົດຂາເຂົ້າ.',
         forwardingHelper: 'ຈັດການກົດການສົ່ງຕໍ່ພອດ.',
-        dockerFirewallHelper: 'ເລືອກວິທີທີ່ 1Panel ຈັດການການປ້ອງກັນພອດຄອນເທນເນີ.',
+        dockerFirewallHelper: 'ເລືອກວິທີທີ່ XPanel ຈັດການການປ້ອງກັນພອດຄອນເທນເນີ.',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0, ທົດລອງ',
         backendRecommendation: 'ແນະນຳໃຫ້ໃຊ້ iptables ຫຼື nftables ໃນການຈັດການ.',
         configuredRules: 'ຕັ້ງຄ່າແລ້ວ {0} ກົດ',
@@ -5123,9 +5127,9 @@ const message = {
         importLimit: 'ນຳເຂົ້າໄດ້ສູງສຸດ {0} ກົດ (ນັບຫຼັງຈາກຂະຫຍາຍແລ້ວ), ຂະໜາດໄຟລ໌ບໍ່ເກີນ {1} KB.',
         ruleSyncTitle: 'ຊິງກົດ',
         ruleSyncAction: 'ຊິງກົດ',
-        ruleSyncDatabase: 'ຖານຂໍ້ມູນ 1Panel',
+        ruleSyncDatabase: 'ຖານຂໍ້ມູນ XPanel',
         ruleSyncDatabaseHelper:
-            'ໃຊ້ກົດໃນຖານຂໍ້ມູນ 1Panel ເປັນຫຼັກເພື່ອຊິງຄ໌ ແລະປັບກົດທີ່ຈັດການໂດຍ 1Panel ໃນໄຟຣ໌ວໍປັດຈຸບັນ. ກົດທີ່ຂາດຈະຖືກເພີ່ມ ແລະກົດທີ່ເກີນຈະຖືກລຶບ.',
+            'ໃຊ້ກົດໃນຖານຂໍ້ມູນ XPanel ເປັນຫຼັກເພື່ອຊິງຄ໌ ແລະປັບກົດທີ່ຈັດການໂດຍ XPanel ໃນໄຟຣ໌ວໍປັດຈຸບັນ. ກົດທີ່ຂາດຈະຖືກເພີ່ມ ແລະກົດທີ່ເກີນຈະຖືກລຶບ.',
         ruleSyncDatabaseTotal: 'ກົດໃນຖານຂໍ້ມູນ',
         ruleSyncDatabaseConfirm: 'ຊິງ {1} ໃຫ້ກົງກັບ {0} ກົດໃນຖານຂໍ້ມູນບໍ? ຈະລຶບ {2} ກົດຂອງເປົ້າໝາຍ ແລະເພີ່ມກົດທີ່ຂາດ.',
         ruleSyncSource: 'ແຫຼ່ງການຕັ້ງຄ່າ',
@@ -5152,12 +5156,12 @@ const message = {
         downloadRuleBackup: 'ດາວໂຫຼດໄຟລ໌ສຳຮອງກົດ',
         importFileHelper:
             'ນຳເຂົ້າໄຟລ໌ JSON ຂະໜາດບໍ່ເກີນ 64 MB ເປັນຊຸດຕາມລຳດັບໃນໄຟລ໌. ກົດທີ່ແປງບໍ່ໄດ້ຈະລາຍງານເປັນຂໍ້ຜິດພາດ.',
-        resetDirectRulesHelper: 'ລຶບເຊນໄຟວໍໂຮສ 1Panel, ກົດທີ່ໃຊ້ງານ ແລະ ໄຟລ໌ຖາວອນທັງໝົດໃນ {0}.',
+        resetDirectRulesHelper: 'ລຶບເຊນໄຟວໍໂຮສ XPanel, ກົດທີ່ໃຊ້ງານ ແລະ ໄຟລ໌ຖາວອນທັງໝົດໃນ {0}.',
         resetWhitelistRulesHelper: 'ຣີເຊັດການຕັ້ງຄ່າຂອງ {0}, ກັບຄືນຄ່າເລີ່ມຕົ້ນ ແລະ ປິດໃຊ້ງານ.',
         cleanupForwardingBackendHelper:
-            'ລຶບກົດສົ່ງຕໍ່, ຕ່ອງໂສ້ ແລະ ໄຟລ໌ກູ້ຄືນອັດຕະໂນມັດຂອງ 1Panel ທັງໝົດຈາກ {0}. ເກັບຂໍ້ມູນສຳຮອງ JSON ເດີມໄວ້.',
+            'ລຶບກົດສົ່ງຕໍ່, ຕ່ອງໂສ້ ແລະ ໄຟລ໌ກູ້ຄືນອັດຕະໂນມັດຂອງ XPanel ທັງໝົດຈາກ {0}. ເກັບຂໍ້ມູນສຳຮອງ JSON ເດີມໄວ້.',
         cleanupDockerBackendHelper:
-            'ລຶບກົດປ້ອງກັນ Docker, ຕ່ອງໂສ້ ແລະ ໄຟລ໌ກູ້ຄືນອັດຕະໂນມັດຂອງ 1Panel ທັງໝົດຈາກ {0}. ເກັບຂໍ້ມູນສຳຮອງ JSON ເດີມໄວ້.',
+            'ລຶບກົດປ້ອງກັນ Docker, ຕ່ອງໂສ້ ແລະ ໄຟລ໌ກູ້ຄືນອັດຕະໂນມັດຂອງ XPanel ທັງໝົດຈາກ {0}. ເກັບຂໍ້ມູນສຳຮອງ JSON ເດີມໄວ້.',
         cleanupBeforeBackendSwitch: 'ກ່ອນປ່ຽນໄປ {1}, ໃຫ້ຣີເຊັດ {0} ປັດຈຸບັນ ແລະກວດສອບວິທີກູ້ຄືນກົດ.',
         backendSwitchNotice:
             'ແນະນຳໃຫ້ເປີດໃຊ້ວິທີຈັດການໄຟວໍພຽງແບບດຽວ. ການໃຊ້ຫຼາຍໄຟວໍພ້ອມກັນອາດເຮັດໃຫ້ກົດຂັດແຍ່ງ, ສະຖານະບໍ່ກົງກັນ ຫຼື ການເຂົ້າເຖິງພອດຄອນເທນເນີຜິດປົກກະຕິ.',
@@ -5278,6 +5282,8 @@ const message = {
         editRuleConfirm: 'ທ່ານແນ່ໃຈບໍວ່າຕ້ອງການແກ້ໄຂກົດນີ້?',
     },
     runtime: {
+        statusMessageUnavailable:
+            'ບໍ່ມີຂໍ້ມູນສະຖານະແບບລະອຽດ. ກະລຸນາກວດເບິ່ງບັນທຶກຂອງສະພາບແວດລ້ອມການເຮັດວຽກເພື່ອເບິ່ງລາຍລະອຽດ.',
         importEnv: 'ນຳເຂົ້າຕົວແປສະພາບແວດລ້ອມ',
         envImportError: 'ແຖວ {0}: {1}',
         envInvalidAssignment: 'ຕ້ອງເປັນຮູບແບບ NAME=value ທີ່ຖືກຕ້ອງ',
@@ -5406,7 +5412,7 @@ const message = {
             dir: 'ໂຟນເດີ',
             numprocs: 'ຈຳນວນຂະບວນການ',
             initWarn:
-                'ນີ້ຈະແກ້ໄຂຄ່າ "files" ໃນສ່ວນ "[include]" ຂອງໄຟລ໌ຕັ້ງຄ່າຫຼັກ. ໂຟນເດີຂອງໄຟລ໌ຕັ້ງຄ່າອື່ນໆຈະຢູ່ທີ່: "{1Panel installation directory}/1panel/tools/supervisord/supervisor.d/".',
+                'ນີ້ຈະແກ້ໄຂຄ່າ "files" ໃນສ່ວນ "[include]" ຂອງໄຟລ໌ຕັ້ງຄ່າຫຼັກ. ໂຟນເດີຂອງໄຟລ໌ຕັ້ງຄ່າອື່ນໆຈະຢູ່ທີ່: "{XPanel installation directory}/1panel/tools/supervisord/supervisor.d/".',
             operatorHelper: 'ການດຳເນີນການ {1} ຈະຖືກເຮັດກັບ {0}, ຕ້ອງການຕໍ່ຫຼືບໍ່? ',
             uptime: 'ເວລາທີ່ເຮັດວຽກມາແລ້ວ',
             notStartWarn: 'Supervisor ຍັງບໍ່ໄດ້ເລີ່ມຕົ້ນ. ກະລຸນາເລີ່ມຕົ້ນກ່ອນ.',
@@ -6218,7 +6224,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: 'ຄ່າຍອມຮັບຄວາມຄາດເຄື່ອນເວລາຂອງໂທເຄັນ',
                     clockSkewHelper:
-                        'ອະນຸຍາດໃຫ້ເວລາຂອງຜູ້ໃຫ້ບໍລິການຕົວຕົນ ແລະ 1Panel ແຕກຕ່າງກັນເລັກນ້ອຍ. ແນະນຳໃຫ້ຄົງຄ່າເລີ່ມຕົ້ນ 60 ວິນາທີ.',
+                        'ອະນຸຍາດໃຫ້ເວລາຂອງຜູ້ໃຫ້ບໍລິການຕົວຕົນ ແລະ XPanel ແຕກຕ່າງກັນເລັກນ້ອຍ. ແນະນຳໃຫ້ຄົງຄ່າເລີ່ມຕົ້ນ 60 ວິນາທີ.',
                     clockSkewRequired: 'ໃສ່ຄ່າຍອມຮັບຄວາມຄາດເຄື່ອນເວລາຂອງໂທເຄັນ.',
                     compatibilityMode: 'ໂໝດຄວາມເຂົ້າກັນໄດ້',
                     compatibilityModeHelper:
@@ -6325,12 +6331,12 @@ const message = {
                     nameClaimHelper: 'ໃສ່ຊ່ອງຂໍ້ມູນທີ່ມີຊື່ຜູ້ໃຊ້ ເຊັ່ນ preferred_username.',
                     nameClaimRequired: 'ປ້ອນ Claim ຊື່ຜູ້ໃຊ້.',
                     nameConflict: 'ນະໂຍບາຍການຂັດແຍ້ງກ່ຽວກັບຊື່',
-                    panelURL: '1Panel ສາທາລະນະ URL',
+                    panelURL: 'XPanel ສາທາລະນະ URL',
                     panelURLHTTPWarning:
                         'HTTP ບໍ່ປົກປ້ອງການຕອບຮັບການອະນຸຍາດ. ໃຊ້ມັນຢູ່ໃນສະພາບແວດລ້ອມສ່ວນຕົວທີ່ໂດດດ່ຽວທີ່ຍອມຮັບໂດຍ Provider.',
-                    panelURLHelper: 'ໃສ່ທີ່ຢູ່ທີ່ຜູ້ໃຊ້ໃຊ້ເຂົ້າເຖິງ 1Panel. ລະບົບໃຊ້ທີ່ຢູ່ນີ້ເພື່ອສ້າງທີ່ຢູ່ຮຽກກັບ.',
+                    panelURLHelper: 'ໃສ່ທີ່ຢູ່ທີ່ຜູ້ໃຊ້ໃຊ້ເຂົ້າເຖິງ XPanel. ລະບົບໃຊ້ທີ່ຢູ່ນີ້ເພື່ອສ້າງທີ່ຢູ່ຮຽກກັບ.',
                     panelURLInvalid: 'ປ້ອນຕົ້ນກຳເນີດທີ່ປະກອບມີພຽງແຕ່ໂຄງການ, ໂຮສ, ແລະພອດທາງເລືອກ.',
-                    panelURLRequired: 'ປ້ອນ 1Panel ສາທາລະນະ URL.',
+                    panelURLRequired: 'ປ້ອນ XPanel ສາທາລະນະ URL.',
                     pkceDisabled: 'ປິດໃຊ້ງານ (ຄວາມເຂົ້າກັນໄດ້ເທົ່ານັ້ນ)',
                     pkceDisabledWarning: 'ການປິດໃຊ້ງານ PKCE ຫຼຸດຜ່ອນການປ້ອງກັນການຂັດຂວາງລະຫັດການອະນຸຍາດ.',
                     pkceHelper: 'ຕ້ອງການ S256. ວິທີການທ້າທາຍ plain ແມ່ນບໍ່ເຄີຍສະເຫນີ.',
@@ -6385,7 +6391,7 @@ const message = {
                     signingKeySourceHelper: 'ແນະນຳໃຫ້ໃຊ້ JWKS. ກະແຈສາທາລະນະແບບຄົງທີ່ບໍ່ສາມາດໝູນວຽນອັດຕະໂນມັດໄດ້.',
                     signingKeyStatic: 'ກະແຈສາທາລະນະ JWK ຫຼື PEM ແບບຄົງທີ່',
                     standardDiscovery: 'ມາດຕະຖານ OIDC Discovery',
-                    standardDiscoveryDesc: '1Panel ຄົ້ນພົບຈຸດສິ້ນສຸດ ແລະຄວາມສາມາດ ແລະບໍ່ໄດ້ເກັບຮັກສາເອກະສານດິບ.',
+                    standardDiscoveryDesc: 'XPanel ຄົ້ນພົບຈຸດສິ້ນສຸດ ແລະຄວາມສາມາດ ແລະບໍ່ໄດ້ເກັບຮັກສາເອກະສານດິບ.',
                     standardMode: 'ໂໝດມາດຕະຖານ',
                     standardModeHelper: 'ຄົ້ນພົບຈຸດສິ້ນສຸດ, ຄວາມສາມາດໃນການເຊັນ, ແລະການສະຫນັບສະຫນູນ PKCE ຈາກ Issuer.',
                     standardProtocolPolicy: 'ນະໂຍບາຍໂປໂຕຄອນມາດຕະຖານ',
@@ -6503,7 +6509,7 @@ const message = {
                     metadataXMLPlaceholder: 'ວາງ <EntityDescriptor>...</EntityDescriptor>',
                     nameAttribute: 'Attribute ຊື່ຜູ້ໃຊ້',
                     nameAttributeHelper:
-                        'ອ່ານ Attribute ນີ້ຈາກ SAML Assertion ທີ່ກວດສອບແລ້ວ ແລະຈັບຄູ່ກັບຊື່ຜູ້ໃຊ້ 1Panel.',
+                        'ອ່ານ Attribute ນີ້ຈາກ SAML Assertion ທີ່ກວດສອບແລ້ວ ແລະຈັບຄູ່ກັບຊື່ຜູ້ໃຊ້ XPanel.',
                     nameAttributePlaceholder: 'ຕົວຢ່າງ: uid, username ຫຼື account',
                     nameAttributeRequired: 'ໃສ່ Attribute ຊື່ຜູ້ໃຊ້.',
                     notConfigured: 'ຍັງບໍ່ໄດ້ຕັ້ງຄ່າ',
@@ -6536,7 +6542,7 @@ const message = {
                     spPrivateKeyHelper:
                         'ໃຊ້ເພື່ອເຊັນ AuthnRequest ແລະຂໍ້ຄວາມອອກລະບົບ. ກະແຈຈະຖືກເຂົ້າລະຫັດເມື່ອຈັດເກັບ ແລະບໍ່ຖືກສະແດງ.',
                     syncLogout: 'ອອກລະບົບແບບຊິງຄ໌',
-                    syncLogoutHelper: 'ການອອກຈາກ 1Panel ຫຼື IdP ຈະອອກຈາກອີກຝ່າຍດ້ວຍ.',
+                    syncLogoutHelper: 'ການອອກຈາກ XPanel ຫຼື IdP ຈະອອກຈາກອີກຝ່າຍດ້ວຍ.',
                     testBeforeBrowserTest:
                         'ທົດສອບການຕັ້ງຄ່າປັດຈຸບັນກ່ອນທີ່ຈະເລີ່ມການທົດສອບການເຂົ້າສູ່ລະບົບຂອງຕົວທ່ອງເວັບ.',
                     testBeforeEnable: 'ທົດສອບການຕັ້ງຄ່າປັດຈຸບັນກ່ອນທີ່ຈະເປີດ ຫຼືບັນທຶກການປ່ຽນແປງທີ່ລະອຽດອ່ອນ.',
@@ -6567,13 +6573,13 @@ const message = {
                     passwordSaved: 'ປ່ອຍຫວ່າງໄວ້ເພື່ອຮັກສາລະຫັດຜ່ານທີ່ບັນທຶກໄວ້',
                     userSearch: 'ຄົ້ນຫາຜູ້ໃຊ້',
                     userSearchDesc:
-                        'ກໍານົດຖານຄົ້ນຫາຂອງຜູ້ໃຊ້ແລະການກັ່ນຕອງ, ຫຼັງຈາກນັ້ນສ້າງແຜນທີ່ຄຸນລັກສະນະ LDAP ທີ່ໃຊ້ເປັນ 1Panel name.',
+                        'ກໍານົດຖານຄົ້ນຫາຂອງຜູ້ໃຊ້ແລະການກັ່ນຕອງ, ຫຼັງຈາກນັ້ນສ້າງແຜນທີ່ຄຸນລັກສະນະ LDAP ທີ່ໃຊ້ເປັນ XPanel name.',
                     userFilter: 'ຕົວກອງຜູ້ໃຊ້',
                     userFilterTooltip: 'ແທນທີ່ %(user)s ດ້ວຍຊື່ຜູ້ໃຊ້ທີ່ໜີໄປ, ຫຼືດ້ວຍ * ສໍາລັບການອ່ານໄດເລກະທໍລີເຕັມ.',
                     userFilterHelper: 'ຊື່ຜູ້ໃຊ້ຖືກຫລົບຫນີກ່ອນທີ່ພວກມັນຈະຖືກໃສ່ເຂົ້າໄປໃນຕົວກອງ LDAP.',
                     attributeMap: 'ການສ້າງແຜນທີ່ຄຸນສົມບັດ',
-                    attributeMapTooltip: 'ການສ້າງແຜນທີ່ JSON ຈາກຊ່ອງຂໍ້ມູນ 1Panel name ໄປຫາຄຸນສົມບັດ LDAP.',
-                    attributeMapHelper: 'ຕັ້ງຄຸນສົມບັດ LDAP ແຜນທີ່ໃສ່ກັບຊ່ອງຂໍ້ມູນ 1Panel name.',
+                    attributeMapTooltip: 'ການສ້າງແຜນທີ່ JSON ຈາກຊ່ອງຂໍ້ມູນ XPanel name ໄປຫາຄຸນສົມບັດ LDAP.',
+                    attributeMapHelper: 'ຕັ້ງຄຸນສົມບັດ LDAP ແຜນທີ່ໃສ່ກັບຊ່ອງຂໍ້ມູນ XPanel name.',
                     advanced: 'ການຕັ້ງຄ່າຂັ້ນສູງ',
                     advancedDesc: 'ຕັ້ງຄ່າ TLS ແລະ LDAP query paging.',
                     strictSync: 'synchronization ຢ່າງເຂັ້ມງວດ',
@@ -6612,7 +6618,7 @@ const message = {
                     searchPageSizeRequired: 'ໃສ່ຂະໜາດຂອງໜ້າສອບຖາມ LDAP.',
                     sync: {
                         title: 'ການ​ຊິງ​ຄ໌​ທີ່​ກໍາ​ນົດ​ເວ​ລາ​',
-                        description: 'ອ່ານລາຍຊື່ LDAP ເຕັມໃນຕາຕະລາງແລະຮັກສາຜູ້ໃຊ້ LDAP ທີ່ນໍາເຂົ້າໃນ 1Panel.',
+                        description: 'ອ່ານລາຍຊື່ LDAP ເຕັມໃນຕາຕະລາງແລະຮັກສາຜູ້ໃຊ້ LDAP ທີ່ນໍາເຂົ້າໃນ XPanel.',
                         enable: 'ເປີດໃຊ້ຕາຕະລາງ',
                         enableHelper:
                             'ເມື່ອປິດການໃຊ້ງານ, ການປະຕິບັດອັດຕະໂນມັດຢຸດເຊົາ; ການ synchronization ຄູ່ມືຍັງມີຢູ່.',
@@ -6671,7 +6677,7 @@ const message = {
                     },
                     testLoginTitle: 'ທົດສອບການເຂົ້າສູ່ລະບົບ AD/LDAP',
                     testLoginDesc:
-                        'ຜູກມັດກັບຂໍ້ມູນປະຈຳຕົວຜູ້ໃຊ້ AD/LDAP ເພື່ອທົດສອບການພິສູດຢືນຢັນເທົ່ານັ້ນ. ບໍ່ມີເຊດຊັນ 1Panel ຖືກສ້າງຂຶ້ນ.',
+                        'ຜູກມັດກັບຂໍ້ມູນປະຈຳຕົວຜູ້ໃຊ້ AD/LDAP ເພື່ອທົດສອບການພິສູດຢືນຢັນເທົ່ານັ້ນ. ບໍ່ມີເຊດຊັນ XPanel ຖືກສ້າງຂຶ້ນ.',
                     ldapUsername: 'ຊື່ຜູ້ໃຊ້ LDAP',
                     usernameRequired: 'ໃສ່ຊື່ຜູ້ໃຊ້ LDAP.',
                     startTest: 'ເລີ່ມການທົດສອບ',
@@ -7243,7 +7249,7 @@ const message = {
             tamperTitle4: 'ການບັນທຶກ ແລະ ວິເຄາະ',
             tamperContent4: 'ບັນທຶກການເຂົ້າເຖິງ ແລະ ດຳເນີນການກັບໄຟລ໌ເພື່ອການກວດສອບ ແລະ ວິເຄາະໄພຄຸກຄາມ.',
             settingTitle1: 'ຂໍ້ຄວາມຕ້ອນຮັບກຳນົດເອງ',
-            settingContent1: 'ຕັ້ງຂໍ້ຄວາມຕ້ອນຮັບໃນໜ້າລັອກອິນຂອງ 1Panel.',
+            settingContent1: 'ຕັ້ງຂໍ້ຄວາມຕ້ອນຮັບໃນໜ້າລັອກອິນຂອງ XPanel.',
             settingTitle2: 'ໂລໂກ້ກຳນົດເອງ',
             settingContent2: 'ອະນຸຍາດໃຫ້ອັບໂຫຼດໂລໂກ້ທີ່ມີຊື່ແບຣນ ຫຼື ຂໍ້ຄວາມອື່ນໆ.',
             settingTitle3: 'ໄອຄອນເວັບໄຊກຳນົດເອງ',
@@ -7320,7 +7326,7 @@ const message = {
             nodeAppTitle1: 'ຈັດການອັບເກຣດແອັບ',
             nodeAppContent1: 'ຕິດຕາມການອັບເດດແອັບຫຼາຍໂນດແບບລວມສູນ, ຮອງຮັບການອັບເກຣດຄລິກດຽວ',
             appTitle1: 'ຈັດການພາແນລຢ່າງຢືດຢຸ່ນ',
-            appContent1: 'ຈັດການເຊີເວີ 1Panel ໄດ້ທຸກບ່ອນ ທຸກເວລາ.',
+            appContent1: 'ຈັດການເຊີເວີ XPanel ໄດ້ທຸກບ່ອນ ທຸກເວລາ.',
             appTitle2: 'ຂໍ້ມູນການບໍລິການຄົບຖ້ວນ',
             appContent2: 'ຈັດການແອັບພື້ນຖານ, ເວັບໄຊ, Docker, ຖານຂໍ້ມູນ ແລະ ສ້າງແອັບຜ່ານມືຖືໄດ້ໄວ.',
             appTitle3: 'ຕິດຕາມຄວາມຜິດປົກກະຕິທັນທີ',
@@ -7404,7 +7410,7 @@ const message = {
             panelItem: 'ຈັດການພາແນລ',
             addPanel: 'ເພີ່ມພາແນລ',
             addPanelHelper: 'ຫຼັງຈາກເພີ່ມພາແນລສຳເລັດ, ທ່ານສາມາດເຂົ້າເຖິງພາແນລເປົ້າໝາຍໄດ້ໄວໃນ [ພາບລວມ - ພາແນລ].',
-            panel: 'ພາແນລ 1Panel',
+            panel: 'ພາແນລ XPanel',
             others: 'ພາແນລອື່ນໆ',
             addNode: 'ເພີ່ມໂນດ',
             connInfo: 'ຂໍ້ມູນການເຊື່ອມຕໍ່',
@@ -7460,7 +7466,7 @@ const message = {
             operatePanelHelper: 'ພາແນລຕໍ່ໄປນີ້ຈະຖືກ {0}, ຕ້ອງການຕໍ່ບໍ?',
             forceDeleteHelper: 'ການບັງຄັບລຶບຈະບໍ່ສົນໃຈຂໍ້ຜິດພາດ ແລະ ລຶບຂໍ້ມູນໃນຖານຂໍ້ມູນຖາວອນ',
             uninstall: 'ລຶບຂໍ້ມູນໂນດ',
-            uninstallHelper: 'ນີ້ຈະລຶບຂໍ້ມູນທັງໝົດທີ່ກ່ຽວຂ້ອງກັບ 1Panel ໃນໂນດນີ້. ກະລຸນາລະມັດລະວັງ!',
+            uninstallHelper: 'ນີ້ຈະລຶບຂໍ້ມູນທັງໝົດທີ່ກ່ຽວຂ້ອງກັບ XPanel ໃນໂນດນີ້. ກະລຸນາລະມັດລະວັງ!',
             baseDir: 'ໄດເຣັກທໍຣີຕິດຕັ້ງ',
             baseDirHelper: 'ຫາກຫວ່າງໄວ້, ຈະຕິດຕັ້ງໃນ /opt ໂດຍອັດຕະໂນມັດ',
             nodePort: 'ພອດໂນດ',

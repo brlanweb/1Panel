@@ -49,12 +49,12 @@ function getThemeColors() {
     const style = getComputedStyle(document.documentElement);
     return {
         primaryLight2: style.getPropertyValue('--panel-color-primary-light-3').trim() || '#4c8ef1',
-        primaryLight1: style.getPropertyValue('--panel-color-primary').trim() || '#005eeb',
+        primaryLight1: style.getPropertyValue('--panel-color-primary').trim() || '#0d9488',
         pieBgColor: isDarkTheme ? '#434552' : '#ffffff',
         textColor: isDarkTheme ? '#ffffff' : '#0f0f0f',
         subtextColor: isDarkTheme ? '#BBBFC4' : '#646A73',
-        shadowColor: isDarkTheme ? '#16191D' : 'rgba(0, 94, 235, 0.1)',
-        backgroundStyleColor: isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 94, 235, 0.05)',
+        shadowColor: isDarkTheme ? '#16191D' : 'rgba(13, 148, 136, 0.1)',
+        backgroundStyleColor: isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : 'rgba(13, 148, 136, 0.05)',
     };
 }
 

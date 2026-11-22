@@ -55,6 +55,7 @@ Decrypt: "ຖອດລະຫັດ"
 
 #agent
 ErrAgentAccountBound: 'ບັນຊີຖືກຜູກມັດກັບຕົວແທນ (Agent) ແລະບໍ່ສາມາດລຶບໄດ້'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'ບໍລິການໂມເດລນີ້ກຳລັງຖືກໃຊ້ໂດຍ Terminal AI. ກະລຸນາປ່ຽນບັນຊີໃນການຕັ້ງຄ່າ Terminal AI ຫຼື ປິດໃຊ້ງານ Terminal AI ແລ້ວລອງໃໝ່.'
 ErrFileAIAccountInUse: 'ບໍລິການໂມເດລນີ້ກຳລັງຖືກໃຊ້ໂດຍ AI ຈັດການໄຟລ໌. ກະລຸນາປ່ຽນບັນຊີໃນການຕັ້ງຄ່າ AI ຈັດການໄຟລ໌ ຫຼື ປິດໃຊ້ງານແລ້ວລອງໃໝ່.'
 ErrAgentAccountUnavailable: 'ການເຊື່ອມຕໍ່ບັນຊີບໍ່ສາມາດໃຊ້ງານໄດ້: {{ .err }}'

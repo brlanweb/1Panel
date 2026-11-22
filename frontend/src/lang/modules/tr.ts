@@ -634,7 +634,7 @@ const message = {
         revokeAuthorizationHelper: '{0} kullanıcısının {1} veritabanına erişimi kaldırılsın mı?',
         supplementPassword: 'Parola ekle',
         supplementPasswordHelper:
-            'Yalnızca mevcut parolayı 1Panel içine kaydeder; veritabanı kullanıcısının parolasını değiştirmez.',
+            'Yalnızca mevcut parolayı XPanel içine kaydeder; veritabanı kullanıcısının parolasını değiştirmez.',
         noUserBind: 'Bağlantı yok',
         pgAuthorizationHelper:
             'Süper kullanıcılar bu örnekteki tüm veritabanlarına bağlama gerekmeden erişir. Normal kullanıcılar için yalnızca veritabanı izinleri yönetilir, tablo izinleri dahil değildir.',
@@ -642,7 +642,7 @@ const message = {
             'Yetkinin iptal edilmesi kullanıcıyı silmez. PUBLIC veya diğer roller üzerinden erişim devam edebilir.',
         pgSuperUser: 'Süper Kullanıcı',
         loadFromRemoteHelper:
-            'Sunucudaki veritabanlarını, kullanıcıları ve yetkilendirmeleri 1Panel ile eşitler. Devam edilsin mi?',
+            'Sunucudaki veritabanlarını, kullanıcıları ve yetkilendirmeleri XPanel ile eşitler. Devam edilsin mi?',
         passwordHelper: 'Alınamıyor, değiştirmek için tıklayın',
         remote: 'Uzak',
         remoteDB: 'Uzak sunucu | Uzak sunucular',
@@ -817,7 +817,7 @@ const message = {
             hardware: 'Donanım yerleşimi',
             editMembers: 'Üyeleri düzenle',
             usageScope:
-                'İlişkiler, bu düğümde 1Panel tarafından yönetilen uygulama yapılandırmalarından alınır; bellek değerleri GPU’nun tamamı için ölçülür.',
+                'İlişkiler, bu düğümde XPanel tarafından yönetilen uygulama yapılandırmalarından alınır; bellek değerleri GPU’nun tamamı için ölçülür.',
             usageTitle: 'GPU kullanımı',
             usageHelp:
                 'Seçilen GPU’lar başka dağıtımlar tarafından kullanılıyor olabilir. Devam etmek GPU belleğinin yetersiz kalmasına veya performansın düşmesine neden olabilir. Yine de devam edebilirsiniz.',
@@ -1200,7 +1200,7 @@ const message = {
             localLayoutDirect: 'Doğrudan yerleştirme',
             localLayoutGrouped: 'Kuruluşa göre (isteğe bağlı)',
             serviceHelper:
-                'Genel bulutlardan, yerel çıkarım motorlarından ve AI ağ geçitlerinden model hizmetlerini bağlayarak yerleşik 1Panel ajanları ve WorkBuddy gibi harici ajanlar için kullanıma sunun.',
+                'Genel bulutlardan, yerel çıkarım motorlarından ve AI ağ geçitlerinden model hizmetlerini bağlayarak yerleşik XPanel ajanları ve WorkBuddy gibi harici ajanlar için kullanıma sunun.',
             gpuType: 'GPU türü',
             vllmVersion: 'vLLM sürümü',
             vllmImage: 'vLLM imajı',
@@ -1265,7 +1265,7 @@ const message = {
             modelDirHelper:
                 'Modellerin indirildiği ve yerel model listesinin okunduğu dizin. Değiştirmek mevcut dosyaları taşımaz.',
             featuredModelsHelper:
-                '1Panel tarafından seçilen modelleri inceleyin, özellikleri, kullanım alanlarını ve indirme kaynaklarını görüntüleyerek uygun modeli indirin.',
+                'XPanel tarafından seçilen modelleri inceleyin, özellikleri, kullanım alanlarını ve indirme kaynaklarını görüntüleyerek uygun modeli indirin.',
             featuredModelsSyncHelper:
                 'Otomatik eşitleme, model dosyalarını indirmeden öne çıkan model kataloğunu her gün sabahın erken saatlerinde günceller. İstediğiniz zaman elle de eşitleyebilirsiniz.',
             recipeSyncHelper:
@@ -1334,7 +1334,7 @@ const message = {
             recipeArguments: 'Başlatma parametreleri',
             recipeImportCommand: 'Komut içe aktar',
             recipeImportPlaceholder:
-                'pip/uv veya docker biçimindeki başlatma komutunu buraya yapıştırın. 1Panel komutu otomatik olarak ayrıştırıp form alanlarını doldurur.',
+                'pip/uv veya docker biçimindeki başlatma komutunu buraya yapıştırın. XPanel komutu otomatik olarak ayrıştırıp form alanlarını doldurur.',
             recipeVariablesNotSupported:
                 'Komutlarda değişken başvuruları desteklenmez. Açık değerler girin; ortam değişkenlerini ilgili alanda yapılandırın.',
             recipeImportError:
@@ -1368,7 +1368,7 @@ const message = {
             ollama_doc:
                 'Modelleri {link} adresinde bulun. Model eklendikten sonra otomatik olarak indirilir. Ollama hizmetinin çalıştığından ve yeterli disk alanı olduğundan emin olun.',
             container_conn_helper: 'Konteynerler arası erişim veya bağlantı için bu adresi kullanın',
-            from_remote: 'Bu model 1Panel aracılığıyla indirilmedi, ilgili çekme logları yok.',
+            from_remote: 'Bu model XPanel aracılığıyla indirilmedi, ilgili çekme logları yok.',
             no_logs: 'Bu modelin çekme logları silindi ve görüntülenemiyor.',
             composeFile: 'Düzenleme Dosyası',
             imageCategory: 'İmaj türü',
@@ -1383,8 +1383,8 @@ const message = {
                 default:
                     'Yeni sürücüler ve yeni GPU mimarileri için CUDA 13.0 içeren resmî vLLM topluluk standart sürümü.',
                 rtxPro5000:
-                    'NVIDIA RTX Pro 5000 için DeepSeek-V4.1-Flash-1017’ye optimize edilmiş özel sürüm. İmajın bakımı 1Panel tarafından yapılır.',
-                dspark: 'İki NVIDIA GB10 cihazı için DeepSeek-V4-Flash’a optimize edilmiş özel sürüm. İmajın bakımı 1Panel tarafından yapılır.',
+                    'NVIDIA RTX Pro 5000 için DeepSeek-V4.1-Flash-1017’ye optimize edilmiş özel sürüm. İmajın bakımı XPanel tarafından yapılır.',
+                dspark: 'İki NVIDIA GB10 cihazı için DeepSeek-V4-Flash’a optimize edilmiş özel sürüm. İmajın bakımı XPanel tarafından yapılır.',
                 dspark4: 'Dört NVIDIA GB10 cihazı için DeepSeek-V4.1-Flash’a optimize edilmiş özel sürüm.',
             },
             syncModelAccount: 'Model hizmetine senkronize et',
@@ -1444,7 +1444,7 @@ const message = {
         aiProxy: {
             deploymentNoticeTitle: 'AI Gateway bağımsız dağıtımı destekliyor',
             deploymentNoticeDescription:
-                'AI Gateway artık bağımsız dağıtımı destekliyor. 1Panel içindeki AI Gateway artık güncelleme almayacak. Uygulama mağazasından bağımsız sürümü yüklemenizi öneririz. Mevcut sürümü kullanmaya da devam edebilirsiniz.',
+                'AI Gateway artık bağımsız dağıtımı destekliyor. XPanel içindeki AI Gateway artık güncelleme almayacak. Uygulama mağazasından bağımsız sürümü yüklemenizi öneririz. Mevcut sürümü kullanmaya da devam edebilirsiniz.',
             deploymentNoticeContinue: 'Anladım, kullanmaya devam et',
             deploymentNoticeAppStore: 'Uygulama mağazasına git',
             deploymentNoticeNoAppPermission:
@@ -2198,14 +2198,14 @@ const message = {
             protocolVersionHelper:
                 "Yalnızca durum bilgisi tutmayan Streamable HTTP tarafından aşağı akış stdio MCP Server'ı otomatik olarak başlatmak için kullanılır",
             gatewayArgsHelper:
-                'Bağımsız değişkenler supergateway komutuna eklenir. 1Panel tarafından yönetilen aktarım, bağlantı noktası, yol ve protokol bağımsız değişkenleri değiştirilemez',
+                'Bağımsız değişkenler supergateway komutuna eklenir. XPanel tarafından yönetilen aktarım, bağlantı noktası, yol ve protokol bağımsız değişkenleri değiştirilemez',
             testConnection: 'Bağlantıyı Test Et',
             connectionSuccess: 'Bağlantı başarılı',
             connectionFailed: 'Bağlantı başarısız',
         },
     },
     panelMCP: {
-        accessTitle: '1Panel MCP Erişimi',
+        accessTitle: 'XPanel MCP Erişimi',
         servicesTitle: 'MCP Hizmetleri',
         websiteCancelPendingBind: 'Bağlamayı iptal et',
         websiteBinding: 'Web sitesi bağlama',
@@ -2290,7 +2290,7 @@ const message = {
             database: 'Databases',
         },
 
-        title: '1Panel MCP',
+        title: 'XPanel MCP',
         credentials: 'Access credentials',
         create: 'Create credential',
         tools: 'Allowed tools',
@@ -2329,7 +2329,7 @@ const message = {
         allResults: 'Tüm durumlar',
         serviceStatus: 'Service status',
         statusUnknown: 'Unknown',
-        serviceUnsupported: 'This environment does not support 1Panel MCP deployment.',
+        serviceUnsupported: 'This environment does not support XPanel MCP deployment.',
         serviceUnhealthy: 'Hizmet kontrolü başarısız. Günlükleri ve sürüm uyumluluğunu kontrol edin.',
         statusUnsupported: 'Unsupported environment',
         statusNotInstalled: 'Not installed',
@@ -2338,13 +2338,13 @@ const message = {
         statusUnhealthy: 'Unhealthy',
         statusIncompatible: 'Incompatible version',
         ready: 'Service ready',
-        installTitle: 'Install 1Panel MCP',
+        installTitle: 'Install XPanel MCP',
         installEnable: 'Install and enable',
         deleteOldImage: 'Eski imajı sil',
         deleteOldImageHelp:
             'Başarılı yükseltmeden sonra kullanılmayan eski imajı siler. Temizleme hataları yükseltmeyi etkilemez; görev günlüklerini inceleyin.',
         installEmpty:
-            '1Panel MCP hizmeti henüz kurulu değil. Erişim kimlik bilgileri oluşturmak ve MCP araçlarını çağırmak için hizmeti kurup etkinleştirin.',
+            'XPanel MCP hizmeti henüz kurulu değil. Erişim kimlik bilgileri oluşturmak ve MCP araçlarını çağırmak için hizmeti kurup etkinleştirin.',
         installWithCredentials: 'MCP kurulu değil. Kimlik bilgileri korunur; çağrılar kullanılamaz.',
         installTaskLog: 'Kurulum günlüğü',
         installNow: 'Şimdi yükle',
@@ -2352,7 +2352,7 @@ const message = {
         serviceConfiguration: 'Service configuration',
         imageUpgrade: 'Image upgrade',
         reloadInstallConfirm: 'Yeniden yüklenip kaydedilmemiş ayarlar değiştirilsin mi?',
-        serviceOperateConfirm: 'Confirm {0} for the 1Panel MCP service?',
+        serviceOperateConfirm: 'Confirm {0} for the XPanel MCP service?',
         serviceAdminOnly: 'Only super administrators can manage the MCP service.',
         dockerImage: 'Docker image',
         dockerImageInvalid: 'Etiket veya SHA-256 özeti içeren geçerli bir Docker imajı başvurusu girin.',
@@ -2588,6 +2588,10 @@ const message = {
         missing: 'Mevcut değil',
     },
     container: {
+        logDisconnected:
+            'Günlük akışının bağlantısı kesildi. Son günlükleri yüklemek ve akışı sürdürmek için yeniden bağlanın.',
+        logsUnavailable:
+            'Konteyner mevcut değil veya silinmiş. Konteyner günlükleri kullanılamıyor. Konteyneri yeniden oluşturup tekrar deneyin.',
         nvidiaSupport: 'NVIDIA GPU desteği',
         nvidiaHelper:
             'NVIDIA konteyner çalışma zamanını kaydeder. Önce NVIDIA Container Toolkit kurun. GPU’ları her konteynere ayrı ayrı atayın.',
@@ -2644,7 +2648,7 @@ const message = {
         operatorAppHelper:
             'Aşağıdaki konteyner(ler)de "{0}" işlemi gerçekleştirilecek ve çalışan hizmetleri etkileyebilir. Devam etmek istiyor musunuz?',
         containerDeleteHelper:
-            "Kapsayıcının Uygulama Mağazası'ndan geldiği tespit edildi. Kapsayıcıyı silmek, onu 1Panel'den tamamen kaldırmaz. Tamamen silmek için lütfen Uygulama Mağazası -> 'Yüklü' veya 'Çalışma Ortamı' menülerine gidin. Devam edilsin mi?",
+            "Kapsayıcının Uygulama Mağazası'ndan geldiği tespit edildi. Kapsayıcıyı silmek, onu XPanel'den tamamen kaldırmaz. Tamamen silmek için lütfen Uygulama Mağazası -> 'Yüklü' veya 'Çalışma Ortamı' menülerine gidin. Devam edilsin mi?",
         start: 'Başlat',
         stop: 'Durdur',
         restart: 'Yeniden başlat',
@@ -2869,7 +2873,7 @@ const message = {
         composeNamePriorityHelper:
             'Proje adı önceliği: Docker Compose yapılandırmasında belirtilen ad > dosyanın üst dizini > buraya girilen ad.',
         composeHelper:
-            '1Panel editörü veya şablonu aracılığıyla oluşturulan kompozisyon {0}/docker/compose dizinine kaydedilecektir.',
+            'XPanel editörü veya şablonu aracılığıyla oluşturulan kompozisyon {0}/docker/compose dizinine kaydedilecektir.',
         deleteFile: 'Dosyayı sil',
         deleteComposeHelper:
             'Yapılandırma dosyaları ve kalıcı dosyalar dahil olmak üzere konteyner compose ile ilgili tüm dosyaları silin. Lütfen dikkatli ilerleyin!',
@@ -2883,12 +2887,12 @@ const message = {
         containerStatus: 'Konteyner durumu',
         exited: 'Çıktı',
         running: 'Çalışıyor ( {0} / {1} )',
-        composeDetailHelper: 'Compose, 1Panel dışında oluşturulmuştur. Başlatma ve durdurma işlemleri desteklenmez.',
+        composeDetailHelper: 'Compose, XPanel dışında oluşturulmuştur. Başlatma ve durdurma işlemleri desteklenmez.',
         composeOperatorHelper: '{0} üzerinde {1} işlemi gerçekleştirilecek. Devam etmek istiyor musunuz?',
         composeDownHelper:
             'Bu, {0} compose altındaki tüm konteynerleri ve ağları durduracak ve kaldıracaktır. Devam etmek istiyor musunuz?',
         composeEnvHelper2:
-            'Bu düzenleme 1Panel Uygulama Mağazası tarafından oluşturuldu. Lütfen ortam değişkenlerini yüklü uygulamalarda değiştirin.',
+            'Bu düzenleme XPanel Uygulama Mağazası tarafından oluşturuldu. Lütfen ortam değişkenlerini yüklü uygulamalarda değiştirin.',
         composeContentPlaceholder: 'Docker-compose dosyanızın içeriğini buraya yazın veya yapıştırın',
         setting: 'Ayar | Ayarlar',
         goSetting: 'Ayarlara git',
@@ -3060,7 +3064,7 @@ const message = {
         noLogs: 'Henüz görev çıktısı yok...',
         errPath: 'Yedek yolu [{0}] hatası, indirilemez!',
         cutWebsiteLog: 'Website log döndürme',
-        cutWebsiteLogHelper: 'Döndürülen log dosyaları 1Panel yedek dizinine yedeklenecektir.',
+        cutWebsiteLogHelper: 'Döndürülen log dosyaları XPanel yedek dizinine yedeklenecektir.',
         syncIpGroup: 'WAF IP gruplarını senkronize et',
         syncIpGroupHelper: 'WAF kara/beyaz listelerinde kullanılan uzak IP gruplarını senkronize eder',
         requestExpirationTime: 'Yükleme isteği son kullanma süresi(Saat)',
@@ -3091,7 +3095,7 @@ const message = {
             syncHelper:
                 'Sistem script kütüphanesini senkronize etmek üzere. Bu işlem sadece sistem scriptlerini etkiler. Devam edilsin mi?',
         },
-        logHelper1: '1. 1Panel sistem günlüğü',
+        logHelper1: '1. XPanel sistem günlüğü',
         ignoreErr: 'Hataları yok say',
         ignoreErrHelper: 'Tüm görevlerin tamamlanması için yedekleme hatalarını yok say',
         cleanLog: 'Günlükleri otomatik temizle',
@@ -3794,7 +3798,7 @@ const message = {
         previewTruncated: 'Dosya çok büyük, yalnızca son kısım gösteriliyor',
         previewEmpty: 'Dosya boş veya metin dosyası değil',
         previewLargeFile: 'Önizleme',
-        panelInstallDir: '1Panel kurulum dizini silinemez',
+        panelInstallDir: 'XPanel kurulum dizini silinemez',
         wgetTask: 'İndirme Görevi',
         stopWgetConfirm: 'Bu indirme görevini durdurmak istediğinizden emin misiniz?',
         useServerFilename: 'Sunucunun sağladığı dosya adını kullan',
@@ -4032,7 +4036,7 @@ const message = {
         timeZoneChangeHelper:
             'Saat dilimini değiştirmek servisin yeniden başlatılmasını gerektirir. Devam etmek istiyor musunuz?',
         timeZoneHelper:
-            'Saat dilimi değişikliği, sistem timedatectl servisine bağlıdır. 1Panel servisi yeniden başlatıldıktan sonra etkili olur.',
+            'Saat dilimi değişikliği, sistem timedatectl servisine bağlıdır. XPanel servisi yeniden başlatıldıktan sonra etkili olur.',
         timeZoneCN: 'Pekin',
         timeZoneAM: 'Los Angeles',
         timeZoneNY: 'New York',
@@ -4161,7 +4165,7 @@ const message = {
             'Sadece bu IP/CIDR kaynaklarından gelen isteklerde Forwarded ve X-Forwarded-Proto HTTPS belirlenmesinde kullanılır',
         passkeyNotSupported: 'Tarayıcı/ortam passkey desteklemiyor; alan adı ve HTTPS erişimini doğrulayın',
         passkeyPrereqTitle: 'Passkey için aşağıdaki ön koşullar gereklidir',
-        passkeyPrereqBindDomain: '1Panel alan adı bağlama yapılandırıldı',
+        passkeyPrereqBindDomain: 'XPanel alan adı bağlama yapılandırıldı',
         passkeyPrereqHttps: 'HTTPS üzerinden güvenli erişim sağlandı',
         passkeyPrereqBrowser: 'Ortam Passkey destekliyor (WebAuthn + platform doğrulayıcı)',
         passkeyPrereqBrowserDetailWebAuthnUnavailable:
@@ -4213,10 +4217,10 @@ const message = {
         panelSSL: 'Panel SSL',
         unBindDomainHelper:
             'Alan adı bağlamasını kaldırma işlemi sistem güvenliğini etkileyebilir. Devam etmek istiyor musunuz?',
-        bindDomainHelper: 'Alan adı bağlandıktan sonra, yalnızca o alan adı 1Panel servisine erişebilir.',
+        bindDomainHelper: 'Alan adı bağlandıktan sonra, yalnızca o alan adı XPanel servisine erişebilir.',
         bindDomainHelper1: 'Alan adı bağlamasını devre dışı bırakmak için boş bırakın.',
         bindDomainWarning:
-            'Alan adı bağlamasından sonra oturumunuz kapatılacak ve yalnızca ayarlarınızda belirtilen alan adı üzerinden 1Panel servisine erişebilirsiniz. Devam etmek istiyor musunuz?',
+            'Alan adı bağlamasından sonra oturumunuz kapatılacak ve yalnızca ayarlarınızda belirtilen alan adı üzerinden XPanel servisine erişebilirsiniz. Devam etmek istiyor musunuz?',
         allowIPs: 'Yetkili IP',
         unAllowIPs: 'Yetkisiz IP',
         unAllowIPsWarning:
@@ -4234,7 +4238,7 @@ const message = {
         secret: 'Gizli',
         mfaInterval: 'Yenileme aralığı(saniye)',
         mfaTitleHelper:
-            'Başlık, farklı 1Panel ana bilgisayarlarını ayırt etmek için kullanılır. Başlığı değiştirdikten sonra QR kodunu tekrar tarayın veya gizli anahtarı manuel olarak ekleyin.',
+            'Başlık, farklı XPanel ana bilgisayarlarını ayırt etmek için kullanılır. Başlığı değiştirdikten sonra QR kodunu tekrar tarayın veya gizli anahtarı manuel olarak ekleyin.',
         mfaIntervalHelper:
             'Yenileme aralığını değiştirdikten sonra QR kodunu tekrar tarayın veya gizli anahtarı manuel olarak ekleyin.\nBazı doğrulayıcı uygulamalar yalnızca 30 saniyelik aralığı destekler (ör. Google/Microsoft Authenticator).',
         mfaAlert:
@@ -4320,14 +4324,14 @@ const message = {
         ignoreRule: 'Yoksayma kuralı',
         editIgnoreRule: '@:commons.button.edit @.lower:setting.ignoreRule',
         ignoreHelper:
-            'Bu kural, anlık görüntü oluştururken 1Panel veri dizinini sıkıştırmak ve yedeklemek için kullanılacaktır. Varsayılan olarak, soket dosyaları yok sayılır.',
+            'Bu kural, anlık görüntü oluştururken XPanel veri dizinini sıkıştırmak ve yedeklemek için kullanılacaktır. Varsayılan olarak, soket dosyaları yok sayılır.',
         ignoreHelper1: 'Her satıra bir tane. Örneğin,\n*.log\n/opt/1panel/cache',
-        panelInfo: '1Panel temel bilgilerini yaz',
-        panelBin: '1Panel sistem dosyalarını yedekle',
+        panelInfo: 'XPanel temel bilgilerini yaz',
+        panelBin: 'XPanel sistem dosyalarını yedekle',
         daemonJson: 'Docker yapılandırma dosyasını yedekle',
-        appData: '1Panel’den yüklenen uygulamaları yedekle',
-        panelData: '1Panel veri dizinini yedekle',
-        backupData: '1Panel için yerel yedekleme dizinini yedekle',
+        appData: 'XPanel’den yüklenen uygulamaları yedekle',
+        panelData: 'XPanel veri dizinini yedekle',
+        backupData: 'XPanel için yerel yedekleme dizinini yedekle',
         compress: 'Anlık görüntü dosyası oluştur',
         upload: 'Anlık görüntü dosyasını yükle',
         recoverDetail: 'Kurtarma detayı',
@@ -4339,7 +4343,7 @@ const message = {
         recoverErrSize: 'Yetersiz disk alanı tespit edildi, lütfen kontrol edin veya temizleyin ve tekrar deneyin!',
         recoverHelper:
             '{0} anlık görüntüsünden kurtarma başlatılıyor, lütfen devam etmeden önce aşağıdaki bilgileri onaylayın:',
-        recoverHelper1: 'Kurtarma, Docker ve 1Panel servislerinin yeniden başlatılmasını gerektirir',
+        recoverHelper1: 'Kurtarma, Docker ve XPanel servislerinin yeniden başlatılmasını gerektirir',
         recoverHelper2:
             'Sunucuda yeterli disk alanının olduğundan emin olun (Anlık görüntü dosyası boyutu: {0}, Mevcut alan: {1})',
         recoverHelper3:
@@ -4348,10 +4352,10 @@ const message = {
             'Bu işlem yalnızca ana düğümü geri alır. Yükseltilmiş alt düğümler varsa, devam etmeden önce bunları geri alın.',
         rollback: 'Geri al',
         rollbackHelper:
-            'Bu kurtarmayı geri almak, bu kurtarmadan gelen tüm dosyaları değiştirecek ve Docker ile 1Panel servislerinin yeniden başlatılmasını gerektirebilir. Devam etmek istiyor musunuz?',
+            'Bu kurtarmayı geri almak, bu kurtarmadan gelen tüm dosyaları değiştirecek ve Docker ile XPanel servislerinin yeniden başlatılmasını gerektirebilir. Devam etmek istiyor musunuz?',
         upgradeRecord: 'Yükseltme kaydı',
         upgrading: 'Yükseltiliyor, lütfen bekleyin...',
-        upgradeHelper: 'Yükseltme, 1Panel servisinin yeniden başlatılmasını gerektirir. Devam etmek istiyor musunuz?',
+        upgradeHelper: 'Yükseltme, XPanel servisinin yeniden başlatılmasını gerektirir. Devam etmek istiyor musunuz?',
         noUpgrade: 'Şu anda en son sürüm',
         versionHelper:
             'Ad kuralları: [ana sürüm].[fonksiyonel sürüm].[Hata düzeltme sürümü], aşağıdaki örnekte gösterildiği gibi:',
@@ -4437,7 +4441,7 @@ const message = {
         importLicense: 'Lisansı içe aktar',
         securityWarningTitle: 'Kırılmış veya kaynağı bilinmeyen lisansları kullanmayın.',
         securityWarningContent:
-            '1Panel sistem yönetimi yetkilerine sahip bir kullanıcıyla çalışmalıdır. Resmi olmayan lisanslar veya değiştirilmiş sürümler sunucu kontrolünün kaybına, veri sızıntılarına ve diğer ciddi güvenlik risklerine neden olabilir. Lisansları ve kurulum paketlerini yalnızca resmi FIT2CLOUD kanallarından edinin.',
+            'XPanel sistem yönetimi yetkilerine sahip bir kullanıcıyla çalışmalıdır. Resmi olmayan lisanslar veya değiştirilmiş sürümler sunucu kontrolünün kaybına, veri sızıntılarına ve diğer ciddi güvenlik risklerine neden olabilir. Lisansları ve kurulum paketlerini yalnızca resmi FIT2CLOUD kanallarından edinin.',
         importHelper: 'Lütfen lisans dosyasını buraya tıklayın veya sürükleyin',
         licenseRequiredTip:
             'Lisans henüz içe aktarılmadı. Cihaz kimliğini kopyalayıp lisansı alın ve giriş yapmadan önce içe aktarın.',
@@ -4484,7 +4488,7 @@ const message = {
         monitor:
             'Ticari sürüme yükselterek web sitesinin gerçek zamanlı durumunu, ziyaretçi eğilimlerini, kaynaklarını ve istek günlüklerini görüntüleyebilirsiniz.',
         alert: 'Ticari sürüme yükselterek SMS uyarıları alabilir, uyarı günlüklerini görüntüleyebilir ve kritik olayları takip edebilirsiniz.',
-        node: 'Ticari sürüme yükselterek 1Panel ile birden fazla Linux sunucusunu yönetebilirsiniz.',
+        node: 'Ticari sürüme yükselterek XPanel ile birden fazla Linux sunucusunu yönetebilirsiniz.',
         nodeApp:
             'Ticari sürüme yükselterek düğümleri manuel değiştirmeden çok düğümlü uygulama sürümlerini toplu olarak yükseltebilirsiniz.',
         nodeDashboard:
@@ -4506,7 +4510,7 @@ const message = {
     },
     clean: {
         scan: 'Taramayı başlat',
-        scanHelper: '1Panel çalışma zamanında üretilen gereksiz dosyaları kolayca temizleyin',
+        scanHelper: 'XPanel çalışma zamanında üretilen gereksiz dosyaları kolayca temizleyin',
         clean: 'Şimdi temizle',
         reScan: 'Yeniden tara',
         cleanHelper: 'Seçilen dosya ve dizinler temizlendikten sonra geri alınamaz. Devam etmek istiyor musunuz?',
@@ -5283,7 +5287,7 @@ const message = {
         execShell: 'Sertifika isteğinden sonra betiği çalıştır.',
         shell: 'Betik içeriği',
         shellHelper:
-            'Betiğin varsayılan yürütme dizini, 1Panel kurulum dizinidir. Sertifika yerel dizine aktarılırsa, yürütme dizini sertifika aktarma dizini olacaktır. Varsayılan yürütme zaman aşımı 30 dakikadır.',
+            'Betiğin varsayılan yürütme dizini, XPanel kurulum dizinidir. Sertifika yerel dizine aktarılırsa, yürütme dizini sertifika aktarma dizini olacaktır. Varsayılan yürütme zaman aşımı 30 dakikadır.',
         customAcme: 'Özel ACME Servisi',
         customAcmeURL: 'ACME Servis URL’si',
         baiduCloud: 'Baidu Cloud',
@@ -5301,7 +5305,7 @@ const message = {
         ipv6DisableContainerHelper: 'Konteynerlerin IPv6 port bilgilerini gizleyin.',
         ipv6DisableWhitelistHelper:
             'İzin listesindeki IPv6 kurallarını kaldırın ve mevcut diğer IPv6 kurallarını koruyun.',
-        ipv6DisableRulesHelper: '1Panel tarafından yönetilen iptables ve nftables IPv6 kurallarını devre dışı bırakın.',
+        ipv6DisableRulesHelper: 'XPanel tarafından yönetilen iptables ve nftables IPv6 kurallarını devre dışı bırakın.',
         ipv6DisableNetworkHelper: 'Bu işlem sunucunun IPv6 ağ işlevlerini kapatmaz.',
         ipv6DisableEffectHelper: 'İlgili IPv6 erişim kısıtlamaları ve port yönlendirmeleri artık uygulanmaz.',
         ipv6Disabled: 'IPv6 desteği devre dışı. Önce güvenlik duvarı ayarlarından etkinleştirin.',
@@ -5360,7 +5364,7 @@ const message = {
         systemFirewall: 'Ana makine güvenlik duvarı',
         systemFirewallHelper: 'Ana makine port erişimini ve gelen kuralları yönetir.',
         forwardingHelper: 'Port yönlendirme kurallarını yönetir.',
-        dockerFirewallHelper: '1Panel konteyner portu korumasının nasıl yönetileceğini seçer.',
+        dockerFirewallHelper: 'XPanel konteyner portu korumasının nasıl yönetileceğini seçer.',
         dockerNftablesRequirement: 'Docker ≥ 29.0.0, deneysel',
         backendRecommendation: 'iptables veya nftables kullanılması önerilir.',
         configuredRules: '{0} kural yapılandırıldı',
@@ -5373,9 +5377,9 @@ const message = {
             'En fazla {0} kural (genişletme sonrası sayıya göre) içe aktarılabilir; dosya boyutu {1} KB değerini aşmamalıdır.',
         ruleSyncTitle: 'Kuralları eşitle',
         ruleSyncAction: 'Kuralları eşitle',
-        ruleSyncDatabase: '1Panel veritabanı',
+        ruleSyncDatabase: 'XPanel veritabanı',
         ruleSyncDatabaseHelper:
-            'Mevcut güvenlik duvarındaki yönetilen kuralları 1Panel veritabanı kurallarına göre eşitler ve uyumlu hale getirir. Eksik kurallar eklenir, fazla kurallar silinir.',
+            'Mevcut güvenlik duvarındaki yönetilen kuralları XPanel veritabanı kurallarına göre eşitler ve uyumlu hale getirir. Eksik kurallar eklenir, fazla kurallar silinir.',
         ruleSyncDatabaseTotal: 'Veritabanı kuralları',
         ruleSyncDatabaseConfirm:
             '{1}, {0} veritabanı kuralıyla tam olarak eşleşecek şekilde eşitlensin mi? Hedefteki {2} kural silinecek ve eksik kurallar eklenecektir.',
@@ -5404,13 +5408,13 @@ const message = {
         importFileHelper:
             '64 MB boyutuna kadar JSON dosyalarını dosya sırasıyla toplu olarak içe aktarın. Dönüştürülemeyen kurallar hata olarak bildirilir.',
         resetDirectRulesHelper:
-            '{0} içindeki tüm 1Panel ana makine güvenlik duvarı zincirlerini, etkin kuralları ve kalıcı dosyaları silin.',
+            '{0} içindeki tüm XPanel ana makine güvenlik duvarı zincirlerini, etkin kuralları ve kalıcı dosyaları silin.',
         resetWhitelistRulesHelper:
             '{0} özel yapılandırmasını sıfırlayın, varsayılanları geri yükleyin ve devre dışı bırakın.',
         cleanupForwardingBackendHelper:
-            '{0} üzerindeki tüm 1Panel yönlendirme kurallarını, zincirlerini ve otomatik kurtarma dosyalarını silin. Mevcut JSON yedekleri korunur.',
+            '{0} üzerindeki tüm XPanel yönlendirme kurallarını, zincirlerini ve otomatik kurtarma dosyalarını silin. Mevcut JSON yedekleri korunur.',
         cleanupDockerBackendHelper:
-            '{0} üzerindeki tüm 1Panel Docker koruma kurallarını, zincirlerini ve otomatik kurtarma dosyalarını silin. Mevcut JSON yedekleri korunur.',
+            '{0} üzerindeki tüm XPanel Docker koruma kurallarını, zincirlerini ve otomatik kurtarma dosyalarını silin. Mevcut JSON yedekleri korunur.',
         cleanupBeforeBackendSwitch:
             '{1} sistemine geçmeden önce mevcut {0} sistemini sıfırlayın ve kuralların nasıl geri yükleneceğini doğrulayın.',
         backendSwitchNotice:
@@ -5544,6 +5548,8 @@ const message = {
         editRuleConfirm: 'Bu kuralı değiştirmek istediğinizden emin misiniz?',
     },
     runtime: {
+        statusMessageUnavailable:
+            'Ayrıntılı durum bilgisi mevcut değil. Ayrıntılar için çalışma ortamı günlüklerini kontrol edin.',
         importEnv: 'Ortam Değişkenlerini İçe Aktar',
         envImportError: 'Satır {0}: {1}',
         envInvalidAssignment: 'Geçerli bir NAME=value ataması bekleniyor',
@@ -5678,7 +5684,7 @@ const message = {
             dir: 'Dizin',
             numprocs: 'İşlem sayısı',
             initWarn:
-                'Bu, ana yapılandırma dosyasındaki "[include]" bölümündeki "files" değerini değiştirecektir. Diğer yapılandırma dosyasının dizini şu şekilde olacaktır: "{1Panel kurulum dizini}/1panel/tools/supervisord/supervisor.d/".',
+                'Bu, ana yapılandırma dosyasındaki "[include]" bölümündeki "files" değerini değiştirecektir. Diğer yapılandırma dosyasının dizini şu şekilde olacaktır: "{XPanel kurulum dizini}/1panel/tools/supervisord/supervisor.d/".',
             operatorHelper: '{0} üzerinde {1} işlemi gerçekleştirilecek, devam etmek istiyor musunuz?',
             uptime: 'Çalışma süresi',
             notStartWarn: 'Supervisor başlatılmadı. Önce başlatın.',
@@ -6513,7 +6519,7 @@ const message = {
                     clientSecret: 'Client Secret',
                     clockSkew: 'Token zaman toleransı',
                     clockSkewHelper:
-                        'Kimlik sağlayıcı ile 1Panel arasındaki küçük zaman farklarına izin verir. Varsayılan 60 saniyeyi koruyun.',
+                        'Kimlik sağlayıcı ile XPanel arasındaki küçük zaman farklarına izin verir. Varsayılan 60 saniyeyi koruyun.',
                     clockSkewRequired: 'Token zaman toleransını girin.',
                     compatibilityMode: 'Uyumluluk modu',
                     compatibilityModeHelper:
@@ -6629,14 +6635,14 @@ const message = {
                     nameClaimHelper: 'Kullanıcı adını içeren alanı girin (ör. preferred_username).',
                     nameClaimRequired: "Kullanıcı adı Claim'ini girin.",
                     nameConflict: 'Ad çakışması politikası',
-                    panelURL: '1Panel halka açık URL',
+                    panelURL: 'XPanel halka açık URL',
                     panelURLHTTPWarning:
                         'HTTP yetkilendirme yanıtını korumaz. Bunu yalnızca Provider tarafından kabul edilen yalıtılmış bir özel ortamda kullanın.',
                     panelURLHelper:
-                        "Kullanıcıların 1Panel'e eriştiği adresi girin. Geri çağırma URL'sini oluşturmak için kullanılır.",
+                        "Kullanıcıların XPanel'e eriştiği adresi girin. Geri çağırma URL'sini oluşturmak için kullanılır.",
                     panelURLInvalid:
                         'Yalnızca şema, ana bilgisayar ve isteğe bağlı bağlantı noktasını içeren bir kaynak girin.',
-                    panelURLRequired: "1Panel genel URL'i girin.",
+                    panelURLRequired: "XPanel genel URL'i girin.",
                     pkceDisabled: 'Devre dışı (yalnızca uyumluluk)',
                     pkceDisabledWarning:
                         "PKCE'in devre dışı bırakılması, yetkilendirme kodu müdahalesine karşı korumayı azaltır.",
@@ -6696,7 +6702,7 @@ const message = {
                         "JWKS'i tercih edin. Statik açık anahtar otomatik olarak rotasyona tabi tutulamaz.",
                     signingKeyStatic: 'Statik JWK veya PEM açık anahtarı',
                     standardDiscovery: 'Standart OIDC Discovery',
-                    standardDiscoveryDesc: '1Panel uç noktaları ve yetenekleri keşfeder ve ham belgeyi saklamaz.',
+                    standardDiscoveryDesc: 'XPanel uç noktaları ve yetenekleri keşfeder ve ham belgeyi saklamaz.',
                     standardMode: 'Standart mod',
                     standardModeHelper: "Issuer'in uç noktalarını, imzalama yeteneklerini ve PKCE desteğini keşfedin.",
                     standardProtocolPolicy: 'Standart protokol politikası',
@@ -6818,7 +6824,7 @@ const message = {
                     metadataXMLPlaceholder: '<EntityDescriptor>...</EntityDescriptor> içeriğini yapıştırın',
                     nameAttribute: 'Kullanıcı adı özniteliği',
                     nameAttributeHelper:
-                        'Bu özniteliği doğrulanmış SAML Assertion içinden okur ve 1Panel kullanıcı adına eşler.',
+                        'Bu özniteliği doğrulanmış SAML Assertion içinden okur ve XPanel kullanıcı adına eşler.',
                     nameAttributePlaceholder: 'Örneğin: uid, username veya account',
                     nameAttributeRequired: 'Kullanıcı adı özniteliğini girin.',
                     notConfigured: 'Yapılandırılmadı',
@@ -6853,7 +6859,7 @@ const message = {
                         'AuthnRequest ve oturum kapatma mesajlarını imzalamak için kullanılır. Saklanırken şifrelenir ve hiçbir zaman gösterilmez.',
                     syncLogout: 'Eşzamanlı oturum kapatma',
                     syncLogoutHelper:
-                        "1Panel'den veya kimlik sağlayıcıdan çıkış yapmak diğer taraftaki oturumu da kapatır.",
+                        "XPanel'den veya kimlik sağlayıcıdan çıkış yapmak diğer taraftaki oturumu da kapatır.",
                     testBeforeBrowserTest:
                         'Tarayıcı oturum açma testine başlamadan önce mevcut yapılandırmayı test edin.',
                     testBeforeEnable:
@@ -6886,14 +6892,14 @@ const message = {
                     passwordSaved: 'Kaydedilen şifreyi korumak için boş bırakın',
                     userSearch: 'Kullanıcı arama',
                     userSearchDesc:
-                        'Kullanıcı arama tabanını ve filtreyi ayarlayın, ardından 1Panel name olarak kullanılan LDAP niteliğini eşleyin.',
+                        'Kullanıcı arama tabanını ve filtreyi ayarlayın, ardından XPanel name olarak kullanılan LDAP niteliğini eşleyin.',
                     userFilter: 'Kullanıcı filtresi',
                     userFilterTooltip:
                         "Tam dizin okunması için %(user)s'yu çıkışlı kullanıcı adıyla veya * ile değiştirin.",
                     userFilterHelper: 'Kullanıcı adları LDAP filtresine eklenmeden önce çıkış karakteri kullanılır.',
                     attributeMap: 'Özellik eşleme',
-                    attributeMapTooltip: 'JSON, 1Panel name alanından bir LDAP özniteliğine eşleme.',
-                    attributeMapHelper: '1Panel name alanına eşlenen LDAP niteliğini ayarlayın.',
+                    attributeMapTooltip: 'JSON, XPanel name alanından bir LDAP özniteliğine eşleme.',
+                    attributeMapHelper: 'XPanel name alanına eşlenen LDAP niteliğini ayarlayın.',
                     advanced: 'Gelişmiş ayarlar',
                     advancedDesc: 'TLS ve LDAP sorgu sayfalamayı yapılandırın.',
                     strictSync: 'Sıkı senkronizasyon',
@@ -6933,7 +6939,7 @@ const message = {
                     sync: {
                         title: 'Planlanmış senkronizasyon',
                         description:
-                            "LDAP dizininin tamamını bir programa göre okuyun ve 1Panel'da içe aktarılan LDAP kullanıcılarını koruyun.",
+                            "LDAP dizininin tamamını bir programa göre okuyun ve XPanel'da içe aktarılan LDAP kullanıcılarını koruyun.",
                         enable: 'Programı etkinleştir',
                         enableHelper:
                             'Devre dışı bırakıldığında otomatik yürütme durur; manuel senkronizasyon kullanılabilir durumda kalır.',
@@ -6994,7 +7000,7 @@ const message = {
                     },
                     testLoginTitle: 'AD/LDAP oturum açmayı test et',
                     testLoginDesc:
-                        'Yalnızca kimlik doğrulamayı test etmek için AD/LDAP kullanıcı kimlik bilgileriyle bağlantı kurun. 1Panel oturumu oluşturulmadı.',
+                        'Yalnızca kimlik doğrulamayı test etmek için AD/LDAP kullanıcı kimlik bilgileriyle bağlantı kurun. XPanel oturumu oluşturulmadı.',
                     ldapUsername: 'LDAP kullanıcı adı',
                     usernameRequired: 'LDAP kullanıcı adını girin.',
                     startTest: 'Testi başlat',
@@ -7594,7 +7600,7 @@ const message = {
             tamperContent4:
                 'Yöneticilerin sonraki denetim ve analiz için dosya erişimi ve işlem günlüklerini kaydeder, potansiyel güvenlik tehditlerini belirler.',
             settingTitle1: 'Özel Hoş Geldiniz Mesajı',
-            settingContent1: '1Panel giriş sayfasında özel bir hoş geldiniz mesajı ayarlayın.',
+            settingContent1: 'XPanel giriş sayfasında özel bir hoş geldiniz mesajı ayarlayın.',
             settingTitle2: 'Özel Logo',
             settingContent2: 'Marka adları veya başka metinler içeren logo görüntülerinin yüklenmesine izin verir.',
             settingTitle3: 'Özel Web Sitesi Simgesi',
@@ -7690,7 +7696,7 @@ const message = {
             nodeAppContent1:
                 'Çoklu düğüm uygulama güncellemelerinin birleşik izlenmesi, tek tıklamayla yükseltme desteği',
             appTitle1: 'Esnek Panel Yönetimi',
-            appContent1: '1Panel sunucunuzu her zaman, her yerde kolayca yönetin.',
+            appContent1: 'XPanel sunucunuzu her zaman, her yerde kolayca yönetin.',
             appTitle2: 'Kapsamlı Hizmet Bilgisi',
             appContent2:
                 'Temel uygulamaları, web sitelerini, Docker’ı, veritabanlarını vb. yönetin ve mobil uygulama üzerinden hızlıca uygulamalar ve web siteleri oluşturun.',
@@ -7785,7 +7791,7 @@ const message = {
             addPanel: 'Panel Ekle',
             addPanelHelper:
                 'Panel başarıyla eklendikten sonra, [Genel Bakış - Paneller] bölümünden hedef panele hızlıca erişebilirsiniz.',
-            panel: '1Panel Paneli',
+            panel: 'XPanel Paneli',
             others: 'Diğer Paneller',
             addNode: 'Düğüm Ekle',
             connInfo: 'Bağlantı Bilgileri',
@@ -7852,7 +7858,7 @@ const message = {
             operatePanelHelper: 'Aşağıdaki panellerde {0} işlemi gerçekleştirilecek. Devam etmek istiyor musunuz?',
             forceDeleteHelper: 'Zorla silme, düğüm silme hatalarını yok sayar ve veritabanı meta verilerini siler',
             uninstall: 'Düğüm verilerini sil',
-            uninstallHelper: 'Bu, düğümle ilgili tüm 1Panel verilerini silecektir. Dikkatli ilerleyin!',
+            uninstallHelper: 'Bu, düğümle ilgili tüm XPanel verilerini silecektir. Dikkatli ilerleyin!',
             baseDir: 'Kurulum Dizini',
             baseDirHelper: 'Kurulum dizini boş olduğunda, varsayılan olarak /opt dizinine kurulur',
             nodePort: 'Düğüm Portu',

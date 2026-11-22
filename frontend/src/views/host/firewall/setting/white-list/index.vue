@@ -179,7 +179,7 @@ const rules: FormRules = {
     ],
 };
 const serviceTypes: WhiteListType[] = ['ssh', 'panel'];
-const serviceLabel = (type: WhiteListType) => (type === 'panel' ? '1Panel' : 'SSH');
+const serviceLabel = (type: WhiteListType) => (type === 'panel' ? 'XPanel' : 'SSH');
 const servicePortLabel = (type: WhiteListType) =>
     (type === 'panel' ? props.panelPort : props.sshPort) || i18n.global.t('commons.status.unknown');
 

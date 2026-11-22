@@ -71,3 +71,18 @@ func (b *BaseApi) ReportClusterAlert(c *gin.Context) {
 	}
 	helper.Success(c)
 }
+
+// @Tags Alert
+// @Summary Summary of cluster alert targets for the home page
+// @Success 200 {object} dto.ClusterAlertSummary
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /alert/cluster/summary [get]
+func (b *BaseApi) ClusterAlertSummary(c *gin.Context) {
+	data, err := service.ClusterAlertSummary(20)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, data)
+}

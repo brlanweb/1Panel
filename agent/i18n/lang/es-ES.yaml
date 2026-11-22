@@ -70,6 +70,7 @@ Decrypt: 'Descifrar'
 
 # agente
 ErrAgentAccountBound: 'Cuenta vinculada a agente'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: 'Este servicio de modelo esta siendo usado por Terminal AI. Cambia la cuenta en la configuracion de Terminal AI o desactiva Terminal AI y vuelve a intentarlo.'
 ErrFileAIAccountInUse: 'Este servicio de modelo está siendo utilizado por la IA del gestor de archivos. Cambia la cuenta en su configuración o desactívala y vuelve a intentarlo.'
 ErrAgentAccountUnavailable: 'Conexión de cuenta no disponible: {{ .err }}'

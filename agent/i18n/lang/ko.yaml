@@ -70,6 +70,7 @@ Decrypt: '복호화'
 
 # 에이전트
 ErrAgentAccountBound: '계정이 에이전트에 묶여 있습니다'
+ErrAgentAccountUsedByAlert: 'The model service is used by a model API alert rule; delete or change that rule first'
 ErrTerminalAIAccountInUse: '이 모델 서비스는 현재 터미널 AI에서 사용 중입니다. 터미널 AI 설정에서 다른 계정으로 변경하거나 터미널 AI를 비활성화한 뒤 다시 시도하세요.'
 ErrFileAIAccountInUse: '이 모델 서비스는 현재 파일 관리 AI에서 사용 중입니다. 파일 관리 AI 설정에서 다른 계정으로 변경하거나 파일 관리 AI를 비활성화한 뒤 다시 시도하세요.'
 ErrAgentAccountUnavailable: '계정 연결 불가: {{ .err }}'

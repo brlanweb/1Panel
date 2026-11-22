@@ -245,12 +245,15 @@
                 <el-carousel
                     class="my-carousel"
                     :class="{ 'no-indicator': carouselItemCount <= 1 }"
-                    :key="simpleNodes.length + carouselItemCount"
+                    :key="simpleNodes.length + carouselItemCount + (isMultiNode ? 'm' : 's')"
                     height="368px"
                     indicator-position=""
                     arrow="never"
                     :autoplay="!showMemoCarousel || !memoEditing"
                 >
+                    <el-carousel-item key="clusterAlerts" v-if="isMultiNode">
+                        <ClusterAlerts />
+                    </el-carousel-item>
                     <el-carousel-item key="systemInfo">
                         <CardWithHeader :header="$t('home.systemInfo')">
                             <template #header-r>
@@ -404,7 +407,7 @@
                             </template>
                         </CardWithHeader>
                     </el-carousel-item>
-                    <el-carousel-item key="memoInfo" v-if="showMemoCarousel">
+                    <el-carousel-item key="memoInfo" v-if="showMemoCarousel && !isMultiNode">
                         <CardWithHeader :header="$t('home.memo')" class="memo-card">
                             <template #header-r>
                                 <el-tooltip v-if="!memoEditing" :content="$t('commons.button.edit')" placement="top">
@@ -502,7 +505,8 @@
                     </el-carousel-item>
                 </el-carousel>
 
-                <AppLauncher ref="appRef" class="dashboard-app" />
+                <ClusterNodes v-if="isMultiNode" class="dashboard-app" />
+                <AppLauncher v-else ref="appRef" class="dashboard-app" />
             </el-col>
         </el-row>
 
@@ -514,6 +518,9 @@
 import { onMounted, onBeforeUnmount, ref, reactive, computed, nextTick, watch, defineAsyncComponent } from 'vue';
 import SystemStatus from '@/views/home/status/index.vue';
 import AppLauncher from '@/views/home/app/index.vue';
+import ClusterAlerts from '@/views/home/cluster/alerts.vue';
+import ClusterNodes from '@/views/home/cluster/nodes.vue';
+import { getClusterNodeOverview } from '@/api/modules/cluster';
 import VCharts from '@/components/v-charts/index.vue';
 import QuickJump from '@/views/home/quick/index.vue';
 import QuickDirectories from '@/views/home/quick/directories.vue';
@@ -562,6 +569,7 @@ const {
     isXpackOrEE,
     isProductPro,
     isEnterprise,
+    isMaster,
     currentNode,
 } = useGlobalStore();
 
@@ -817,9 +825,23 @@ const simpleNodeCarouselSetting = ref();
 const carouselSettingReady = ref(false);
 
 const showMemoCarousel = computed(() => memoCarouselSetting.value === 'Enable');
+// Multi-node home: on the master with at least one child node, the memo is
+// replaced by cluster alerts and the app launcher by the node list.
+const clusterChildCount = ref(0);
+const isMultiNode = computed(() => isMaster.value && clusterChildCount.value > 0);
+const loadClusterChildCount = async () => {
+    if (!isMaster.value) return;
+    try {
+        const res = await getClusterNodeOverview();
+        clusterChildCount.value = res.data?.total || 0;
+    } catch {
+        clusterChildCount.value = 0;
+    }
+};
 const carouselItemCount = computed(() => {
     let count = 1;
-    if (showMemoCarousel.value) count += 1;
+    if (isMultiNode.value) count += 1;
+    else if (showMemoCarousel.value) count += 1;
     if (showSimpleNode()) count += 1;
     return count;
 });
@@ -1372,6 +1394,7 @@ const clearTimer = () => {
 onMounted(() => {
     fetchData();
     loadMemo();
+    loadClusterChildCount();
 });
 
 watch(
@@ -1561,7 +1584,7 @@ onBeforeUnmount(() => {
     margin: -8px 10px 3px 20px;
 
     &:hover {
-        background-color: rgba(0, 94, 235, 0.03);
+        background-color: rgba(13, 148, 136, 0.03);
     }
 
     .name {

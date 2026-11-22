@@ -830,3 +830,7 @@ ErrImageCheckProxyRequired: "현재 실행 환경에서 이미지 업데이트�
 ErrPHPExtensionsConflict: "같은 이름에 내용이 다른 PHP 확장 템플릿이 이미 있어 덮어쓰지 않았습니다"
 
 ErrModelTokenizerDirOverlap: "모델 디렉터리와 토크나이저 디렉터리는 서로 달라야 하며 서로 포함할 수 없습니다"
+ErrProxySubscription: "Subscription download failed: {{ .detail }}"
+ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
+ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
+ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"

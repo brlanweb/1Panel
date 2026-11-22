@@ -36,7 +36,16 @@ export const listClusterNodeOptions = () => {
 };
 
 export const getClusterAggregateOverview = () => {
-    return http.get<Cluster.AggregateOverview>(`/core/cluster/nodes/overview/aggregate`);
+    // Probes every node (status, counts, version, disks): allow more time.
+    return http.get<Cluster.AggregateOverview>(`/core/cluster/nodes/overview/aggregate`, undefined, { timeout: 60000 });
+};
+
+export const upgradeClusterNode = (id: number, version = '') => {
+    return http.postLocalNode<any>(`/core/cluster/nodes/upgrade`, { id, version }, 60000);
+};
+
+export const loadClusterNodeUpgradeStatus = (id: number) => {
+    return http.postLocalNode<Cluster.NodeUpgradeStatus>(`/core/cluster/nodes/upgrade/status`, { id });
 };
 
 export const searchClusterSyncResources = (req: Cluster.SyncResourceSearch) => {

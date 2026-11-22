@@ -41,6 +41,8 @@ type IClusterNodeService interface {
 	Overview() (dto.ClusterNodeOverview, error)
 	Aggregate() (dto.ClusterAggregateOverview, error)
 	ListOptions() ([]dto.ClusterNodeOption, error)
+	UpgradeNode(req dto.ClusterNodeUpgradeReq) error
+	NodeUpgradeStatus(id uint) (dto.ClusterNodeUpgradeStatus, error)
 	// ProxyRequest forwards one request to the named panel node. It
 	// returns false when the name is not a registered cluster node.
 	// isAdmin reports whether the master session belongs to a super admin.
@@ -330,6 +332,10 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 		return dto.ClusterAggregateOverview{}, err
 	}
 	result := dto.ClusterAggregateOverview{ClusterNodeOverview: overview}
+	// The release lookup may hit GitHub (cached 10 min); run it alongside
+	// the node refresh so it never adds to the page load time.
+	latestCh := make(chan string, 1)
+	go func() { latestCh <- latestForkVersion() }()
 	group, _ := errgroup.WithContext(context.Background())
 	group.SetLimit(5)
 	var mu sync.Mutex
@@ -341,6 +347,8 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 				CpuUsedPercent: node.CpuUsedPercent, MemUsedPercent: node.MemUsedPercent,
 				AppCount: node.AppCount, WebsiteCount: node.WebsiteCount,
 				RefreshedAt: time.Now().Format(time.RFC3339),
+				Version:     node.Version, DiskUsedPercent: node.DiskUsedPercent,
+				DiskTotal: node.DiskTotal, DiskUsed: node.DiskUsed,
 			}
 			if node.Status == model.ClusterNodeStatusOffline {
 				snap.FetchError = node.LastError
@@ -381,12 +389,12 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 				}
 			}
 			if snap.FetchError == "" {
-				_ = clusterNodeRepo.Update(node.ID, map[string]interface{}{
-					"cpu_used_percent": snap.CpuUsedPercent,
-					"mem_used_percent": snap.MemUsedPercent,
-					"app_count":        snap.AppCount,
-					"website_count":    snap.WebsiteCount,
-				})
+				upMap := u.fillNodeExtras(node, &snap)
+				upMap["cpu_used_percent"] = snap.CpuUsedPercent
+				upMap["mem_used_percent"] = snap.MemUsedPercent
+				upMap["app_count"] = snap.AppCount
+				upMap["website_count"] = snap.WebsiteCount
+				_ = clusterNodeRepo.Update(node.ID, upMap)
 			}
 			mu.Lock()
 			result.Nodes = append(result.Nodes, snap)
@@ -403,6 +411,17 @@ func (u *ClusterNodeService) Aggregate() (dto.ClusterAggregateOverview, error) {
 	}
 	sort.SliceStable(result.Nodes, func(i, j int) bool { return result.Nodes[i].NodeID < result.Nodes[j].NodeID })
 	result.Local, result.LocalError = localNodeCounts()
+	result.Local.Version = global.CONF.Base.Version
+	if disks, err := localNodeDisks(); err == nil {
+		result.Local.Disks = disks
+		if disk, ok := primaryDisk(disks); ok {
+			result.Local.DiskUsedPercent, result.Local.DiskTotal, result.Local.DiskUsed = disk.UsedPercent, disk.Total, disk.Used
+		}
+	}
+	select {
+	case result.LatestVersion = <-latestCh:
+	case <-time.After(5 * time.Second):
+	}
 	if result.LocalError == "" {
 		result.TotalApps += result.Local.AppCount
 		result.TotalWebsites += result.Local.WebsiteCount
@@ -433,6 +452,18 @@ func localNodeCounts() (dto.ClusterNodeSnapshot, string) {
 	}
 	snap.WebsiteCount = int(page.Total)
 	return snap, ""
+}
+
+// localNodeDisks reads the master's own disk list over its agent socket.
+func localNodeDisks() ([]dto.ClusterDiskInfo, error) {
+	var current struct {
+		DiskData []remoteDisk `json:"diskData"`
+	}
+	sync := &ClusterSyncService{}
+	if err := sync.callLocalJSON(context.Background(), http.MethodGet, "/api/v2/dashboard/current/all/all", nil, &current, 15*time.Second); err != nil {
+		return nil, err
+	}
+	return normalizeDisks(current.DiskData), nil
 }
 
 // probeNode checks the remote panel's API auth using the same path the

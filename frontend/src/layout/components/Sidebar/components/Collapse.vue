@@ -34,7 +34,7 @@
                 <el-divider v-if="showNodes()" class="divider" />
                 <div class="dropdown-item" @click="openNodeDashboard" v-if="showClusterOverview">
                     <SvgIcon class="icon" iconName="p-gailan1" />
-                    {{ $t('xpack.node.multiOverview') }}
+                    {{ isXpackOrEE ? $t('xpack.node.multiOverview') : $t('menu.clusterOverview') }}
                 </div>
                 <el-divider v-if="showClusterOverview" class="divider" />
 

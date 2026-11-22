@@ -31,7 +31,7 @@ func (b *BaseApi) SaveProxyNode(c *gin.Context) {
 		return
 	}
 	if err := proxyNodeService.Save(req); err != nil {
-		helper.BadRequest(c, err)
+		helper.InternalServer(c, err)
 		return
 	}
 	helper.Success(c)
@@ -45,7 +45,7 @@ func (b *BaseApi) SaveProxyNode(c *gin.Context) {
 // @Router /settings/proxy-node/refresh [post]
 func (b *BaseApi) RefreshProxyNode(c *gin.Context) {
 	if err := proxyNodeService.Refresh(); err != nil {
-		helper.BadRequest(c, err)
+		helper.InternalServer(c, err)
 		return
 	}
 	helper.Success(c)
@@ -66,7 +66,7 @@ func (b *BaseApi) SelectProxyNode(c *gin.Context) {
 		return
 	}
 	if err := proxyNodeService.Select(req.Name); err != nil {
-		helper.BadRequest(c, err)
+		helper.InternalServer(c, err)
 		return
 	}
 	helper.Success(c)
@@ -80,7 +80,7 @@ func (b *BaseApi) SelectProxyNode(c *gin.Context) {
 // @Router /settings/proxy-node/test [post]
 func (b *BaseApi) TestProxyNodes(c *gin.Context) {
 	if err := proxyNodeService.Test(); err != nil {
-		helper.BadRequest(c, err)
+		helper.InternalServer(c, err)
 		return
 	}
 	helper.Success(c)
@@ -100,7 +100,7 @@ func (b *BaseApi) OperateProxyNode(c *gin.Context) {
 		return
 	}
 	if err := proxyNodeService.Operate(req.Operate); err != nil {
-		helper.BadRequest(c, err)
+		helper.InternalServer(c, err)
 		return
 	}
 	helper.Success(c)

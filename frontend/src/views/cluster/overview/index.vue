@@ -25,7 +25,12 @@
                                             :value="item.id"
                                         />
                                     </el-select>
-                                    <el-button :icon="Setting" circle @click="goNodeManage" />
+                                    <el-tooltip :content="$t('commons.table.manageGroup')" placement="top">
+                                        <el-button :icon="FolderAdd" circle @click="openGroupManage" />
+                                    </el-tooltip>
+                                    <el-tooltip :content="$t('menu.clusterNodes')" placement="top">
+                                        <el-button :icon="Setting" circle @click="goNodeManage" />
+                                    </el-tooltip>
                                 </div>
                                 <el-input
                                     v-model="searchKeyword"
@@ -48,6 +53,24 @@
                                     </el-tag>
                                 </div>
                                 <div class="node-card-addr">{{ node.addr }}</div>
+                                <div class="node-card-version" @click.stop>
+                                    <span>{{ $t('cluster.panelVersion') }}: {{ node.version || '—' }}</span>
+                                    <el-tag v-if="upgradeStates[node.key]" size="small" type="warning">
+                                        {{ upgradeStageText(upgradeStates[node.key]) }}
+                                    </el-tag>
+                                    <el-button
+                                        v-else-if="canUpgrade(node)"
+                                        size="small"
+                                        type="primary"
+                                        link
+                                        @click="onUpgradeNode(node)"
+                                    >
+                                        {{ $t('cluster.upgradeTo', [latestVersion]) }}
+                                    </el-button>
+                                    <el-text v-else-if="isLatest(node)" size="small" type="success">
+                                        {{ $t('cluster.latestVersion') }}
+                                    </el-text>
+                                </div>
                                 <div class="node-card-metric">
                                     <span>
                                         {{ $t('cluster.cpu') }} {{ node.cpuUsedPercent.toFixed(1) }}% /
@@ -66,6 +89,19 @@
                                     </span>
                                     <el-progress
                                         :percentage="node.memUsedPercent"
+                                        :show-text="false"
+                                        :stroke-width="8"
+                                    />
+                                </div>
+                                <div class="node-card-metric">
+                                    <span>
+                                        {{ $t('cluster.disk') }}
+                                        {{ node.diskTotal ? node.diskUsedPercent.toFixed(1) + '%' : '—' }} /
+                                        {{ formatBytes(node.diskTotal) }}
+                                    </span>
+                                    <el-progress
+                                        :percentage="Math.min(100, node.diskUsedPercent)"
+                                        :status="node.diskUsedPercent >= 90 ? 'exception' : undefined"
                                         :show-text="false"
                                         :stroke-width="8"
                                     />
@@ -107,6 +143,22 @@
                                     </div>
                                 </el-card>
                             </div>
+
+                            <el-card v-if="selectedNode.disks.length" shadow="never" class="mb-4">
+                                <template #header>{{ $t('cluster.diskUsage') }}</template>
+                                <div v-for="disk in selectedNode.disks" :key="disk.path" class="disk-row">
+                                    <span class="disk-path" :title="disk.path">{{ disk.path }}</span>
+                                    <el-progress
+                                        class="disk-bar"
+                                        :percentage="Math.min(100, Number(disk.usedPercent.toFixed(1)))"
+                                        :status="disk.usedPercent >= 90 ? 'exception' : undefined"
+                                        :stroke-width="12"
+                                    />
+                                    <span class="disk-size">
+                                        {{ formatBytes(disk.used) }} / {{ formatBytes(disk.total) }}
+                                    </span>
+                                </div>
+                            </el-card>
 
                             <el-card shadow="never" class="mb-4">
                                 <template #header>{{ $t('menu.app') }}</template>
@@ -332,15 +384,22 @@
         </DrawerPro>
 
         <Backups ref="backupRef" />
+        <GroupDialog ref="groupRef" @search="loadGroups" />
     </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, nextTick, onMounted, ref } from 'vue';
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
-import { Setting } from '@element-plus/icons-vue';
+import { FolderAdd, Setting } from '@element-plus/icons-vue';
+import { ElMessageBox } from 'element-plus';
 import i18n from '@/lang';
-import { getClusterAggregateOverview, searchClusterNodes } from '@/api/modules/cluster';
+import {
+    getClusterAggregateOverview,
+    loadClusterNodeUpgradeStatus,
+    searchClusterNodes,
+    upgradeClusterNode,
+} from '@/api/modules/cluster';
 import { getGroupList } from '@/api/modules/group';
 import { searchAppInstalled } from '@/api/modules/app';
 import { searchWebsites } from '@/api/modules/website';
@@ -362,6 +421,7 @@ import { useGlobalStore } from '@/composables/useGlobalStore';
 import Terminal from '@/components/terminal/index.vue';
 import ContainerLog from '@/components/log/container/index.vue';
 import Backups from '@/components/backup/index.vue';
+import GroupDialog from '@/components/group/index.vue';
 
 const router = useRouter();
 const { globalStore } = useGlobalStore();
@@ -381,6 +441,11 @@ interface OverviewNode {
     agentCount: number | null;
     groupId: number;
     fetchError: string;
+    nodeId: number;
+    version: string;
+    diskUsedPercent: number;
+    diskTotal: number;
+    disks: Cluster.DiskInfo[];
 }
 
 const loading = ref(false);
@@ -428,6 +493,10 @@ const containerLogName = ref('');
 const containerLogCompose = ref('');
 const containerLogNode = ref('');
 const backupRef = ref();
+const groupRef = ref();
+const latestVersion = ref('');
+// Upgrade progress per node key; set while an upgrade runs on that node.
+const upgradeStates = ref<Record<string, Cluster.NodeUpgradeStatus>>({});
 
 const selectedNode = computed(() => nodes.value.find((item) => item.key === selectedKey.value));
 const countText = (value: number | null) => (value === null || value < 0 ? '—' : String(value));
@@ -436,7 +505,7 @@ const statCards = computed(() => {
     const t = (key: string) => i18n.global.t(key);
     const notRefreshed = t('cluster.countsNotRefreshed');
     const counts = [node?.agentCount ?? null, node?.appCount ?? null, node?.websiteCount ?? null];
-    return [
+    const cards = [
         { key: 'agent', title: t('cluster.agent'), value: countText(counts[0]) },
         { key: 'app', title: t('cluster.appCount'), value: countText(counts[1]) },
         { key: 'website', title: t('cluster.websiteCount'), value: countText(counts[2]) },
@@ -444,6 +513,15 @@ const statCards = computed(() => {
         const failed = counts[idx] === null || (counts[idx] as number) < 0;
         return { ...card, warn: failed, note: failed ? notRefreshed : '' };
     });
+    const disk = node?.disks?.[0];
+    cards.push({
+        key: 'disk',
+        title: t('cluster.diskUsage'),
+        value: disk ? `${disk.usedPercent.toFixed(1)}%` : '—',
+        warn: !disk || disk.usedPercent >= 90,
+        note: disk ? `${disk.path}  ${formatBytes(disk.used)} / ${formatBytes(disk.total)}` : notRefreshed,
+    });
+    return cards;
 });
 // The aggregate's master-panel counts (null when the aggregate failed).
 const localSnap = (aggRes: PromiseSettledResult<any>) => {
@@ -454,6 +532,17 @@ const localSnap = (aggRes: PromiseSettledResult<any>) => {
     return {
         appCount: typeof local?.appCount === 'number' && local.appCount >= 0 ? local.appCount : null,
         websiteCount: typeof local?.websiteCount === 'number' && local.websiteCount >= 0 ? local.websiteCount : null,
+    };
+};
+// Master-panel version and disk usage from the aggregate.
+const localExtras = (aggRes: PromiseSettledResult<any>) => {
+    const local = aggRes.status === 'fulfilled' ? aggRes.value?.data?.local : undefined;
+    return {
+        nodeId: 0,
+        version: local?.version || '',
+        diskUsedPercent: local?.diskUsedPercent || 0,
+        diskTotal: local?.diskTotal || 0,
+        disks: (local?.disks || []) as Cluster.DiskInfo[],
     };
 };
 const filteredNodes = computed(() => {
@@ -481,6 +570,141 @@ const formatMem = (bytes: number) => {
     if (!bytes) return '—';
     return `${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB`;
 };
+const formatBytes = (bytes: number) => {
+    if (!bytes) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+    let value = bytes;
+    let idx = 0;
+    while (value >= 1024 && idx < units.length - 1) {
+        value /= 1024;
+        idx++;
+    }
+    return `${value.toFixed(idx >= 3 ? 1 : 0)} ${units[idx]}`;
+};
+
+// ---- Panel version / one-click update -------------------------------
+// Remote nodes only: the master panel updates itself from its footer.
+const compareVersion = (a: string, b: string) => {
+    const split = (v: string) => v.replace(/^v/, '').split(/[.\-]/);
+    const pa = split(a);
+    const pb = split(b);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+        const x = pa[i] ?? '';
+        const y = pb[i] ?? '';
+        if (x === y) continue;
+        const nx = Number(x);
+        const ny = Number(y);
+        if (x !== '' && y !== '' && !isNaN(nx) && !isNaN(ny)) return nx > ny ? 1 : -1;
+        if (x === '') return -1;
+        if (y === '') return 1;
+        return x > y ? 1 : -1;
+    }
+    return 0;
+};
+const canUpgrade = (node: OverviewNode) =>
+    node.key !== 'local' &&
+    node.status === 'online' &&
+    !!latestVersion.value &&
+    !!node.version &&
+    compareVersion(latestVersion.value, node.version) > 0;
+const isLatest = (node: OverviewNode) =>
+    !!latestVersion.value && !!node.version && compareVersion(latestVersion.value, node.version) <= 0;
+
+const upgradeStageText = (state: Cluster.NodeUpgradeStatus) => {
+    const t = (key: string, args?: any[]) => i18n.global.t(key, args || []);
+    if (!state.reachable) return t('cluster.upgradeRestarting');
+    if (state.stage === 'downloading') {
+        const pct = state.total ? Math.floor((state.done * 100) / state.total) : 0;
+        return t('cluster.upgradeDownloading', [pct]);
+    }
+    if (state.stage === 'verifying') return t('setting.upgradeVerifying');
+    if (state.stage === 'installing') return t('cluster.upgradeRestarting');
+    return t('cluster.upgradeStarting');
+};
+
+const upgradeTimers: Record<string, ReturnType<typeof setTimeout>> = {};
+const stopUpgradePoll = (key: string) => {
+    if (upgradeTimers[key]) clearTimeout(upgradeTimers[key]);
+    delete upgradeTimers[key];
+};
+const finishUpgrade = (node: OverviewNode, error = '') => {
+    stopUpgradePoll(node.key);
+    delete upgradeStates.value[node.key];
+    if (error) {
+        MsgError(`${node.displayName}: ${error}`);
+    } else {
+        MsgSuccess(i18n.global.t('cluster.upgradeDone', [node.displayName]));
+    }
+    loadAll();
+};
+// Polls until the node reports a version >= the target, fails, or the
+// 20-minute budget runs out. Unreachable = the node is restarting.
+const pollUpgrade = (node: OverviewNode, target: string, deadline: number) => {
+    stopUpgradePoll(node.key);
+    upgradeTimers[node.key] = setTimeout(async () => {
+        try {
+            const res = await loadClusterNodeUpgradeStatus(node.nodeId);
+            const state = res.data;
+            upgradeStates.value[node.key] = state;
+            if (state.reachable && state.currentVersion && compareVersion(state.currentVersion, target) >= 0) {
+                finishUpgrade(node);
+                return;
+            }
+            if (state.reachable && state.stage === 'failed') {
+                finishUpgrade(node, state.error || i18n.global.t('commons.msg.operationFailed'));
+                return;
+            }
+        } catch {
+            // master request failed; keep polling until the deadline
+        }
+        if (Date.now() > deadline) {
+            finishUpgrade(node, i18n.global.t('cluster.upgradeTimeout'));
+            return;
+        }
+        pollUpgrade(node, target, deadline);
+    }, 3000);
+};
+const onUpgradeNode = async (node: OverviewNode) => {
+    const target = latestVersion.value;
+    try {
+        await ElMessageBox.confirm(
+            i18n.global.t('cluster.upgradeConfirm', [node.displayName, node.version, target]),
+            i18n.global.t('commons.button.upgrade'),
+            { type: 'warning' },
+        );
+    } catch {
+        return;
+    }
+    try {
+        await upgradeClusterNode(node.nodeId, target);
+    } catch {
+        return; // error shown by the http layer
+    }
+    MsgSuccess(i18n.global.t('cluster.upgradeStarted', [node.displayName]));
+    upgradeStates.value[node.key] = {
+        id: node.nodeId,
+        stage: 'downloading',
+        version: target,
+        currentVersion: node.version,
+        done: 0,
+        total: 0,
+        error: '',
+        reachable: true,
+    };
+    pollUpgrade(node, target, Date.now() + 20 * 60 * 1000);
+};
+
+const loadGroups = async () => {
+    try {
+        const res = await getGroupList('cluster_node');
+        groups.value = res.data || [];
+    } catch {
+        groups.value = [];
+    }
+};
+const openGroupManage = () => {
+    groupRef.value?.acceptParams({ type: 'cluster_node', hideDefaultButton: false });
+};
 // The summary APIs take a node name for the operateNode selector. Always
 // pass it explicitly — even 'local' — so a globally switched node cannot
 // leak into this page's per-node reads.
@@ -496,15 +720,18 @@ const loadAll = async () => {
         ]);
         const entryUrls: Record<number, string> = {};
         const groupIds: Record<number, number> = {};
+        const nodeVersions: Record<number, string> = {};
         if (nodesRes.status === 'fulfilled') {
-            for (const item of nodesRes.value.data.items) {
+            for (const item of nodesRes.value.data.items || []) {
                 entryUrls[item.id] = item.entryUrl;
                 groupIds[item.id] = item.groupId;
+                nodeVersions[item.id] = item.version;
             }
         }
         if (groupsRes.status === 'fulfilled') {
             groups.value = groupsRes.value.data || [];
         }
+        latestVersion.value = aggRes.status === 'fulfilled' ? aggRes.value.data.latestVersion || '' : '';
         const list: OverviewNode[] = [];
         // Master node first, from the local dashboard (not part of the
         // aggregate, which only covers registered remote nodes).
@@ -530,6 +757,7 @@ const loadAll = async () => {
                 agentCount: null,
                 groupId: 0,
                 fetchError: '',
+                ...localExtras(aggRes),
             });
         } catch {
             list.push({
@@ -547,6 +775,7 @@ const loadAll = async () => {
                 agentCount: null,
                 groupId: 0,
                 fetchError: '',
+                ...localExtras(aggRes),
             });
         }
         if (aggRes.status === 'fulfilled') {
@@ -571,6 +800,11 @@ const loadAll = async () => {
                     agentCount: null,
                     groupId: groupIds[snap.nodeId] || 0,
                     fetchError: snap.fetchError || '',
+                    nodeId: snap.nodeId,
+                    version: snap.version || nodeVersions[snap.nodeId] || '',
+                    diskUsedPercent: snap.diskUsedPercent || 0,
+                    diskTotal: snap.diskTotal || 0,
+                    disks: snap.disks || [],
                 });
             }
         }
@@ -812,6 +1046,10 @@ const runCronjob = async (row: Cronjob.CronjobInfo) => {
 onMounted(() => {
     loadAll();
 });
+
+onBeforeUnmount(() => {
+    Object.keys(upgradeTimers).forEach(stopUpgradePoll);
+});
 </script>
 
 <style scoped>
@@ -825,7 +1063,7 @@ onMounted(() => {
 
 .stat-cards {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: 12px;
     align-items: stretch;
 }
@@ -901,6 +1139,36 @@ onMounted(() => {
     margin: 6px 0;
     overflow: hidden;
     text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.node-card-version {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--el-text-color-regular);
+    min-height: 22px;
+}
+
+.disk-row {
+    display: grid;
+    grid-template-columns: minmax(80px, 160px) 1fr auto;
+    align-items: center;
+    gap: 12px;
+    padding: 6px 0;
+    font-size: 13px;
+}
+
+.disk-path {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.disk-size {
+    color: var(--el-text-color-secondary);
     white-space: nowrap;
 }
 

@@ -177,3 +177,45 @@ func (b *BaseApi) ListClusterNodeOptions(c *gin.Context) {
 	}
 	helper.SuccessWithData(c, options)
 }
+
+// @Tags Cluster Node
+// @Summary Upgrade the panel of a cluster node
+// @Accept json
+// @Param request body dto.ClusterNodeUpgradeReq true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/upgrade [post]
+// @x-panel-log {"bodyKeys":["id","version"],"paramKeys":[],"BeforeFunctions":[{"input_column":"id","input_value":"id","isList":false,"db":"cluster_nodes","output_column":"name","output_value":"name"}],"formatZH":"更新集群节点面板 [name] [version]","formatEN":"upgrade cluster node panel [name] [version]"}
+func (b *BaseApi) UpgradeClusterNode(c *gin.Context) {
+	var req dto.ClusterNodeUpgradeReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	if err := clusterNodeService.UpgradeNode(req); err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.Success(c)
+}
+
+// @Tags Cluster Node
+// @Summary Load the panel upgrade progress of a cluster node
+// @Accept json
+// @Param request body dto.OperateByID true "request"
+// @Success 200 {object} dto.ClusterNodeUpgradeStatus
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/upgrade/status [post]
+func (b *BaseApi) GetClusterNodeUpgradeStatus(c *gin.Context) {
+	var req dto.OperateByID
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	status, err := clusterNodeService.NodeUpgradeStatus(req.ID)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, status)
+}

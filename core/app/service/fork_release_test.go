@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"testing"
 )
 
@@ -92,5 +93,41 @@ func TestForkPackageURLRequiresMatchingAsset(t *testing.T) {
 	}
 	if _, _, err := forkPackageURL("v2.1.6", "amd64"); err == nil {
 		t.Fatal("a tag that is not a fork release must fail")
+	}
+}
+
+// When the GitHub API fails (e.g. the 60 req/h unauthenticated limit), the
+// update check must fall back to the releases/latest redirect instead of
+// reporting "already the latest version".
+func TestForkReleasesFallBackWhenAPIFails(t *testing.T) {
+	restore := setupSyncTestDB(t)
+	defer restore()
+	oldAPI, oldLatest := forkReleaseFetcher, forkLatestReleaseFetcher
+	forkReleaseFetcher = func(apiBase, repoName string) ([]forkRelease, error) {
+		return nil, fmt.Errorf("load releases failed: HTTP 403")
+	}
+	forkLatestReleaseFetcher = func(repoName string) (forkRelease, error) {
+		return forkRelease{TagName: "v2.5.1-cluster.9"}, nil
+	}
+	resetForkReleaseCache()
+	defer func() {
+		forkReleaseFetcher, forkLatestReleaseFetcher = oldAPI, oldLatest
+		resetForkReleaseCache()
+	}()
+
+	info, err := forkUpgradeInfo("v2.5.1-cluster.3", false)
+	if err != nil {
+		t.Fatalf("forkUpgradeInfo: %v", err)
+	}
+	if info.LatestVersion != "v2.5.1-cluster.9" {
+		t.Fatalf("LatestVersion = %q, want the redirect fallback v2.5.1-cluster.9", info.LatestVersion)
+	}
+
+	forkLatestReleaseFetcher = func(repoName string) (forkRelease, error) {
+		return forkRelease{}, fmt.Errorf("resolve latest release failed: HTTP 404")
+	}
+	resetForkReleaseCache()
+	if _, err := forkUpgradeInfo("v2.5.1-cluster.3", false); err == nil {
+		t.Fatal("both channels failing must be an error, not \"no update\"")
 	}
 }

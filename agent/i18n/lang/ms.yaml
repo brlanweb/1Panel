@@ -830,3 +830,7 @@ ErrImageCheckProxyRequired: "Untuk menyemak kemas kini imej dalam persekitaran s
 ErrPHPExtensionsConflict: "Templat sambungan PHP dengan nama ini sudah wujud tetapi kandungannya berbeza; tidak ditulis ganti"
 
 ErrModelTokenizerDirOverlap: "Direktori model dan tokenizer mestilah berbeza dan tidak boleh mengandungi satu sama lain"
+ErrProxySubscription: "Subscription download failed: {{ .detail }}"
+ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
+ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
+ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"

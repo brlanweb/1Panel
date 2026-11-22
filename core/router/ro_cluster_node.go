@@ -25,5 +25,7 @@ func (a *ClusterNodeRouter) InitRouter(Router *gin.RouterGroup) {
 		clusterNodeRouter.GET("/overview", baseApi.GetClusterNodeOverview)
 		clusterNodeRouter.GET("/overview/aggregate", baseApi.GetClusterAggregateOverview)
 		clusterNodeRouter.GET("/options", baseApi.ListClusterNodeOptions)
+		clusterNodeRouter.POST("/upgrade", baseApi.UpgradeClusterNode)
+		clusterNodeRouter.POST("/upgrade/status", baseApi.GetClusterNodeUpgradeStatus)
 	}
 }

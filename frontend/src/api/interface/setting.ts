@@ -265,6 +265,7 @@ export namespace Setting {
         newVersion: string;
         latestVersion: string;
         releaseNote: string;
+        checkError?: string;
     }
     export interface UpgradeStatus {
         stage: 'idle' | 'downloading' | 'verifying' | 'installing' | 'failed';

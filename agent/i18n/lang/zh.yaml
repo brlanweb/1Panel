@@ -830,3 +830,7 @@ ErrImageCheckProxyRequired: "当前运行环境下，如需检查镜像是否更
 ErrPHPExtensionsConflict: "同名 PHP 扩展模版已存在且内容不同，未覆盖"
 
 ErrModelTokenizerDirOverlap: "模型目录和分词器目录不能相同或互相包含"
+ErrProxySubscription: "订阅下载失败: {{ .detail }}"
+ErrProxySubscription403: "订阅服务器拒绝访问 (HTTP 403)：请确认订阅链接正确且未过期/未重置；部分机场会屏蔽云服务器 IP（可在本机浏览器打开该链接确认；如本机可用而服务器不行，请联系机场放行或更换订阅地址）"
+ErrProxySubscription401: "订阅令牌无效 (HTTP 401)：订阅链接可能已过期或被重置，请到机场后台重新复制"
+ErrProxySubscription429: "订阅服务器限流 (HTTP 429)，请稍后再试"

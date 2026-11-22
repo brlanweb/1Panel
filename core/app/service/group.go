@@ -106,6 +106,9 @@ func (u *GroupService) Delete(id uint) error {
 		err = commandRepo.UpdateGroup(id, defaultGroup.ID)
 	case "node":
 		err = xpack.MultiNodeProvider.UpdateGroup("node", id, defaultGroup.ID)
+	case "cluster_node":
+		// Panel nodes of the cluster page move to the default group.
+		err = global.DB.Model(&model.ClusterNode{}).Where("group_id = ?", id).Update("group_id", defaultGroup.ID).Error
 	case "website":
 		bodyItem := []byte(fmt.Sprintf(`{"Group":%v, "NewGroup":%v}`, id, defaultGroup.ID))
 		if _, err := proxy_local.NewLocalClient("/api/v2/websites/group/change", http.MethodPost, bytes.NewReader(bodyItem), nil); err != nil {

@@ -69,8 +69,43 @@ var forkReleaseCache struct {
 	releases []forkRelease
 }
 
-// forkReleaseFetcher is swapped in tests.
-var forkReleaseFetcher = fetchForkReleases
+// forkReleaseFetcher / forkLatestReleaseFetcher are swapped in tests.
+var (
+	forkReleaseFetcher       = fetchForkReleases
+	forkLatestReleaseFetcher = fetchForkLatestRelease
+)
+
+// fetchForkLatestRelease resolves the latest release tag from the
+// github.com/<repo>/releases/latest redirect (no API, no rate limit).
+func fetchForkLatestRelease(repoName string) (forkRelease, error) {
+	client := req_helper.NewDownloadClientWithProxy(constant.TimeOut20s * time.Second)
+	client.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	defer client.CloseIdleConnections()
+	resp, err := client.Head(fmt.Sprintf("https://github.com/%s/releases/latest", repoName))
+	if err != nil {
+		return forkRelease{}, err
+	}
+	_ = resp.Body.Close()
+	location := resp.Header.Get("Location")
+	idx := strings.LastIndex(location, "/releases/tag/")
+	if resp.StatusCode < 300 || resp.StatusCode >= 400 || idx < 0 {
+		return forkRelease{}, fmt.Errorf("resolve latest release failed: HTTP %d", resp.StatusCode)
+	}
+	tag := strings.TrimSpace(location[idx+len("/releases/tag/"):])
+	if tag == "" {
+		return forkRelease{}, fmt.Errorf("resolve latest release failed: empty tag")
+	}
+	base := fmt.Sprintf("https://github.com/%s/releases/download/%s/", repoName, tag)
+	release := forkRelease{TagName: tag, Name: tag}
+	for _, arch := range []string{"amd64", "arm64"} {
+		name := fmt.Sprintf("1panel-%s-linux-%s.tar.gz", tag, arch)
+		release.Assets = append(release.Assets,
+			forkReleaseAsset{Name: name, BrowserDownloadURL: base + name},
+			forkReleaseAsset{Name: name + ".sha256", BrowserDownloadURL: base + name + ".sha256"},
+		)
+	}
+	return release, nil
+}
 
 func forkReleaseConfig() (repoName, apiBase string) {
 	repoName, apiBase = defaultForkReleaseRepo, defaultForkReleaseAPI
@@ -112,7 +147,16 @@ func loadForkReleases() ([]forkRelease, error) {
 	}
 	list, err := forkReleaseFetcher(apiBase, repoName)
 	if err != nil {
-		return nil, err
+		// The unauthenticated GitHub API allows 60 requests / hour / IP and
+		// is often exhausted on shared egress IPs. Fall back to the
+		// /releases/latest redirect, which has no such limit, and build the
+		// asset URLs from the fixed naming scheme of fork-release.yml.
+		fallback, fbErr := forkLatestReleaseFetcher(repoName)
+		if fbErr != nil {
+			return nil, fmt.Errorf("%v; fallback: %v", err, fbErr)
+		}
+		logForkReleaseError(fmt.Errorf("%v; using the releases/latest redirect instead", err))
+		list = []forkRelease{fallback}
 	}
 	published := make([]forkRelease, 0, len(list))
 	for _, item := range list {

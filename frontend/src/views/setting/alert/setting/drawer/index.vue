@@ -96,35 +96,62 @@
                         :allow-clear-url="form.status === 'Disable'"
                     />
 
+                    <!-- Token first and as a plain text field with autocomplete
+                    off: a text input followed by a password input made the
+                    browser treat the drawer as a login form, autofill the
+                    panel account into the name field and hide the token. -->
                     <template v-else-if="form.type === 'telegram'">
-                        <el-form-item :label="$t('xpack.alert.displayName')" prop="webhookName">
-                            <el-input v-model="form.webhookName" />
-                        </el-form-item>
-                        <el-form-item label="Bot Token" prop="telegramToken">
+                        <el-form-item :label="$t('xpack.alert.telegramToken')" prop="telegramToken">
                             <el-input
                                 v-model.trim="form.telegramToken"
-                                type="password"
-                                show-password
+                                name="telegram-bot-token"
+                                autocomplete="off"
+                                clearable
                                 placeholder="123456789:AAxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
                             />
                             <span class="input-help">{{ $t('xpack.alert.telegramTokenHelper') }}</span>
                         </el-form-item>
-                        <el-form-item label="Chat ID" prop="telegramChatId">
-                            <el-input v-model.trim="form.telegramChatId" placeholder="-1001234567890" />
+                        <el-form-item :label="$t('xpack.alert.telegramChatId')" prop="telegramChatId">
+                            <el-input
+                                v-model.trim="form.telegramChatId"
+                                name="telegram-chat-id"
+                                autocomplete="off"
+                                placeholder="-1001234567890"
+                            />
                             <span class="input-help">{{ $t('xpack.alert.telegramChatIdHelper') }}</span>
                         </el-form-item>
+                        <el-form-item :label="$t('xpack.alert.telegramName')" prop="webhookName">
+                            <el-input
+                                v-model="form.webhookName"
+                                name="telegram-name"
+                                autocomplete="off"
+                                placeholder="Telegram"
+                            />
+                            <span class="input-help">{{ $t('xpack.alert.telegramNameHelper') }}</span>
+                        </el-form-item>
                         <el-form-item :label="$t('xpack.alert.telegramApiBase')" prop="telegramApiBase">
-                            <el-input v-model.trim="form.telegramApiBase" placeholder="https://api.telegram.org" />
+                            <el-input
+                                v-model.trim="form.telegramApiBase"
+                                name="telegram-api-base"
+                                autocomplete="off"
+                                placeholder="https://api.telegram.org"
+                            />
                             <span class="input-help">{{ $t('xpack.alert.telegramApiBaseHelper') }}</span>
                         </el-form-item>
                     </template>
 
                     <template v-else>
                         <el-form-item :label="$t('xpack.alert.webhookName')" prop="webhookName">
-                            <el-input v-model="form.webhookName" />
+                            <el-input v-model="form.webhookName" autocomplete="off" />
                         </el-form-item>
                         <el-form-item :label="$t('xpack.alert.webhookUrl')" prop="webhookUrl">
-                            <el-input v-model.trim="form.webhookUrl" :rows="2" type="password" show-password />
+                            <el-input
+                                v-model.trim="form.webhookUrl"
+                                :rows="2"
+                                type="password"
+                                show-password
+                                autocomplete="new-password"
+                            />
                             <span v-if="form.type === 'weCom'" class="input-help">
                                 {{ $t('xpack.alert.weComHelper') }}
                             </span>
@@ -239,8 +266,10 @@ const webhookRules = {
     webhookUrl: [Rules.requiredInput],
 };
 
+// The name is optional for Telegram (defaults to "Telegram"); only the
+// token and chat ID are needed to send.
 const telegramRules = {
-    webhookName: [Rules.requiredInput, { validator: checkDisplayNameDuplicate, trigger: 'blur' }],
+    webhookName: [{ validator: checkDisplayNameDuplicate, trigger: 'blur' }],
     telegramToken: [Rules.requiredInput, { validator: checkTelegramToken, trigger: 'blur' }],
     telegramChatId: [Rules.requiredInput],
 };
@@ -545,7 +574,8 @@ const buildEmailConfig = () => ({
 });
 
 const buildTelegramConfig = () => ({
-    displayName: form.webhookName,
+    // Optional name: default to the chat ID so several bots stay distinct.
+    displayName: String(form.webhookName || '').trim() || `Telegram ${String(form.telegramChatId || '').trim()}`,
     botToken: serializeLegacySecretValue(normalizeTelegramToken(form.telegramToken), true),
     chatId: String(form.telegramChatId || '').trim(),
     apiBase: String(form.telegramApiBase || '').trim(),
@@ -663,10 +693,22 @@ const validateForm = async (formEl: FormInstance): Promise<boolean> => {
             reportUnexpectedError(fields);
             return false;
         }
-        const first = Object.values((fields || {}) as Record<string, { message?: string }[]>)[0]?.[0];
-        MsgError(first?.message || i18n.global.t('commons.rule.requiredInput'));
+        const [prop, errors] = Object.entries((fields || {}) as Record<string, { message?: string }[]>)[0] || [];
+        const message = errors?.[0]?.message || i18n.global.t('commons.rule.requiredInput');
+        // Name the field: a bare "please fill in the required field" did not
+        // say which one was missing.
+        const label = fieldLabels[prop as string];
+        MsgError(label ? `${i18n.global.t(label)}: ${message}` : message);
         return false;
     }
+};
+
+const fieldLabels: Record<string, string> = {
+    telegramToken: 'xpack.alert.telegramToken',
+    telegramChatId: 'xpack.alert.telegramChatId',
+    webhookName: 'xpack.alert.webhookName',
+    webhookUrl: 'xpack.alert.webhookUrl',
+    recipient: 'xpack.alert.recipient',
 };
 
 const reportUnexpectedError = (e: unknown) => {

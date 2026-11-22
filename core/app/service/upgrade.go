@@ -106,10 +106,14 @@ func (u *UpgradeService) SearchUpgrade() (*dto.UpgradeInfo, error) {
 	developer := global.CONF.Base.Mode == "dev" || DeveloperMode.Value == constant.StatusEnable
 	info, err := forkUpgradeInfo(currentVersion.Value, developer)
 	if err != nil {
-		// An unreachable release channel is "no update", not an error
-		// popup on every dashboard load.
+		// Report the failure: answering "no update" here made an
+		// unreachable / rate-limited release channel look like "already
+		// the latest version".
+		// Do not fail the request (the dashboard checks silently on every
+		// load) but report it, so an explicit "Update" click can tell
+		// "check failed" apart from "already the latest version".
 		logForkReleaseError(err)
-		return &dto.UpgradeInfo{}, nil
+		return &dto.UpgradeInfo{CheckError: err.Error()}, nil
 	}
 	return info, nil
 }

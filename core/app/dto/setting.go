@@ -174,6 +174,8 @@ type UpgradeInfo struct {
 	NewVersion    string `json:"newVersion"`
 	LatestVersion string `json:"latestVersion"`
 	ReleaseNote   string `json:"releaseNote"`
+	// CheckError is set when the release channel could not be queried.
+	CheckError string `json:"checkError,omitempty"`
 }
 
 type SyncTime struct {

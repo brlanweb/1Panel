@@ -76,6 +76,29 @@ export namespace Cluster {
         websiteCount: number;
         fetchError: string;
         refreshedAt: string;
+        version?: string;
+        diskUsedPercent?: number;
+        diskTotal?: number;
+        diskUsed?: number;
+        disks?: DiskInfo[];
+    }
+
+    export interface DiskInfo {
+        path: string;
+        total: number;
+        used: number;
+        usedPercent: number;
+    }
+
+    export interface NodeUpgradeStatus {
+        id: number;
+        stage: string;
+        version: string;
+        currentVersion: string;
+        done: number;
+        total: number;
+        error: string;
+        reachable: boolean;
     }
 
     export interface AggregateOverview extends NodeOverview {
@@ -85,6 +108,7 @@ export namespace Cluster {
         // The master panel itself (counts from its own agent; -1 = failed).
         local?: NodeSnapshot;
         localError?: string;
+        latestVersion?: string;
     }
 
     export type SyncKind = 'file' | 'image' | 'app' | 'cert' | 'php';

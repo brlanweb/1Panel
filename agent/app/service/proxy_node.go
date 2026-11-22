@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -239,7 +240,11 @@ func (u *ProxyNodeService) Refresh() error {
 	}
 	proxies, err := downloadClashProxies(subURL)
 	if err != nil {
-		return buserr.WithDetail("ErrInvalidParams", err.Error(), nil)
+		var be buserr.BusinessError
+		if errors.As(err, &be) {
+			return be
+		}
+		return buserr.WithDetail("ErrProxySubscription", err.Error(), nil)
 	}
 	names := make([]string, 0, len(proxies))
 	types := map[string]string{}
@@ -358,27 +363,73 @@ func (u *ProxyNodeService) Test() error {
 
 // --------------------------------------------------------------- helpers
 
+// proxySubscriptionUAs are tried in order. Many subscription services sit
+// behind Cloudflare / a WAF and reject unknown user agents with 403, or only
+// return the Clash YAML format for well-known Clash clients.
+var proxySubscriptionUAs = []string{
+	"clash-verge/v2.2.3",
+	"ClashforWindows/0.20.39",
+	"mihomo/1.19.0",
+	"clash.meta",
+}
+
+// proxySubscriptionClient is swapped in tests.
+var proxySubscriptionClient = func() *http.Client {
+	return &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}}
+}
+
 func downloadClashProxies(subURL string) ([]map[string]interface{}, error) {
-	client := &http.Client{Timeout: 30 * time.Second, Transport: &http.Transport{Proxy: http.ProxyFromEnvironment}}
-	req, err := http.NewRequest(http.MethodGet, subURL, nil)
-	if err != nil {
-		return nil, err
+	client := proxySubscriptionClient()
+	var lastStatus int
+	var lastErr error
+	for _, ua := range proxySubscriptionUAs {
+		req, err := http.NewRequest(http.MethodGet, subURL, nil)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Set("User-Agent", ua)
+		req.Header.Set("Accept", "*/*")
+		resp, err := client.Do(req)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		raw, readErr := io.ReadAll(io.LimitReader(resp.Body, 20<<20))
+		_ = resp.Body.Close()
+		lastStatus = resp.StatusCode
+		switch {
+		case resp.StatusCode == http.StatusOK:
+			if readErr != nil {
+				return nil, fmt.Errorf("read subscription failed: %v", readErr)
+			}
+			proxies, err := parseClashProxies(raw)
+			if err == nil {
+				return proxies, nil
+			}
+			// Some services answer non-Clash UAs with a base64 node list;
+			// try the next UA before giving up.
+			lastErr = err
+		case resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests ||
+			resp.StatusCode == http.StatusUnauthorized:
+			lastErr = nil
+		default:
+			return nil, fmt.Errorf("download subscription failed: HTTP %d", resp.StatusCode)
+		}
 	}
-	// Subscription services return the Clash YAML format for Clash UAs.
-	req.Header.Set("User-Agent", "clash.meta")
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("download subscription failed: %v", err)
+	switch {
+	case lastStatus == http.StatusForbidden:
+		return nil, buserr.New("ErrProxySubscription403")
+	case lastStatus == http.StatusUnauthorized:
+		return nil, buserr.New("ErrProxySubscription401")
+	case lastStatus == http.StatusTooManyRequests:
+		return nil, buserr.New("ErrProxySubscription429")
+	case lastErr != nil:
+		if lastStatus == 0 {
+			return nil, fmt.Errorf("download subscription failed: %v", lastErr)
+		}
+		return nil, lastErr
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("download subscription failed: HTTP %d", resp.StatusCode)
-	}
-	raw, err := io.ReadAll(io.LimitReader(resp.Body, 20<<20))
-	if err != nil {
-		return nil, fmt.Errorf("read subscription failed: %v", err)
-	}
-	return parseClashProxies(raw)
+	return nil, fmt.Errorf("download subscription failed: HTTP %d", lastStatus)
 }
 
 func parseClashProxies(raw []byte) ([]map[string]interface{}, error) {

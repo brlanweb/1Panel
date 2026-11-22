@@ -46,3 +46,9 @@ var AddClusterNodesMenu = &gormigrate.Migration{
 		})
 	},
 }
+
+// AddClusterNodeDiskColumns adds the disk usage snapshot columns.
+var AddClusterNodeDiskColumns = &gormigrate.Migration{
+	ID:      "20261122-add-cluster-node-disk",
+	Migrate: func(tx *gorm.DB) error { return tx.AutoMigrate(&model.ClusterNode{}) },
+}

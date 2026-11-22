@@ -33,7 +33,7 @@ import { getSettingBaseInfo, loadUpgradeInfo } from '@/api/modules/setting';
 import Upgrade from '@/components/system-upgrade/upgrade/index.vue';
 import Releases from '@/components/system-upgrade/releases/index.vue';
 import i18n from '@/lang';
-import { MsgSuccess } from '@/utils/message';
+import { MsgError, MsgSuccess } from '@/utils/message';
 import { onMounted, ref } from 'vue';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
@@ -67,6 +67,10 @@ const onLoadUpgradeInfo = async () => {
     await loadUpgradeInfo()
         .then(async (res) => {
             loading.value = false;
+            if (res.data.checkError && !res.data.latestVersion && !res.data.testVersion) {
+                MsgError(i18n.global.t('setting.upgradeCheckFailed', [res.data.checkError]));
+                return;
+            }
             if (res.data.testVersion || res.data.newVersion || res.data.latestVersion) {
                 upgradeInfo.value = res.data;
                 if (upgradeInfo.value.latestVersion) {

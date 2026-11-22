@@ -4,6 +4,7 @@ import (
 	"strconv"
 
 	"github.com/1Panel-dev/1Panel/core/app/api/v2/helper"
+	appauth "github.com/1Panel-dev/1Panel/core/app/auth"
 	baseRepo "github.com/1Panel-dev/1Panel/core/app/repo"
 	"github.com/1Panel-dev/1Panel/core/buserr"
 	"github.com/1Panel-dev/1Panel/core/constant"
@@ -32,6 +33,11 @@ func SessionAuth() gin.HandlerFunc {
 		}
 		if len(psession.Name) == 0 || len(psession.ID) == 0 {
 			helper.BadAuth(c, "ErrNotLogin", err)
+			return
+		}
+		if appauth.IsManagedLoginLocked() {
+			_ = global.SESSION.Delete(c)
+			helper.BadAuth(c, "ErrManagedLoginLocked", nil)
 			return
 		}
 		c.Set(psessionUtils.GinContextSessionUserKey, psession)

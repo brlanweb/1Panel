@@ -73,7 +73,7 @@ import { Alert } from '@/api/interface/alert';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
 const emit = defineEmits<{ (e: 'search'): void }>();
-const { isProductPro, isIntl, isEE } = useGlobalStore();
+const { isEE } = useGlobalStore();
 
 interface Option {
     key: string;
@@ -134,9 +134,11 @@ const defaultResourceValue = [
     'load',
     'disk',
     'nodeException',
-    'licenseException',
     'panelLogin',
     'sshLogin',
+    'clusterResource',
+    'siteProbe',
+    'modelApi',
 ];
 const noticeDefaultTime: [Date, Date] = [new Date(0, 0, 1, 8, 0, 0), new Date(0, 0, 1, 23, 59, 59)];
 const resourceDefaultTime: [Date, Date] = [new Date(0, 0, 1, 0, 0, 0), new Date(0, 0, 1, 23, 59, 59)];
@@ -149,9 +151,6 @@ const generateData = (): Option[] => {
     }
     data.push({ key: 'panelLogin', label: i18n.global.t('xpack.alert.panelLogin'), disabled: false });
     data.push({ key: 'sshLogin', label: i18n.global.t('xpack.alert.sshLogin'), disabled: false });
-    if (isProductPro.value && !isIntl.value && !isEE.value) {
-        data.push({ key: 'licenseException', label: i18n.global.t('xpack.alert.licenseException'), disabled: false });
-    }
     data.push({ key: 'nodeException', label: i18n.global.t('xpack.alert.nodeException'), disabled: false });
     data.push({ key: 'ssl', label: i18n.global.t('xpack.alert.ssl'), disabled: false });
     data.push({ key: 'siteEndTime', label: i18n.global.t('xpack.alert.siteEndTime'), disabled: false });
@@ -161,6 +160,9 @@ const generateData = (): Option[] => {
     data.push({ key: 'load', label: i18n.global.t('xpack.alert.load'), disabled: false });
     data.push({ key: 'clams', label: i18n.global.t('xpack.alert.clams'), disabled: false });
     data.push({ key: 'cronJob', label: i18n.global.t('xpack.alert.cronjob'), disabled: false });
+    data.push({ key: 'clusterResource', label: i18n.global.t('xpack.alert.clusterResource'), disabled: false });
+    data.push({ key: 'siteProbe', label: i18n.global.t('xpack.alert.siteProbe'), disabled: false });
+    data.push({ key: 'modelApi', label: i18n.global.t('xpack.alert.modelApi'), disabled: false });
     if (!isEE.value) {
         data.push({ key: 'panelUpdate', label: i18n.global.t('xpack.alert.panelUpdate'), disabled: false });
     }

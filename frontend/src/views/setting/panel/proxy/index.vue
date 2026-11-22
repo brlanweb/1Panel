@@ -30,7 +30,7 @@
             -->
             <div v-if="form.proxyType === 'subscription'">
                 <el-alert type="info" :closable="false" show-icon class="mb-4" :title="$t('proxyNode.scopeHelper')" />
-                <ProxyNodeForm ref="proxyNodeFormRef" />
+                <ProxyNodeForm ref="proxyNodeFormRef" @search="emit('search')" />
             </div>
             <div v-else-if="form.proxyType !== 'close'">
                 <el-form-item :label="$t('setting.proxyUrl')" prop="proxyUrl">

@@ -665,7 +665,11 @@ PanelVersionAlert: '您的 {{ .node }}{{ .ip }} 面板，已有最新版本可�
 PanelPwdExpirationAlert: '您的 {{ .node }}{{ .ip }} 面板，面板密碼將於 {{ .day }} 天後到期，詳情請登入面板檢視。'
 CommonAlert: '您的 {{ .node }}{{ .ip }} 面板，{{ .msg }}，詳情請登入面板檢視。'
 NodeExceptionAlert: '您的 {{ .node }}{{ .ip }} 面板，{{ .num }} 個節點出現異常，詳情請登入面板檢視。'
-LicenseExceptionAlert: '您的 {{ .node }}{{ .ip }} 面板，{{ .num }} 個授權出現異常，詳情請登入面板檢視。'
+ClusterAlertFail: "您的 {{ .node }}{{ .ip }} 面板，【{{ .kind }}】{{ .title }}：{{ .num }} 個目標異常：{{ .detail }}。請登入面板查看詳情。"
+ClusterAlertRecover: "您的 {{ .node }}{{ .ip }} 面板，【{{ .kind }}】{{ .title }}：{{ .num }} 個目標已恢復正常：{{ .detail }}。"
+ClusterAlertType_clusterResource: "叢集資源"
+ClusterAlertType_siteProbe: "網站檢測"
+ClusterAlertType_modelApi: "模型 API 檢測"
 SSHAndPanelLoginAlert: '您的 {{ .node }}{{ .ip }} 面板，來自 {{ .loginIp }} 的 {{ .name }} 登入出現異常，詳情請登入面板檢視。'
 CronJobSuccessAlert: '您的 {{ .node }}{{ .ip }} 面板，排程任務 {{ .name }} 執行成功，詳情請登入面板檢視。'
 

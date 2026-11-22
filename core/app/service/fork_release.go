@@ -28,7 +28,8 @@ import (
 // the fork publishes a release whose tag is newer than the running version.
 //
 // Release contract (see scripts/fork-release.sh):
-//   - tag = panel version, e.g. v2.1.5-cluster.2 (it becomes SystemVersion)
+//   - tag = panel version, a date version such as v2.20261122.1 (older
+//     releases used v2.5.1-cluster.N); it becomes SystemVersion
 //   - draft releases are ignored; "pre-release" releases are the test
 //     channel and only offered when developer mode is enabled
 //   - asset 1panel-<tag>-linux-<arch>.tar.gz with the same layout as the

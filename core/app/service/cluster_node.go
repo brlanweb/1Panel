@@ -43,6 +43,7 @@ type IClusterNodeService interface {
 	ListOptions() ([]dto.ClusterNodeOption, error)
 	UpgradeNode(req dto.ClusterNodeUpgradeReq) error
 	NodeUpgradeStatus(id uint) (dto.ClusterNodeUpgradeStatus, error)
+	SetNodesLoginLock(req dto.ClusterNodeLoginLockReq) ([]dto.ClusterNodeLoginLockResult, error)
 	// ProxyRequest forwards one request to the named panel node. It
 	// returns false when the name is not a registered cluster node.
 	// isAdmin reports whether the master session belongs to a super admin.
@@ -175,7 +176,12 @@ func (u *ClusterNodeService) Delete(id uint) error {
 	if node.ID == 0 {
 		return buserr.New("ErrRecordNotFound")
 	}
-	// Only the registry row is removed; nothing on the remote panel is touched.
+	// Release the managed login lock first so the panel stays reachable
+	// after it leaves the cluster. Best effort: an offline node is still
+	// removed; the UI warns that `1pctl managed-login unlock` is needed.
+	if err := u.releaseNodeManagedLogin(node); err != nil {
+		global.LOG.Warnf("release managed login of cluster node %s failed: %v", node.Name, err)
+	}
 	return clusterNodeRepo.Delete(repo.WithByID(id))
 }
 
@@ -535,6 +541,9 @@ func (u *ClusterNodeService) checkAndPersist(node model.ClusterNode) dto.Cluster
 		"last_check_at": now,
 		"last_error":    errMsg,
 	})
+	if errMsg == "" {
+		u.refreshNodeManagedLogin(node)
+	}
 	updated, _ := clusterNodeRepo.Get(repo.WithByID(node.ID))
 	var info dto.ClusterNodeInfo
 	_ = copier.Copy(&info, &updated)

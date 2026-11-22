@@ -31,6 +31,7 @@ ErrSessionDataNotFound: "A sessão atual expirou"
 ErrSessionDataFormat: "O formato dos dados da sessão atual está anormal"
 ErrPasswordExpired: 'Senha expirada: {{ .detail }}'
 ErrLoginLocked: "Muitas tentativas falharam. O login foi bloqueado temporariamente por 5 minutos."
+ErrManagedLoginLocked: "This panel is managed by the master node and its web login is disabled. Manage it from the master, or run \"1pctl managed-login unlock\" on the server for emergency access."
 ErrApiConfigStatusInvalid: 'API desativada: {{ .detail }}'
 ErrApiConfigKeyInvalid: 'Chave API inválida: {{ .detail }}'
 ErrApiConfigIPInvalid: 'IP sem permissão: {{ .detail }}'

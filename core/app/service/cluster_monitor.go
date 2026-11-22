@@ -71,13 +71,17 @@ type IClusterMonitorService interface {
 	Static(force bool) (dto.ClusterMonitorStaticRes, error)
 }
 
+// sharedClusterMonitor is the single cache used by the monitor page and the
+// background alert sampler, so both share one fan-out to the nodes.
+var sharedClusterMonitor = &ClusterMonitorService{
+	prevCounters: map[uint]netSample{},
+	failedUntil:  map[string]time.Time{},
+	legacyNodes:  map[uint]bool{},
+	lastStatic:   map[uint]dto.ClusterMonitorStatic{},
+}
+
 func NewIClusterMonitorService() IClusterMonitorService {
-	return &ClusterMonitorService{
-		prevCounters: map[uint]netSample{},
-		failedUntil:  map[string]time.Time{},
-		legacyNodes:  map[uint]bool{},
-		lastStatic:   map[uint]dto.ClusterMonitorStatic{},
-	}
+	return sharedClusterMonitor
 }
 
 // monitorNodes returns the local panel (ID 0) followed by every registered

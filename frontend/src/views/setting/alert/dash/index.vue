@@ -25,16 +25,14 @@
                             />
                             <el-option value="panelLogin" :label="$t('xpack.alert.panelLogin')" />
                             <el-option
-                                v-if="isProductPro && !isEE"
-                                value="licenseException"
-                                :label="$t('xpack.alert.licenseException')"
-                            />
-                            <el-option
                                 v-if="isProductPro"
                                 value="nodeException"
                                 :label="$t('xpack.alert.nodeException')"
                             />
                             <el-option v-if="!isEE" value="panelUpdate" :label="$t('xpack.alert.panelUpdate')" />
+                            <el-option value="clusterResource" :label="$t('xpack.alert.clusterResource')" />
+                            <el-option value="siteProbe" :label="$t('xpack.alert.siteProbe')" />
+                            <el-option value="modelApi" :label="$t('xpack.alert.modelApi')" />
                         </template>
                         <el-option value="sshLogin" :label="$t('xpack.alert.sshLogin')" />
                         <el-option value="ssl" :label="$t('xpack.alert.ssl')" />
@@ -163,6 +161,7 @@
 import { toRef } from 'vue';
 import { useSearchState } from '@/utils/search-reset';
 import { onMounted, reactive, ref } from 'vue';
+import { useRoute } from 'vue-router';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 import { getAlertConfigDisplayName } from '@/views/setting/alert/setting/drawer/secret-field';
 import { MsgSuccess } from '@/utils/message';
@@ -183,6 +182,7 @@ const { isMobile, isMaster, isProductPro, isEE } = useGlobalStore();
 const { t } = i18n.global;
 const loading = ref(false);
 const addTaskRef = ref();
+const route = useRoute();
 
 const req = reactive({
     page: 1,
@@ -261,6 +261,27 @@ const formatTitle = (row: Alert.AlertInfo) => {
     );
 };
 
+const formatClusterRule = (row: Alert.AlertInfo) => {
+    let p: Alert.ClusterAlertParams = {};
+    try {
+        p = JSON.parse(row.advancedParams || '{}');
+    } catch {}
+    const common = t('xpack.alert.clusterRuleCommon', [row.count, row.sendCount, p.cooldownHours || 24]);
+    if (row.type === 'clusterResource') {
+        const parts: string[] = [];
+        if (p.cpu) parts.push(`CPU ≥ ${p.cpu}%`);
+        if (p.memory) parts.push(`${t('xpack.alert.clusterMemory')} ≥ ${p.memory}%`);
+        if (p.disk) parts.push(`${t('xpack.alert.clusterDisk')} ≥ ${p.disk}%`);
+        if (p.offline) parts.push(t('xpack.alert.clusterOffline'));
+        const nodes = p.nodeIds?.length
+            ? t('xpack.alert.clusterNodeCount', [p.nodeIds.length])
+            : t('xpack.alert.clusterAllNodes');
+        return `${nodes}: ${parts.join(' / ')} (${row.cycle}${t('commons.units.minute')}) · ${common}`;
+    }
+    const target = row.type === 'siteProbe' ? p.url : `${p.provider}/${p.model}`;
+    return `${target} · ${t('xpack.alert.everyMinutes', [row.cycle])} · ${common}`;
+};
+
 const formatRule = (row: Alert.AlertInfo) => {
     const type = row.type === 'cronJob' ? row.subType : row.type;
     if (cronjobAlertTypes.includes(type)) {
@@ -285,9 +306,11 @@ const formatRule = (row: Alert.AlertInfo) => {
         },
         clams: () => t('xpack.alert.clamsRule', [row.sendCount]),
         nodeException: () => t('xpack.alert.nodeExceptionRule', [row.sendCount]),
-        licenseException: () => t('xpack.alert.licenseExceptionRule', [row.sendCount]),
         panelLogin: () => t('xpack.alert.panelLoginRule', [row.sendCount]),
         sshLogin: () => t('xpack.alert.sshLoginRule', [row.sendCount]),
+        clusterResource: () => formatClusterRule(row),
+        siteProbe: () => formatClusterRule(row),
+        modelApi: () => formatClusterRule(row),
     };
 
     return ruleTemplates[row.type] ? ruleTemplates[row.type]() : '';
@@ -387,6 +410,11 @@ const updateAlertStatus = (status: string, id: number) => {
 };
 
 onMounted(() => {
+    // Deep link from the cluster resource page: /settings/alert?type=clusterResource
+    const linkedType = String(route.query.type || '');
+    if (['clusterResource', 'siteProbe', 'modelApi'].includes(linkedType)) {
+        req.type = linkedType;
+    }
     search();
 });
 </script>

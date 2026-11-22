@@ -250,6 +250,10 @@ func (b *BaseApi) GetLoginSetting(c *gin.Context) {
 		NeedCaptcha:        needCaptcha,
 	}
 	res.PasskeySetting = xpack.AuthProvider.PasskeyStatus(c)
+	if managed := appauth.LoadManagedLoginState(); managed.Locked {
+		res.ManagedLoginLocked = true
+		res.ManagedBy = managed.Master
+	}
 	helper.SuccessWithData(c, res)
 }
 

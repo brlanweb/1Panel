@@ -665,7 +665,11 @@ PanelVersionAlert: 'Su Panel {{ .node }}{{ .ip }}, está disponible la última v
 PanelPwdExpirationAlert: 'Su Panel {{ .node }}{{ .ip }}, la contraseña del panel expirará en {{ .day }} días. Inicie sesión en el panel para ver los detalles.'
 CommonAlert: 'Su Panel {{ .node }}{{ .ip }}, {{ .msg }}. Inicie sesión en el panel para ver los detalles.'
 NodeExceptionAlert: 'Su Panel {{ .node }}{{ .ip }}, {{ .num }} nodos son anómalos. Inicie sesión en el panel para ver los detalles.'
-LicenseExceptionAlert: 'Su Panel {{ .node }}{{ .ip }}, {{ .num }} licencias son anómalas. Inicie sesión en el panel para ver los detalles.'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: 'Su Panel {{ .node }}{{ .ip }}, el inicio de sesión {{ .name }} desde {{ .loginIp }} es anómalo. Inicie sesión en el panel para ver los detalles.'
 CronJobSuccessAlert: 'Panel {{ .node }}{{ .ip }}: la tarea programada {{ .name }} se completó correctamente. Inicie sesión para ver los detalles.'
 

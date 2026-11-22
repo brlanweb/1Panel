@@ -137,11 +137,13 @@ const resourceTypes = [
     'load',
     'disk',
     'nodeException',
-    'licenseException',
     'panelLogin',
     'sshLogin',
     'panelIpLogin',
     'sshIpLogin',
+    'clusterResource',
+    'siteProbe',
+    'modelApi',
 ];
 const paginationConfig = reactive({
     currentPage: 1,
@@ -214,6 +216,20 @@ const syncAlert = (row: Alert.AlertLog) => {
     });
 };
 
+const formatClusterMessage = (row: Alert.AlertDetail) => {
+    let list: any = row.params || [];
+    if (typeof list === 'string') {
+        try {
+            list = JSON.parse(list);
+        } catch {
+            list = [];
+        }
+    }
+    const param = (index: string) => (Array.isArray(list) ? list : []).find((p: any) => p.index === index)?.value || '';
+    const key = param('1') === 'recover' ? 'xpack.alert.clusterLogRecover' : 'xpack.alert.clusterLogFail';
+    return t(key, [param('2') || row.title, param('4'), param('3')]);
+};
+
 const formatMessage = (row: Alert.AlertDetail) => {
     const type = row.type === 'cronJob' ? row.subType : row.type;
     if (cronjobAlertTypes.includes(type)) {
@@ -242,11 +258,13 @@ const formatMessage = (row: Alert.AlertDetail) => {
         },
         clams: () => t('xpack.alert.clamsTitle', [row.project]),
         nodeException: () => t('xpack.alert.nodeException'),
-        licenseException: () => t('xpack.alert.licenseException'),
         panelLogin: () => t('xpack.alert.panelLogin'),
         sshLogin: () => t('xpack.alert.sshLogin'),
         panelIpLogin: () => t('xpack.alert.panelIpLogin'),
         sshIpLogin: () => t('xpack.alert.sshIpLogin'),
+        clusterResource: () => formatClusterMessage(row),
+        siteProbe: () => formatClusterMessage(row),
+        modelApi: () => formatClusterMessage(row),
     };
     return messageTemplates[type] ? messageTemplates[type]() : '';
 };

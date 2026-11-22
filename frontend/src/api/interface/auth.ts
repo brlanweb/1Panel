@@ -84,6 +84,8 @@ export namespace Login {
         isMasterProductPro: boolean;
         needCaptcha: boolean;
         passkeySetting: boolean;
+        managedLoginLocked?: boolean;
+        managedBy?: string;
     }
 
     export interface AuthInfo {

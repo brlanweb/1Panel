@@ -54,7 +54,7 @@ var memoryLoad1, memoryLoad5, memoryLoad15 []float64
 var alertTaskMu sync.Mutex
 
 var baseTypes = map[string]bool{"ssl": true, "siteEndTime": true, "panelPwdEndTime": true, "panelUpdate": true}
-var resourceTypes = map[string]bool{"cpu": true, "memory": true, "disk": true, "load": true, "panelLogin": true, "sshLogin": true, "nodeException": true, "licenseException": true}
+var resourceTypes = map[string]bool{"cpu": true, "memory": true, "disk": true, "load": true, "panelLogin": true, "sshLogin": true, "nodeException": true}
 
 func NewIAlertTaskHelper() IAlertTaskHelper {
 	return &AlertTaskHelper{
@@ -237,13 +237,6 @@ func resourceTask(resourceAlert []dto.AlertDTO) {
 		case "nodeException":
 			if execute && global.IsMaster {
 				loadNodeException(alert)
-			}
-		case "licenseException":
-			if global.CONF.Base.IsEnterprise {
-				continue
-			}
-			if execute && global.IsMaster {
-				loadLicenseException(alert)
 			}
 		}
 	}
@@ -654,34 +647,6 @@ func loadNodeException(alert dto.AlertDTO) {
 		}
 	}
 
-}
-
-func loadLicenseException(alert dto.AlertDTO) {
-	// only master alert
-	failCount, err := xpack.AlertProvider.GetLicenseErrorAlert()
-	if err != nil {
-		global.LOG.Errorf("error getting license, err: %s", err)
-		return
-	}
-	if failCount > 0 {
-		quotaType := "license-error"
-		params := []dto.Param{
-			{
-				Index: "1",
-				Key:   "cycle",
-				Value: strconv.Itoa(int(failCount)),
-			},
-		}
-		newDate, err := alertRepo.GetTaskLog(alert.Type, alert.ID)
-		if err != nil {
-			global.LOG.Errorf("record not found, err: %v", err)
-			return
-		}
-		if isAlertDue(newDate) {
-			sender := NewAlertSender(alert, quotaType)
-			sender.ResourceSend(strconv.Itoa(int(failCount)), params)
-		}
-	}
 }
 
 func sendAlerts(alert dto.AlertDTO, alertType, quota, quotaType string, params []dto.Param) {

@@ -323,15 +323,25 @@
                         <span class="input-help">{{ $t('xpack.alert.alertNotificationHelper') }}</span>
                     </el-form-item>
 
+                    <ClusterFields
+                        v-if="clusterTypes.includes(dialogData.rowData!.type)"
+                        ref="clusterFieldsRef"
+                        :key="clusterFieldsKey"
+                        :row="dialogData.rowData!"
+                        :is-edit="dialogData.title === 'edit'"
+                    />
+
                     <el-form-item :label="$t('xpack.alert.sendCount')" prop="sendCount">
                         <el-input v-model.number="dialogData.rowData!.sendCount" />
                         <span class="input-help">
                             {{
-                                timeTypes.includes(dialogData.rowData!.type)
-                                    ? $t('xpack.alert.sendCountRulesHelper')
-                                    : noParamTypes.includes(dialogData.rowData!.type)
-                                      ? $t('xpack.alert.panelUpdateRulesHelper')
-                                      : $t('xpack.alert.oneDaySendCountRulesHelper')
+                                clusterTypes.includes(dialogData.rowData!.type)
+                                    ? $t('xpack.alert.clusterSendCountHelper')
+                                    : timeTypes.includes(dialogData.rowData!.type)
+                                      ? $t('xpack.alert.sendCountRulesHelper')
+                                      : noParamTypes.includes(dialogData.rowData!.type)
+                                        ? $t('xpack.alert.panelUpdateRulesHelper')
+                                        : $t('xpack.alert.oneDaySendCountRulesHelper')
                             }}
                         </span>
                     </el-form-item>
@@ -376,7 +386,9 @@
                             {{
                                 intervalTypes.includes(dialogData.rowData!.type)
                                     ? $t('xpack.alert.resourceAlertRulesHelper')
-                                    : ''
+                                    : clusterTypes.includes(dialogData.rowData!.type)
+                                      ? $t('xpack.alert.clusterMethodHelper')
+                                      : ''
                             }}
                         </span>
                     </el-form-item>
@@ -409,7 +421,8 @@ import { ElForm } from 'element-plus';
 import { Alert } from '@/api/interface/alert';
 import { listSSL, listWebsites } from '@/api/modules/website';
 import { CreateAlert, ListDisks, UpdateAlert, ListClams, ListCronJob, ListAlertConfigs } from '@/api/modules/alert';
-import { MsgSuccess } from '@/utils/message';
+import { MsgError, MsgSuccess } from '@/utils/message';
+import ClusterFields from './cluster-fields.vue';
 import { Rules } from '@/global/form-rules';
 import i18n from '@/lang';
 import { routerToName } from '@/utils/router';
@@ -443,6 +456,7 @@ const configOptions = computed(() => {
             type: c.type,
             disabled:
                 c.status !== 'Enable' ||
+                (clusterTypes.includes(dialogData.value.rowData?.type) && !clusterMethodTypes.includes(c.type)) ||
                 ((isIntl.value || !isProductPro.value) && ['dingTalk', 'feiShu', 'sms'].includes(c.type)),
         }))
         .sort((a, b) => Number(a.disabled) - Number(b.disabled));
@@ -541,9 +555,14 @@ const timeTypes = ['ssl', 'siteEndTime', 'panelPwdEndTime'];
 const avgTypes = ['cpu', 'memory', 'load'];
 const ipTypes = ['sshLogin', 'panelLogin'];
 const noParamTypes = ['panelUpdate'];
-const intervalTypes = ['cpu', 'memory', 'load', 'disk', 'sshLogin', 'panelLogin', 'nodeException', 'licenseException'];
+const intervalTypes = ['cpu', 'memory', 'load', 'disk', 'sshLogin', 'panelLogin', 'nodeException'];
 
 const diskTypes = ['disk'];
+// Cluster alert types: per-target state machine, managed by the master.
+const clusterTypes = ['clusterResource', 'siteProbe', 'modelApi'];
+const clusterMethodTypes = ['email', 'weCom', 'telegram', 'bark', 'custom'];
+const clusterFieldsRef = ref<InstanceType<typeof ClusterFields>>();
+const clusterFieldsKey = ref(0);
 const cronjobTypes = cronjobAlertTypes;
 
 const acceptParams = (params: DialogProps): void => {
@@ -566,6 +585,7 @@ const acceptParams = (params: DialogProps): void => {
     }
     dialogData.value.rowData.alertTriggerMode = getCronjobAlertMode(dialogData.value.rowData.advancedParams);
     initOptions(dialogData.value.rowData.type, dialogData.value.rowData.subType);
+    clusterFieldsKey.value++;
     visible.value = true;
 };
 
@@ -584,11 +604,6 @@ const allTaskOptions = [
     { value: 'panelPwdEndTime', label: 'xpack.alert.panelPwdEndTime', show: isMaster.value && !isEE.value },
     { value: 'sshLogin', label: 'xpack.alert.sshLogin', show: true },
     { value: 'panelLogin', label: 'xpack.alert.panelLogin', show: isMaster.value },
-    {
-        value: 'licenseException',
-        label: 'xpack.alert.licenseException',
-        show: isMaster.value && isProductPro.value && !isEE.value,
-    },
     { value: 'ssl', label: 'xpack.alert.ssl', show: true },
     { value: 'siteEndTime', label: 'xpack.alert.siteEndTime', show: true },
     {
@@ -603,6 +618,9 @@ const allTaskOptions = [
     { value: 'cronJob', label: 'xpack.alert.cronjob', show: true },
     { value: 'clams', label: 'xpack.alert.clams', show: true },
     { value: 'panelUpdate', label: 'xpack.alert.panelUpdate', show: isMaster.value && !isEE.value },
+    { value: 'clusterResource', label: 'xpack.alert.clusterResource', show: isMaster.value },
+    { value: 'siteProbe', label: 'xpack.alert.siteProbe', show: isMaster.value },
+    { value: 'modelApi', label: 'xpack.alert.modelApi', show: isMaster.value },
 ];
 
 function checkRange(value: any, min: number, max: number, callback: any) {
@@ -623,6 +641,8 @@ function checkCycle(rule: any, value: any, callback: any) {
 
     if (type === 'ssl') {
         return checkRange(value, 1, 60, callback);
+    } else if (clusterTypes.includes(type)) {
+        return checkRange(value, 1, type === 'clusterResource' ? 30 : 60, callback);
     } else if (ipTypes.includes(type)) {
         return checkRange(value, 1, 200, callback);
     } else {
@@ -651,6 +671,9 @@ function checkSendCount(rule: any, value: any, callback: any) {
     const type = dialogData.value.rowData.type;
     const cycle = dialogData.value.rowData.cycle;
 
+    if (clusterTypes.includes(type)) {
+        return checkRange(value, 1, 100, callback);
+    }
     if (type === 'disk' || avgTypes.includes(type) || ipTypes.includes(type)) {
         return checkRange(value, 1, 50, callback);
     } else if (noParamTypes.includes(type)) {
@@ -738,7 +761,6 @@ const changeType = () => {
         sshLogin: 30,
         panelLogin: 30,
         nodeException: 0,
-        licenseException: 0,
     };
 
     const typeToCountMap = {
@@ -765,7 +787,6 @@ const changeType = () => {
         sshLogin: 3,
         panelLogin: 3,
         nodeException: 0,
-        licenseException: 0,
     };
     const typeToProjectMap = {
         ssl: 'all',
@@ -791,7 +812,6 @@ const changeType = () => {
         sshLogin: 'all',
         panelLogin: 'all',
         nodeException: 'all',
-        licenseException: 'all',
     };
 
     const rowData = dialogData.value.rowData;
@@ -802,6 +822,13 @@ const changeType = () => {
             subType = typeof rowData.subType === 'undefined' ? 'shell' : rowData.subType;
             type = subType;
             rowData.subType = subType;
+        }
+        if (clusterTypes.includes(type)) {
+            rowData.title = '';
+            rowData.advancedParams = '';
+            rowData.sendCount = 3;
+            initOptions(rowData.type, subType);
+            return;
         }
         if (cronjobTypes.includes(type)) {
             rowData.project = '';
@@ -883,7 +910,6 @@ const formatTitle = (row: Alert.AlertInfo) => {
         },
         clams: () => t('xpack.alert.clamsTitle', [formatClamName(Number(row.project))]),
         nodeException: () => t('xpack.alert.nodeException'),
-        licenseException: () => t('xpack.alert.licenseException'),
         panelLogin: () => t('xpack.alert.panelLogin'),
         sshLogin: () => t('xpack.alert.sshLogin'),
     };
@@ -922,13 +948,22 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
             loading.value = false;
             return;
         }
+        const isCluster = clusterTypes.includes(dialogData.value.rowData.type);
+        if (isCluster) {
+            const errMsg = clusterFieldsRef.value?.build() || '';
+            if (errMsg) {
+                MsgError(errMsg);
+                loading.value = false;
+                return;
+            }
+        }
         const sendMethods = dialogData.value.rowData.sendMethod.includes(ALL_SEND_METHOD)
             ? allConfigValues.value
             : dialogData.value.rowData.sendMethod;
         const payload = {
             ...dialogData.value.rowData,
             method: sendMethods.join(','),
-            title: formatTitle(dialogData.value.rowData),
+            title: isCluster ? dialogData.value.rowData.title : formatTitle(dialogData.value.rowData),
         };
         if (payload.type === 'cronJob') {
             payload.type = payload.subType;

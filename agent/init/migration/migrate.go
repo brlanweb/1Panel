@@ -154,6 +154,7 @@ func migrateAlertDB(db *gorm.DB) error {
 		migrations.MigrateAlertLogTaskMethodConfigIDs,
 		migrations.AddAlertAuditUser,
 		migrations.AddAlertTaskDeliveryLogID,
+		migrations.AddClusterAlertTargetState,
 	})
 	return m.Migrate()
 }

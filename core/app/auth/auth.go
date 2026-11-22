@@ -160,6 +160,11 @@ func VerifyMFALogin(c *gin.Context, sessionID, code, entrance string) (string, s
 }
 
 func GenerateSession(c *gin.Context, sessionUser psession.SessionUser) (*dto.UserLoginInfo, error) {
+	// Every login path (password, MFA, passkey, external auth sources) ends
+	// here, so the managed login lock is enforced in one place.
+	if IsManagedLoginLocked() {
+		return nil, buserr.New("ErrManagedLoginLocked")
+	}
 	settingRepo := repo.NewISettingRepo()
 	setting, err := settingRepo.Get(repo.WithByKey("SessionTimeout"))
 	if err != nil {

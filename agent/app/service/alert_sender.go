@@ -16,6 +16,9 @@ import (
 type AlertSender struct {
 	alert     dto.AlertDTO
 	quotaType string
+	// skipDailyQuota is set by the cluster alert types, whose send budget is
+	// enforced per target by their own state machine.
+	skipDailyQuota bool
 }
 
 func NewAlertSender(alert dto.AlertDTO, quotaType string) *AlertSender {
@@ -454,6 +457,9 @@ func (s *AlertSender) canResourceSendAlert(method string) (uint, bool) {
 	if err != nil {
 		global.LOG.Errorf("error getting task count: %v", err)
 		return todayCount, false
+	}
+	if s.skipDailyQuota {
+		return todayCount, true
 	}
 	if s.alert.SendCount <= todayCount {
 		return todayCount, false

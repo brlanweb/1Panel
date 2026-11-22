@@ -99,6 +99,11 @@
                             {{ row.version || '—' }}
                         </template>
                     </el-table-column>
+                    <el-table-column :label="$t('cluster.loginLock')" prop="loginLocked" width="150px" align="center">
+                        <template #default="{ row }">
+                            <el-tag :type="loginLockTag(row)" size="small">{{ loginLockLabel(row) }}</el-tag>
+                        </template>
+                    </el-table-column>
                     <el-table-column :label="$t('cluster.lastCheck')" prop="lastCheckAt" width="170px">
                         <template #default="{ row }">
                             {{ row.lastCheckAt ? dateFormatSimple(row.lastCheckAt) : '—' }}
@@ -110,8 +115,8 @@
                         </template>
                     </el-table-column>
                     <fu-table-operations
-                        :ellipsis="1"
-                        width="200px"
+                        :ellipsis="2"
+                        width="240px"
                         :buttons="buttons"
                         :label="$t('commons.table.operate')"
                         fix
@@ -133,12 +138,14 @@ import {
     deleteClusterNode,
     getClusterNodeOverview,
     searchClusterNodes,
+    setClusterNodeLoginLock,
     testClusterNode,
 } from '@/api/modules/cluster';
+import { ElMessageBox } from 'element-plus';
 import { getGroupList } from '@/api/modules/group';
 import { Group } from '@/api/interface/group';
 import { Cluster } from '@/api/interface/cluster';
-import { MsgError, MsgSuccess } from '@/utils/message';
+import { MsgError, MsgSuccess, MsgWarning } from '@/utils/message';
 import { dateFormatSimple } from '@/utils/date';
 import { usePageState } from '@/composables/usePageState';
 
@@ -268,7 +275,62 @@ const openEdit = (row: Cluster.NodeInfo) => {
     operateRef.value.acceptParams({ row });
 };
 
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+const loginLockLabel = (row: Cluster.NodeInfo) => {
+    if (row.loginLocked === null || row.loginLocked === undefined) {
+        return row.version ? i18n.global.t('cluster.loginUnknown') : i18n.global.t('cluster.loginUnsupported');
+    }
+    if (row.loginLocked) return i18n.global.t('cluster.loginLocked');
+    if (row.loginUnlockUntil > nowSeconds()) {
+        return i18n.global.t('cluster.loginOpenUntil', [dateFormatSimple(new Date(row.loginUnlockUntil * 1000))]);
+    }
+    return i18n.global.t('cluster.loginOpen');
+};
+
+const loginLockTag = (row: Cluster.NodeInfo) => {
+    if (row.loginLocked === null || row.loginLocked === undefined) return 'info';
+    if (row.loginLocked) return 'success';
+    return row.loginUnlockUntil > nowSeconds() ? 'warning' : 'danger';
+};
+
+const applyLoginLock = async (row: Cluster.NodeInfo, locked: boolean, unlockMinutes: number) => {
+    const msg = locked
+        ? i18n.global.t('cluster.lockLoginHelper')
+        : i18n.global.t('cluster.openLoginHelper', [row.name]);
+    try {
+        await ElMessageBox.confirm(
+            msg,
+            locked ? i18n.global.t('cluster.lockLogin') : i18n.global.t('cluster.loginLock'),
+            {
+                confirmButtonText: i18n.global.t('commons.button.confirm'),
+                cancelButtonText: i18n.global.t('commons.button.cancel'),
+                type: 'warning',
+            },
+        );
+    } catch {
+        return;
+    }
+    loading.value = true;
+    try {
+        const res = await setClusterNodeLoginLock({ nodeIds: [row.id], locked, unlockMinutes });
+        const items = res.data || [];
+        const failed = items.filter((item) => !item.success);
+        if (failed.length) {
+            MsgError(failed.map((item) => `${item.name || item.nodeId}: ${item.message}`).join('; '));
+        } else {
+            MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
+        }
+        await search();
+    } finally {
+        loading.value = false;
+    }
+};
+
 const openDelete = (row: Cluster.NodeInfo) => {
+    if (row.loginLocked) {
+        MsgWarning(i18n.global.t('cluster.deleteLockedNodeHelper'));
+    }
     deleteRef.value.acceptParams({
         title: i18n.global.t('cluster.deleteNode'),
         msg: i18n.global.t('cluster.deleteNodeHelper', [row.name]),
@@ -295,6 +357,34 @@ const buttons = [
         label: i18n.global.t('commons.button.edit'),
         click: (row: Cluster.NodeInfo) => {
             openEdit(row);
+        },
+    },
+    {
+        label: i18n.global.t('cluster.lockLogin'),
+        disabled: (row: Cluster.NodeInfo) => row.status !== 'online' || row.loginLocked === true,
+        click: (row: Cluster.NodeInfo) => {
+            applyLoginLock(row, true, 0);
+        },
+    },
+    {
+        label: i18n.global.t('cluster.openLogin30'),
+        disabled: (row: Cluster.NodeInfo) => row.status !== 'online',
+        click: (row: Cluster.NodeInfo) => {
+            applyLoginLock(row, false, 30);
+        },
+    },
+    {
+        label: i18n.global.t('cluster.openLogin120'),
+        disabled: (row: Cluster.NodeInfo) => row.status !== 'online',
+        click: (row: Cluster.NodeInfo) => {
+            applyLoginLock(row, false, 120);
+        },
+    },
+    {
+        label: i18n.global.t('cluster.openLoginForever'),
+        disabled: (row: Cluster.NodeInfo) => row.status !== 'online',
+        click: (row: Cluster.NodeInfo) => {
+            applyLoginLock(row, false, 0);
         },
     },
     {

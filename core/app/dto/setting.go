@@ -320,6 +320,9 @@ type LoginSetting struct {
 	Theme              string `json:"theme"`
 	NeedCaptcha        bool   `json:"needCaptcha"`
 	PasskeySetting     bool   `json:"passkeySetting"`
+	// Web login locked by the cluster master (managed node).
+	ManagedLoginLocked bool   `json:"managedLoginLocked"`
+	ManagedBy          string `json:"managedBy"`
 }
 
 type PasskeyRegisterRequest struct {

@@ -57,6 +57,7 @@ func Start() {
 
 	proxy.Init()
 	service.CloseTerminalSessions("all", "", "")
+	service.StartClusterAlertSampler()
 
 	rootRouter := router.Routers()
 

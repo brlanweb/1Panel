@@ -25,7 +25,7 @@ import (
 
 type AlertService struct{}
 
-var eeHiddenAlertTypes = []string{"licenseException", "panelUpdate", "panelPwdEndTime"}
+var eeHiddenAlertTypes = []string{"panelUpdate", "panelPwdEndTime"}
 
 // Channels that need the paid edition. WeCom and Telegram are delivered by
 // the panel itself (utils/alert/direct.go) and are available everywhere.
@@ -153,7 +153,7 @@ func (a AlertService) PageAlert(search dto.AlertSearch) (int64, []dto.AlertDTO, 
 			TaskName:       taskName,
 			Status:         item.Status,
 			SendCount:      item.SendCount,
-			AdvancedParams: item.AdvancedParams,
+			AdvancedParams: maskClusterAlertParams(item.Type, item.AdvancedParams),
 			CreateUser:     item.CreateUser,
 			UpdateUser:     item.UpdateUser,
 			CreatedAt:      item.CreatedAt,
@@ -203,6 +203,22 @@ func (a AlertService) CreateAlert(create dto.AlertCreate, operator string) error
 	}
 	var alertID uint
 	var alertInfo model.Alert
+	if dto.IsClusterAlertType(create.Type) {
+		advanced, err := prepareClusterAlert(create.Type, &create.Cycle, &create.Count, &create.SendCount, create.Method, create.AdvancedParams, "")
+		if err != nil {
+			return err
+		}
+		create.AdvancedParams = advanced
+		if err := copier.Copy(&alertInfo, &create); err != nil {
+			return buserr.WithErr("ErrStructTransform", err)
+		}
+		if alertInfo.Status == "" {
+			alertInfo.Status = constant.AlertEnable
+		}
+		alertInfo.CreateUser = operator
+		alertInfo.UpdateUser = operator
+		return alertRepo.Create(&alertInfo)
+	}
 	if create.Project != "" {
 		alertInfo, _ := alertRepo.Get(alertRepo.WithByType(create.Type), alertRepo.WithByProject(create.Project))
 		alertID = alertInfo.ID
@@ -249,6 +265,9 @@ func (a AlertService) CreateAlert(create dto.AlertCreate, operator string) error
 }
 
 func (a AlertService) UpdateAlert(req dto.AlertUpdate, operator string) error {
+	if dto.IsClusterAlertType(req.Type) {
+		return a.updateClusterAlert(req, operator)
+	}
 	if alertUtil.GetCronJobType(req.Type) == "cronJob" {
 		previous, err := alertRepo.Get(repo.WithByID(req.ID))
 		if err != nil {
@@ -301,6 +320,10 @@ func (a AlertService) DeleteAlert(id uint) error {
 	if err != nil {
 		return err
 	}
+	if dto.IsClusterAlertType(alertInfo.Type) {
+		clearClusterTargetStates(alertInfo.ID)
+		return nil
+	}
 	alerts, err := a.GetAlerts()
 	if err != nil {
 		return err
@@ -320,6 +343,7 @@ func (a AlertService) GetAlert(id uint) (dto.AlertDTO, error) {
 		return res, err
 	}
 	_ = copier.Copy(&res, &alertInfo)
+	res.AdvancedParams = maskClusterAlertParams(res.Type, res.AdvancedParams)
 	return res, nil
 }
 
@@ -327,6 +351,20 @@ func (a AlertService) UpdateStatus(id uint, status string) error {
 	alertInfo, _ := alertRepo.Get(repo.WithByID(id))
 	if alertInfo.ID == 0 {
 		return buserr.New("ErrRecordNotFound")
+	}
+	if dto.IsClusterAlertType(alertInfo.Type) {
+		if status == constant.AlertEnable {
+			if err := validateClusterAlertMethods(alertInfo.Method); err != nil {
+				return err
+			}
+		}
+		if err := alertRepo.Update(map[string]interface{}{"status": status}, repo.WithByID(alertInfo.ID)); err != nil {
+			return err
+		}
+		// A paused rule starts from a clean slate when re-enabled.
+		clearClusterTargetStates(alertInfo.ID)
+		resetProbeSchedule(alertInfo.ID)
+		return nil
 	}
 	methodTypes, err := a.validateAlertMethodReferences(alertInfo.Method)
 	if err != nil {
@@ -1088,4 +1126,38 @@ func alertConfigLogName(config, title string) string {
 		return strings.TrimSpace(value.DisplayName)
 	}
 	return title
+}
+
+func (a AlertService) updateClusterAlert(req dto.AlertUpdate, operator string) error {
+	previous, err := alertRepo.Get(repo.WithByID(req.ID))
+	if err != nil {
+		return err
+	}
+	if previous.Type != req.Type {
+		return buserr.WithDetail("ErrInvalidParams", "the alert type cannot be changed", nil)
+	}
+	advanced, err := prepareClusterAlert(req.Type, &req.Cycle, &req.Count, &req.SendCount, req.Method, req.AdvancedParams, previous.AdvancedParams)
+	if err != nil {
+		return err
+	}
+	if req.Status == "" {
+		req.Status = previous.Status
+	}
+	upMap := map[string]interface{}{
+		"cycle":           req.Cycle,
+		"count":           req.Count,
+		"method":          req.Method,
+		"title":           req.Title,
+		"status":          req.Status,
+		"send_count":      req.SendCount,
+		"advanced_params": advanced,
+		"update_user":     operator,
+	}
+	if err := alertRepo.Update(upMap, repo.WithByID(req.ID)); err != nil {
+		return err
+	}
+	// Targets and thresholds may have changed: start over.
+	clearClusterTargetStates(req.ID)
+	resetProbeSchedule(req.ID)
+	return nil
 }

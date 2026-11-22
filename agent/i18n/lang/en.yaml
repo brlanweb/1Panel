@@ -665,7 +665,11 @@ PanelVersionAlert: "Panel {{ .node }}{{ .ip }}: a new panel version is available
 PanelPwdExpirationAlert: "Panel {{ .node }}{{ .ip }}: panel password expires in {{ .day }} days. Log in to view details."
 CommonAlert: "Panel {{ .node }}{{ .ip }}: {{ .msg }}. Log in to view details."
 NodeExceptionAlert: "Panel {{ .node }}{{ .ip }}: {{ .num }} nodes are abnormal. Log in to view details."
-LicenseExceptionAlert: "Panel {{ .node }}{{ .ip }}: {{ .num }} licenses are abnormal. Log in to view details."
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: "Panel {{ .node }}{{ .ip }}: abnormal {{ .name }} login from {{ .loginIp }}. Log in to view details."
 CronJobSuccessAlert: "Panel {{ .node }}{{ .ip }}: scheduled task {{ .name }} completed successfully. Log in to view details."
 

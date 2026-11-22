@@ -156,6 +156,7 @@ func initDockerConf() {
 
 func initAlertTask() {
 	service.NewIAlertTaskHelper().ResetTask()
+	service.StartClusterProbeScheduler()
 }
 
 func initMonitorDB() {

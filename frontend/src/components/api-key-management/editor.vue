@@ -312,7 +312,7 @@ watch(
 );
 onBeforeUnmount(discardEditor);
 onBeforeRouteLeave((to) => {
-    if (!globalStore.isLogin || ['entrance', 'Expired', 'EnterpriseLicenseRequired'].includes(String(to.name))) {
+    if (!globalStore.isLogin || ['entrance', 'Expired'].includes(String(to.name))) {
         discardEditor();
         return true;
     }

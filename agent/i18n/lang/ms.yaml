@@ -665,7 +665,11 @@ PanelVersionAlert: 'Panel {{ .node }}{{ .ip }} Anda, versi panel terkini tersedi
 PanelPwdExpirationAlert: 'Panel {{ .node }}{{ .ip }} Anda, kata laluan panel akan tamat tempoh dalam {{ .day }} hari. Sila log masuk ke panel untuk butiran lanjut.'
 CommonAlert: 'Panel {{ .node }}{{ .ip }} Anda, {{ .msg }}. Sila log masuk ke panel untuk butiran lanjut.'
 NodeExceptionAlert: 'Panel {{ .node }}{{ .ip }} Anda, {{ .num }} nod tidak normal. Sila log masuk ke panel untuk butiran lanjut.'
-LicenseExceptionAlert: 'Panel {{ .node }}{{ .ip }} Anda, {{ .num }} lesen tidak normal. Sila log masuk ke panel untuk butiran lanjut.'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: 'Panel {{ .node }}{{ .ip }} Anda, log masuk {{ .name }} dari {{ .loginIp }} tidak normal. Sila log masuk ke panel untuk butiran lanjut.'
 CronJobSuccessAlert: 'Panel {{ .node }}{{ .ip }}: tugas berjadual {{ .name }} berjaya diselesaikan. Log masuk untuk melihat butiran.'
 

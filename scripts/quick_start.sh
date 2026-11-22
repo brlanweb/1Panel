@@ -40,7 +40,7 @@ VERSION="${PANEL_VERSION:-}"
 if [ -z "$VERSION" ]; then
 	# Follow the /releases/latest redirect (no API token / rate limit needed).
 	VERSION="$(curl -fsSIL -o /dev/null -w '%{url_effective}' "${PROXY}https://github.com/$REPO/releases/latest" | sed -n 's#.*/tag/##p')"
-	[ -n "$VERSION" ] || { red "获取最新版本失败，可设置 PANEL_VERSION=v2.x.y-cluster.N 或 GITHUB_PROXY 后重试"; exit 1; }
+	[ -n "$VERSION" ] || { red "获取最新版本失败，可设置 PANEL_VERSION=v2.YYYYMMDD.N 或 GITHUB_PROXY 后重试"; exit 1; }
 fi
 PKG="1panel-$VERSION-linux-$ARCH"
 BASE="${PROXY}https://github.com/$REPO/releases/download/$VERSION"

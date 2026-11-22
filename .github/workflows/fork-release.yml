@@ -1,4 +1,5 @@
-# Fork release: push a tag like v2.5.1-cluster.1 and this workflow builds
+# Fork release: push a date tag like v2.20261122.1 (v2.<YYYYMMDD>.<N>,
+# N counts releases of the same day) and this workflow builds
 # the panel for amd64 + arm64, packages it on top of the matching upstream
 # package (1pctl, initscript/, lang/, GeoIP.mmdb) and publishes a GitHub
 # release with the packages and .sha256 files. Panels on an older version
@@ -11,11 +12,14 @@ name: fork-release
 on:
   push:
     tags:
+      # Date versions: v2.YYYYMMDD.N
+      - 'v2.20[0-9][0-9][0-1][0-9][0-3][0-9].*'
+      # Legacy fork versions (rebuilds only)
       - 'v2.*-cluster.*'
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to (re)build, e.g. v2.5.1-cluster.1 (must exist)'
+        description: 'Tag to (re)build, e.g. v2.20261122.1 (must exist)'
         required: true
 
 permissions:
@@ -27,6 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     env:
       TAG: ${{ github.event.inputs.tag || github.ref_name }}
+      # Upstream 1Panel release whose package supplies 1pctl, initscript/,
+      # lang/ and GeoIP.mmdb. Independent of the fork's own version number.
+      UPSTREAM_BASE: v2.5.1
     steps:
       - uses: actions/checkout@v4
         with:
@@ -51,8 +58,12 @@ jobs:
       - name: Package amd64 + arm64
         run: |
           set -euo pipefail
-          # Upstream base version = tag without the -cluster.N suffix.
-          BASE="${TAG%%-cluster*}"
+          # Legacy tags carry the upstream base (v2.5.1-cluster.N); date tags
+          # use UPSTREAM_BASE.
+          case "$TAG" in
+            *-cluster*) BASE="${TAG%%-cluster*}" ;;
+            *) BASE="$UPSTREAM_BASE" ;;
+          esac
           for ARCH in amd64 arm64; do
             PKG="1panel-${BASE}-linux-${ARCH}.tar.gz"
             curl -fL --retry 3 -o "/tmp/${PKG}" \

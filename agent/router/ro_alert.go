@@ -22,6 +22,9 @@ func (a *AlertRouter) InitRouter(Router *gin.RouterGroup) {
 		alertRouter.POST("/logs/clean", baseApi.CleanAlertLogs)
 		alertRouter.GET("/clams/list", baseApi.GetClams)
 		alertRouter.POST("/cronjob/list", baseApi.GetCronJobs)
+		alertRouter.POST("/cluster/states", baseApi.ListClusterAlertStates)
+		alertRouter.GET("/cluster/rules", baseApi.ListClusterAlertRules)
+		alertRouter.POST("/cluster/report", baseApi.ReportClusterAlert)
 
 		alertRouter.POST("/config/update", baseApi.UpdateAlertConfig)
 		alertRouter.POST("/config/status", baseApi.UpdateAlertConfigStatus)

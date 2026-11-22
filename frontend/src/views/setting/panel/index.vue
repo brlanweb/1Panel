@@ -217,6 +217,7 @@ import Proxy from '@/views/setting/panel/proxy/index.vue';
 import CacheSettings from '@/views/setting/panel/cache/index.vue';
 import HideMenu from '@/views/setting/panel/hidemenu/index.vue';
 import { getXpackProxyDocker } from '@/extensions/xpack';
+import { loadProxyNodeStatus } from '@/api/modules/proxy-node';
 import { getXpackSetting, updateXpackSettingByKey } from '@/utils/xpack';
 import { setPrimaryColor } from '@/utils/theme';
 import { codeEditorThemeStorageKey } from '@/utils/code-editor-theme';
@@ -330,6 +331,9 @@ const search = async () => {
     form.proxyType = res.data.proxyType;
     form.proxyPort = res.data.proxyPort;
     form.proxyShow = form.proxyUrl ? form.proxyUrl + ':' + form.proxyPort : unset.value;
+    if (!form.proxyUrl) {
+        loadSubscriptionProxyShow();
+    }
     form.proxyUser = res.data.proxyUser;
     form.proxyPasswd = res.data.proxyPasswd;
     form.proxyPasswdKeep = res.data.proxyPasswdKeep;
@@ -372,6 +376,24 @@ const onChangeTimeout = () => {
 const onChangeSystemIP = () => {
     systemIPRef.value.acceptParams({ systemIP: form.systemIP });
 };
+// A subscription (Clash) proxy is stored separately from the global proxy
+// settings, so the global ProxyUrl stays empty; show the subscription state
+// instead of "unset" when one is configured.
+const loadSubscriptionProxyShow = async () => {
+    try {
+        const res = await loadProxyNodeStatus();
+        const data = res?.data;
+        if (!data || !data.subscriptionUrl || form.proxyUrl) {
+            return;
+        }
+        const state = data.running ? i18n.global.t('proxyNode.running') : i18n.global.t('proxyNode.stopped');
+        const node = data.selected ? ' / ' + data.selected : '';
+        form.proxyShow = `${i18n.global.t('proxyNode.subscriptionType')}${node} (${state})`;
+    } catch {
+        // keep "unset"
+    }
+};
+
 const onChangeProxy = () => {
     proxyRef.value.acceptParams({
         url: form.proxyUrl,

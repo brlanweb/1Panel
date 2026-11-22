@@ -1,7 +1,10 @@
 package v2
 
 import (
+	"net/http"
+
 	"github.com/1Panel-dev/1Panel/core/app/api/v2/helper"
+	"github.com/1Panel-dev/1Panel/core/app/auth"
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/gin-gonic/gin"
 )
@@ -218,4 +221,69 @@ func (b *BaseApi) GetClusterNodeUpgradeStatus(c *gin.Context) {
 		return
 	}
 	helper.SuccessWithData(c, status)
+}
+
+// @Tags Cluster Node
+// @Summary Lock / unlock the web login of cluster node panels
+// @Accept json
+// @Param request body dto.ClusterNodeLoginLockReq true "request"
+// @Success 200 {array} dto.ClusterNodeLoginLockResult
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/login-lock [post]
+// @x-panel-log {"bodyKeys":["nodeIds","locked","unlockMinutes"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"设置集群节点面板登录锁定 [nodeIds] 锁定:[locked] 临时开放分钟:[unlockMinutes]","formatEN":"set cluster node login lock [nodeIds] locked:[locked] unlock minutes:[unlockMinutes]"}
+func (b *BaseApi) SetClusterNodeLoginLock(c *gin.Context) {
+	var req dto.ClusterNodeLoginLockReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	res, err := clusterNodeService.SetNodesLoginLock(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, res)
+}
+
+// Managed login endpoints called BY the master ON this node. Only API-key
+// authenticated requests are accepted: a browser session on this node must
+// never be able to unlock itself.
+
+// @Tags Cluster Node
+// @Summary Load the managed login lock state of this panel
+// @Success 200 {object} auth.ManagedLoginState
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/managed/login [get]
+func (b *BaseApi) GetManagedLogin(c *gin.Context) {
+	if !c.GetBool("API_AUTH") {
+		helper.ErrorWithDetail(c, http.StatusForbidden, "ErrApiConfigStatusInvalid", nil)
+		return
+	}
+	helper.SuccessWithData(c, auth.LoadManagedLoginState())
+}
+
+// @Tags Cluster Node
+// @Summary Update the managed login lock of this panel
+// @Accept json
+// @Param request body dto.ClusterManagedLoginReq true "request"
+// @Success 200 {object} auth.ManagedLoginState
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/managed/login [post]
+func (b *BaseApi) UpdateManagedLogin(c *gin.Context) {
+	if !c.GetBool("API_AUTH") {
+		helper.ErrorWithDetail(c, http.StatusForbidden, "ErrApiConfigStatusInvalid", nil)
+		return
+	}
+	var req dto.ClusterManagedLoginReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	state, err := auth.UpdateManagedLogin(req.Locked, req.UnlockMinutes, req.Master)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, state)
 }

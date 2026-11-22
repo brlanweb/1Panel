@@ -73,6 +73,7 @@ type IAlertRepo interface {
 	DeleteAlertConfig(opts ...DBOption) error
 
 	WithByTypeNotIn(types []string) DBOption
+	WithByTypeIn(types []string) DBOption
 	PageAlertConfig(page, size int, opts ...DBOption) (int64, []model.AlertConfig, error)
 
 	SyncAll(data []model.AlertConfig) error
@@ -425,6 +426,12 @@ func (a *AlertRepo) GetConfigById(id uint) (model.AlertConfig, error) {
 	var config model.AlertConfig
 	err := global.AlertDB.First(&config, id).Error
 	return config, err
+}
+
+func (a *AlertRepo) WithByTypeIn(types []string) DBOption {
+	return func(g *gorm.DB) *gorm.DB {
+		return g.Where("type IN (?)", types)
+	}
 }
 
 func (a *AlertRepo) WithByTypeNotIn(types []string) DBOption {

@@ -48,8 +48,11 @@ type ClusterNodeInfo struct {
 	DiskUsedPercent float64    `json:"diskUsedPercent"`
 	DiskTotal       uint64     `json:"diskTotal"`
 	DiskUsed        uint64     `json:"diskUsed"`
-	CreatedAt       time.Time  `json:"createdAt"`
-	UpdatedAt       time.Time  `json:"updatedAt"`
+	// Managed login lock snapshot: nil = never read / node too old.
+	LoginLocked      *bool     `json:"loginLocked"`
+	LoginUnlockUntil int64     `json:"loginUnlockUntil"`
+	CreatedAt        time.Time `json:"createdAt"`
+	UpdatedAt        time.Time `json:"updatedAt"`
 }
 
 type ClusterNodeOverview struct {
@@ -135,4 +138,32 @@ type ClusterAggregateOverview struct {
 	// LatestVersion is the newest published fork release ("" when the
 	// release channel could not be queried).
 	LatestVersion string `json:"latestVersion"`
+}
+
+// ClusterManagedLoginReq is sent by the master to a node (API key only).
+type ClusterManagedLoginReq struct {
+	Locked        bool   `json:"locked"`
+	UnlockMinutes int    `json:"unlockMinutes" validate:"min=0,max=10080"`
+	Master        string `json:"master"`
+}
+
+// ClusterNodeLoginLockReq is the master-side batch request.
+//
+//	locked=true                    lock the node web login
+//	locked=false, unlockMinutes>0  open temporarily, auto-lock afterwards
+//	locked=false, unlockMinutes=0  remove the lock permanently
+type ClusterNodeLoginLockReq struct {
+	NodeIDs       []uint `json:"nodeIds" validate:"required,min=1"`
+	Locked        bool   `json:"locked"`
+	UnlockMinutes int    `json:"unlockMinutes" validate:"min=0,max=10080"`
+}
+
+type ClusterNodeLoginLockResult struct {
+	NodeID      uint   `json:"nodeId"`
+	Name        string `json:"name"`
+	Success     bool   `json:"success"`
+	Supported   bool   `json:"supported"`
+	Locked      bool   `json:"locked"`
+	UnlockUntil int64  `json:"unlockUntil"`
+	Message     string `json:"message"`
 }

@@ -33,6 +33,10 @@ type ClusterNode struct {
 	// (success / partial / failed / — when never targeted).
 	LastSyncStatus string     `json:"lastSyncStatus"`
 	LastSyncAt     *time.Time `json:"lastSyncAt"`
+	// Managed login lock of the node panel, refreshed on every check.
+	// nil = unknown (never read, or the node is too old to support it).
+	LoginLocked      *bool `json:"loginLocked"`
+	LoginUnlockUntil int64 `json:"loginUnlockUntil"`
 }
 
 func (ClusterNode) TableName() string { return "cluster_nodes" }

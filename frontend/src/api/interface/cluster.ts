@@ -19,8 +19,26 @@ export namespace Cluster {
         websiteCount: number;
         lastSyncStatus: string;
         lastSyncAt: string;
+        loginLocked: boolean | null;
+        loginUnlockUntil: number;
         createdAt: string;
         updatedAt: string;
+    }
+
+    export interface NodeLoginLockReq {
+        nodeIds: number[];
+        locked: boolean;
+        unlockMinutes: number;
+    }
+
+    export interface NodeLoginLockResult {
+        nodeId: number;
+        name: string;
+        success: boolean;
+        supported: boolean;
+        locked: boolean;
+        unlockUntil: number;
+        message: string;
     }
 
     export interface NodeCreate {

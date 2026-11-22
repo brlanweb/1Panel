@@ -31,6 +31,7 @@ ErrSessionDataNotFound: "Mevcut oturumun süresi doldu"
 ErrSessionDataFormat: "Mevcut oturum verisi biçimi anormal"
 ErrPasswordExpired: 'Şifre süresi doldu: {{ .detail }}'
 ErrLoginLocked: "Çok fazla başarısız deneme yapıldı. Giriş 5 dakika boyunca geçici olarak kilitlendi."
+ErrManagedLoginLocked: "This panel is managed by the master node and its web login is disabled. Manage it from the master, or run \"1pctl managed-login unlock\" on the server for emergency access."
 ErrApiConfigStatusInvalid: 'API kapalı: {{ .detail }}'
 ErrApiConfigKeyInvalid: 'Geçersiz API anahtarı: {{ .detail }}'
 ErrApiConfigIPInvalid: 'IP izinli değil: {{ .detail }}'

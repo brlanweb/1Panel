@@ -23,8 +23,9 @@ export interface FooterNavigationSettingEditor {
 }
 
 export const createDefaultFooterNavigationLinks = (isIntl: boolean, docsUrl: string): FooterNavigationLinks => ({
+    // The commercial-edition link is hidden: license management is removed.
     learnMore: {
-        visible: true,
+        visible: false,
         url: isIntl ? 'https://1panel.pro/pricing' : 'https://1panel.cn/versions.html',
     },
     forum: {

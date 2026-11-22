@@ -77,8 +77,7 @@ func passwordExpirationRecoveryRoute(method, path string) bool {
 		case core + "/auth/captcha", core + "/auth/setting", core + "/auth/current", core + "/auth/ldap/status",
 			core + "/auth/oidc/status", core + "/auth/oidc/callback",
 			core + "/auth/saml2/status", core + "/auth/saml2/metadata", core + "/auth/saml2/logout",
-			core + "/xpack/settings/search", core + "/enterprise/users/info",
-			core + "/enterprise/licenses/info", core + "/enterprise/licenses/status":
+			core + "/xpack/settings/search", core + "/enterprise/users/info":
 			return true
 		}
 	case http.MethodPost:
@@ -88,7 +87,7 @@ func passwordExpirationRecoveryRoute(method, path string) bool {
 			core + "/auth/current/update", core + "/auth/expired/reset",
 			core + "/auth/oidc/begin", core + "/auth/oidc/finish",
 			core + "/auth/saml2/begin", core + "/auth/saml2/acs", core + "/auth/saml2/finish", core + "/auth/saml2/logout",
-			core + "/settings/search/base", core + "/enterprise/licenses/upload", core + "/xapp/verifyQRCode",
+			core + "/settings/search/base", core + "/xapp/verifyQRCode",
 			core + "/auth/api/keys/search", core + "/auth/api/keys/status",
 			core + "/auth/api/keys/revoke", core + "/auth/api/keys/delete":
 			// The status service independently rejects Enable while allowing

@@ -665,7 +665,11 @@ PanelVersionAlert: '귀하의 {{ .node }}{{ .ip }} 패널, 최신 버전으로 �
 PanelPwdExpirationAlert: '귀하의 {{ .node }}{{ .ip }} 패널, 패널 비밀번호가 {{ .day }}일 후에 만료됩니다. 자세한 내용은 패널에 로그인하십시오.'
 CommonAlert: '귀하의 {{ .node }}{{ .ip }} 패널, {{ .msg }}。자세한 내용은 패널에 로그인하십시오.'
 NodeExceptionAlert: '귀하의 {{ .node }}{{ .ip }} 패널, {{ .num }}개의 노드에 이상이 있습니다. 자세한 내용은 패널에 로그인하십시오.'
-LicenseExceptionAlert: '귀하의 {{ .node }}{{ .ip }} 패널, {{ .num }}개의 라이센스에 이상이 있습니다. 자세한 내용은 패널에 로그인하십시오.'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: '귀하의 {{ .node }}{{ .ip }} 패널, {{ .loginIp }}에서의 {{ .name }} 로그인에 이상이 있습니다. 자세한 내용은 패널에 로그인하십시오.'
 CronJobSuccessAlert: '패널 {{ .node }}{{ .ip }}: 예약 작업 {{ .name }}이(가) 성공적으로 완료되었습니다. 로그인하여 자세한 내용을 확인하십시오.'
 

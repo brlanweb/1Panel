@@ -665,7 +665,11 @@ PanelVersionAlert: 'あなたの {{ .node }}{{ .ip }} パネル、最新バー�
 PanelPwdExpirationAlert: 'あなたの {{ .node }}{{ .ip }} パネル、パネルパスワードは {{ .day }} 日後に期限切れになります。詳細はパネルにログインして'
 CommonAlert: 'あなたの {{ .node }}{{ .ip }} パネル、{{ .msg }}。詳細はパネルにログインして'
 NodeExceptionAlert: 'あなたの {{ .node }}{{ .ip }} パネル、{{ .num }} 個のノードに異常が発生しています。詳細はパネルにログインして'
-LicenseExceptionAlert: 'あなたの {{ .node }}{{ .ip }} パネル、{{ .num }} 個のライセンスに異常が発生しています。詳細はパネルにログインして'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: 'あなたの {{ .node }}{{ .ip }} パネル、{{ .loginIp }} からの {{ .name }} ログインに異常があります。詳細はパネルにログインして'
 CronJobSuccessAlert: 'パネル {{ .node }}{{ .ip }}: スケジュールタスク {{ .name }} が正常に完了しました。詳細はパネルにログインして確認してください。'
 

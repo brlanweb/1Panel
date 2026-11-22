@@ -518,8 +518,19 @@ func GetAlertDetailContent(detail dto.AlertDetail, agentInfo *dto.AgentInfo) str
 		return i18n.GetMsgWithMap("SSHAndPanelLoginAlert", map[string]interface{}{"name": getValueByIndex(params, "1"), "loginIp": getValueByIndex(params, "2"), "node": getNodeName(agentInfo), "ip": getNodeIp(agentInfo)})
 	case "nodeException":
 		return i18n.GetMsgWithMap("NodeExceptionAlert", map[string]interface{}{"num": getValueByIndex(params, "1"), "node": getNodeName(agentInfo), "ip": getNodeIp(agentInfo)})
-	case "licenseException":
-		return i18n.GetMsgWithMap("LicenseExceptionAlert", map[string]interface{}{"num": getValueByIndex(params, "1"), "node": getNodeName(agentInfo), "ip": getNodeIp(agentInfo)})
+	case "clusterResource", "siteProbe", "modelApi":
+		key := "ClusterAlertFail"
+		if getValueByIndex(params, "1") == "recover" {
+			key = "ClusterAlertRecover"
+		}
+		return i18n.GetMsgWithMap(key, map[string]interface{}{
+			"kind":   i18n.GetMsgByKey("ClusterAlertType_" + alertType),
+			"title":  getValueByIndex(params, "2"),
+			"detail": getValueByIndex(params, "3"),
+			"num":    getValueByIndex(params, "4"),
+			"node":   getNodeName(agentInfo),
+			"ip":     getNodeIp(agentInfo),
+		})
 	default:
 		return ""
 	}

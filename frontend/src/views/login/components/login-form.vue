@@ -39,6 +39,17 @@
                     </div>
                 </el-form>
             </div>
+            <div v-else-if="managedLoginLocked" class="managed-login-locked">
+                <div class="text-2xl font-medium text-gray-900 text-center mb-6">
+                    {{ $t('commons.login.managedTitle') }}
+                </div>
+                <el-alert type="warning" :closable="false" show-icon>
+                    <template #title>
+                        {{ $t('commons.login.managedHelper', [managedBy || '-']) }}
+                    </template>
+                </el-alert>
+                <div class="input-help mt-4">{{ $t('commons.login.managedUnlockHelper') }}</div>
+            </div>
             <div v-else-if="showPasskeyOnly">
                 <div class="flex justify-between items-center mb-6">
                     <div class="text-2xl font-medium text-gray-900">{{ $t('commons.button.login') }}</div>
@@ -432,6 +443,9 @@ const showPasswordLogin = ref(false);
 const loginSource = ref<'local' | 'ldap'>('local');
 const isDemo = ref(false);
 const loginSettingsLoading = ref(true);
+// Web login locked by the cluster master: the form is replaced by a notice.
+const managedLoginLocked = ref(false);
+const managedBy = ref('');
 const isMasterProductPro = ref(false);
 const requireCommunityLicense = computed(() => !isIntl.value && !isEnterprise.value && !isMasterProductPro.value);
 const open = ref(false);
@@ -924,6 +938,12 @@ const getSetting = async () => {
         isEnterpriseLicenseLoaded.value = !res.data.isEnterprise;
         ignoreCaptcha.value = !res.data.needCaptcha;
         passkeySetting.value = res.data.passkeySetting;
+        managedLoginLocked.value = Boolean(res.data.managedLoginLocked);
+        managedBy.value = res.data.managedBy || '';
+        if (managedLoginLocked.value) {
+            document.title = res.data.panelName;
+            return;
+        }
         if (!ignoreCaptcha.value) {
             loginVerify();
         }

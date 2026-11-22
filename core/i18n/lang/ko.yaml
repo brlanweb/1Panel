@@ -31,6 +31,7 @@ ErrSessionDataNotFound: "현재 세션이 만료되었습니다"
 ErrSessionDataFormat: "현재 세션 데이터 형식이 비정상입니다"
 ErrPasswordExpired: '비밀번호 만료: {{ .detail }}'
 ErrLoginLocked: "실패한 시도가 너무 많습니다. 로그인이 5분 동안 일시적으로 잠겼습니다."
+ErrManagedLoginLocked: "This panel is managed by the master node and its web login is disabled. Manage it from the master, or run \"1pctl managed-login unlock\" on the server for emergency access."
 ErrApiConfigStatusInvalid: 'API 사용 중지: {{ .detail }}'
 ErrApiConfigKeyInvalid: 'API 키가 잘못됨: {{ .detail }}'
 ErrApiConfigIPInvalid: 'IP 허용되지 않음: {{ .detail }}'

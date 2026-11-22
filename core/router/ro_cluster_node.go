@@ -27,5 +27,15 @@ func (a *ClusterNodeRouter) InitRouter(Router *gin.RouterGroup) {
 		clusterNodeRouter.GET("/options", baseApi.ListClusterNodeOptions)
 		clusterNodeRouter.POST("/upgrade", baseApi.UpgradeClusterNode)
 		clusterNodeRouter.POST("/upgrade/status", baseApi.GetClusterNodeUpgradeStatus)
+		clusterNodeRouter.POST("/login-lock", baseApi.SetClusterNodeLoginLock)
+	}
+
+	// Called by the master panel on this node; the handlers accept API-key
+	// requests only (SessionAuth passes API_AUTH requests through).
+	managedRouter := Router.Group("cluster/managed").
+		Use(middleware.SessionAuth())
+	{
+		managedRouter.GET("/login", baseApi.GetManagedLogin)
+		managedRouter.POST("/login", baseApi.UpdateManagedLogin)
 	}
 }

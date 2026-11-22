@@ -21,6 +21,46 @@ export namespace Alert {
         updateUser?: string;
     }
 
+    export interface ClusterTargetState {
+        targetKey: string;
+        targetLabel: string;
+        status: string;
+        consecutiveFail: number;
+        sentCount: number;
+        cooldownUntil: number;
+        lastCheckAt: number;
+        lastChangeAt: number;
+        lastValue: string;
+        lastError: string;
+    }
+
+    export interface ClusterAlertParams {
+        nodeIds?: number[];
+        cpu?: number;
+        memory?: number;
+        disk?: number;
+        offline?: boolean;
+        diskExclude?: string[];
+        url?: string;
+        method?: string;
+        expectStatus?: string;
+        keyword?: string;
+        followRedirect?: boolean;
+        verifyTLS?: boolean;
+        headers?: Record<string, string>;
+        provider?: string;
+        baseUrl?: string;
+        model?: string;
+        apiKey?: string;
+        apiKeySet?: boolean;
+        maxTokens?: number;
+        strictContent?: boolean;
+        treat429AsFail?: boolean;
+        timeoutSec?: number;
+        useProxy?: boolean;
+        cooldownHours?: number;
+    }
+
     export interface AlertDetail {
         type: string;
         subType?: string;

@@ -5,16 +5,17 @@
 # (core/app/service/fork_release.go). A new version is offered to panels
 # ONLY after you publish a release here, so the flow is:
 #
-#   Recommended: git tag v2.5.1-cluster.1 && git push origin v2.5.1-cluster.1
+#   Recommended: git tag v2.20261122.1 && git push origin v2.20261122.1
+#   (date version v2.<YYYYMMDD>.<N>; N counts releases of the same day)
 #   .github/workflows/fork-release.yml then builds amd64 + arm64 and
 #   publishes the release with packages and .sha256 files automatically.
 #
 #   Manual:
-#   1. bash scripts/fork-release.sh v2.1.5-cluster.2 /path/to/upstream-1panel-vX-linux-amd64.tar.gz amd64
-#   2. Create a GitHub release on brlanweb/1Panel with tag v2.1.5-cluster.2
+#   1. bash scripts/fork-release.sh v2.20261122.1 /path/to/upstream-1panel-vX-linux-amd64.tar.gz amd64
+#   2. Create a GitHub release on brlanweb/1Panel with tag v2.20261122.1
 #      (mark it "pre-release" to offer it only to panels in developer mode),
 #      write the release note in the body, and upload BOTH
-#      build/release/1panel-v2.1.5-cluster.2-linux-amd64.tar.gz and its .sha256.
+#      build/release/1panel-v2.20261122.1-linux-amd64.tar.gz and its .sha256.
 #   3. Panels running an older version see the update within ~10 minutes
 #      (the footer check is cached 10 min; clicking "Update" re-checks).
 #
@@ -62,6 +63,25 @@ done
 install -m 755 "$WORK/1panel-core" "$PKG_DIR/1panel-core"
 install -m 755 "$WORK/1panel-agent" "$PKG_DIR/1panel-agent"
 sed -i.bak "s/^ORIGINAL_VERSION=.*/ORIGINAL_VERSION=$TAG/" "$PKG_DIR/1pctl" && rm -f "$PKG_DIR/1pctl.bak"
+# Forward `1pctl managed-login ...` (emergency unlock of a node whose web
+# login is locked by the cluster master) to the core binary.
+if ! grep -q 'managed-login)' "$PKG_DIR/1pctl"; then
+	awk '
+		/^function main\(\) \{/ { in_main = 1 }
+		in_main && /^[[:space:]]*case "\$\{action\}" in/ && !done {
+			print
+			print "        managed-login)"
+			print "            check_root"
+			print "            1panel -l $LANGUAGE managed-login ${target} ${extra_args[@]}"
+			print "            ;;"
+			done = 1
+			next
+		}
+		{ print }
+	' "$PKG_DIR/1pctl" > "$PKG_DIR/1pctl.new" && mv "$PKG_DIR/1pctl.new" "$PKG_DIR/1pctl"
+	chmod 755 "$PKG_DIR/1pctl"
+	grep -q 'managed-login)' "$PKG_DIR/1pctl" || { echo "failed to patch 1pctl managed-login" >&2; exit 1; }
+fi
 
 mkdir -p "$OUT"
 tar -czf "$OUT/$PKG_NAME.tar.gz" -C "$WORK" "$PKG_NAME"

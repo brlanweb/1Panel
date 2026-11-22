@@ -665,7 +665,11 @@ PanelVersionAlert: 'Seu Painel {{ .node }}{{ .ip }}, a versão mais recente do p
 PanelPwdExpirationAlert: 'Seu Painel {{ .node }}{{ .ip }}, a senha do painel expirará em {{ .day }} dias. Faça login no painel para obter detalhes.'
 CommonAlert: 'Seu Painel {{ .node }}{{ .ip }}, {{ .msg }}. Faça login no painel para obter detalhes.'
 NodeExceptionAlert: 'Seu Painel {{ .node }}{{ .ip }}, {{ .num }} nós estão anormais. Faça login no painel para obter detalhes.'
-LicenseExceptionAlert: 'Seu Painel {{ .node }}{{ .ip }}, {{ .num }} licenças estão anormais. Faça login no painel para obter detalhes.'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: 'Seu Painel {{ .node }}{{ .ip }}, o login {{ .name }} a partir de {{ .loginIp }} é anormal. Faça login no painel para obter detalhes.'
 CronJobSuccessAlert: 'Painel {{ .node }}{{ .ip }}: a tarefa agendada {{ .name }} foi concluída com sucesso. Faça login para ver os detalhes.'
 

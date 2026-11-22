@@ -74,3 +74,24 @@ type LoginLog struct {
 	Status  string `json:"status"`
 	Message string `json:"message"`
 }
+
+// AlertTargetState is the per-target state machine of the cluster alert
+// types (clusterResource / siteProbe / modelApi). One rule can watch many
+// targets (nodes, disks, ...), each with its own failure counter and
+// cooldown, so a cooldown on one target never silences another.
+type AlertTargetState struct {
+	BaseModel
+	AlertID         uint   `gorm:"not null;uniqueIndex:idx_alert_target_state" json:"alertId"`
+	TargetKey       string `gorm:"type:varchar(256);not null;uniqueIndex:idx_alert_target_state" json:"targetKey"`
+	TargetLabel     string `gorm:"type:varchar(256)" json:"targetLabel"`
+	Status          string `gorm:"type:varchar(16);not null;default:'ok'" json:"status"` // ok | fail
+	ConsecutiveFail uint   `json:"consecutiveFail"`
+	SentCount       uint   `json:"sentCount"`
+	Alerted         bool   `json:"alerted"` // an alert went out for the current failure
+	CooldownUntil   int64  `json:"cooldownUntil"`
+	LastAlertAt     int64  `json:"lastAlertAt"`
+	LastCheckAt     int64  `json:"lastCheckAt"`
+	LastChangeAt    int64  `json:"lastChangeAt"`
+	LastValue       string `gorm:"type:varchar(64)" json:"lastValue"`
+	LastError       string `gorm:"type:text" json:"lastError"`
+}

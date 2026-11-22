@@ -696,11 +696,7 @@ watch(
 onDeactivated(discard);
 onBeforeUnmount(discard);
 onBeforeRouteLeave((to) => {
-    if (
-        !globalStore.isLogin ||
-        !canManageCredential.value ||
-        ['entrance', 'Expired', 'EnterpriseLicenseRequired'].includes(String(to.name))
-    ) {
+    if (!globalStore.isLogin || !canManageCredential.value || ['entrance', 'Expired'].includes(String(to.name))) {
         discard();
         return true;
     }

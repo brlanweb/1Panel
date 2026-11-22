@@ -665,7 +665,11 @@ PanelVersionAlert: 'Paneliniz {{ .node }}{{ .ip }}, en son panel sürümü yüks
 PanelPwdExpirationAlert: 'Paneliniz {{ .node }}{{ .ip }}, panel şifresi {{ .day }} gün içinde süresi dolacak. Detaylar için paneline giriş yapın.'
 CommonAlert: 'Paneliniz {{ .node }}{{ .ip }}, {{ .msg }}. Detaylar için paneline giriş yapın.'
 NodeExceptionAlert: 'Paneliniz {{ .node }}{{ .ip }}, {{ .num }} düğüm anormal durumda. Detaylar için paneline giriş yapın.'
-LicenseExceptionAlert: 'Paneliniz {{ .node }}{{ .ip }}, {{ .num }} lisans anormal durumda. Detaylar için paneline giriş yapın.'
+ClusterAlertFail: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) failing: {{ .detail }}. Log in to view details."
+ClusterAlertRecover: "Panel {{ .node }}{{ .ip }}: [{{ .kind }}] {{ .title }}: {{ .num }} target(s) recovered: {{ .detail }}."
+ClusterAlertType_clusterResource: "Cluster resources"
+ClusterAlertType_siteProbe: "Website check"
+ClusterAlertType_modelApi: "Model API check"
 SSHAndPanelLoginAlert: 'Paneliniz {{ .node }}{{ .ip }}, {{ .loginIp }} adresinden {{ .name }} girişi anormal. Detaylar için paneline giriş yapın.'
 CronJobSuccessAlert: 'Panel {{ .node }}{{ .ip }}: zamanlanmış görev {{ .name }} başarıyla tamamlandı. Ayrıntıları görmek için giriş yapın.'
 

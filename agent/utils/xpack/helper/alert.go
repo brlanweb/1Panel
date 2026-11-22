@@ -64,10 +64,6 @@ func (a *alertHelper) TestCustomWebhook(config dto.AlertCustomWebhookResolvedCon
 	return alertUtil.TestCustomWebhook(config, transport, agentInfo, lang)
 }
 
-func (a *alertHelper) GetLicenseErrorAlert() (uint, error) {
-	return 0, nil
-}
-
 func (a *alertHelper) GetNodeErrorAlert() (uint, error) {
 	return 0, nil
 }

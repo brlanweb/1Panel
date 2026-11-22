@@ -19,6 +19,9 @@
                 <el-button :icon="Refresh" :loading="staticLoading" @click="loadStatic(true)">
                     {{ $t('commons.button.refresh') }}
                 </el-button>
+                <el-button v-if="isMaster" :icon="Bell" @click="openAlertRules">
+                    {{ $t('xpack.alert.alertRulesEntry') }}
+                </el-button>
             </template>
             <template #main>
                 <!-- Summary: same stat-card structure as the cluster overview -->
@@ -223,14 +226,21 @@
 
 <script lang="ts" setup>
 import { computed, onActivated, onDeactivated, onMounted, onUnmounted, ref } from 'vue';
-import { Bottom, Refresh, Search, Top } from '@element-plus/icons-vue';
+import { Bell, Bottom, Refresh, Search, Top } from '@element-plus/icons-vue';
+import { useRouter } from 'vue-router';
 import i18n from '@/lang';
 import { Cluster } from '@/api/interface/cluster';
 import { loadClusterMonitorRealtime, loadClusterMonitorStatic } from '@/api/modules/cluster';
 import { computeSize } from '@/utils/size';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
-const { globalStore } = useGlobalStore();
+const { globalStore, isMaster } = useGlobalStore();
+const router = useRouter();
+const openAlertRules = () => {
+    // Open the alert notice page on its rule list, filtered to cluster rules.
+    localStorage.setItem('alert-notice-tab', '0');
+    router.push({ name: 'Alert', query: { type: 'clusterResource' } });
+};
 
 // Polling periods. Realtime data (CPU / network speed) is only fetched
 // while this page is visible; memory / disks / IPs change slowly and are

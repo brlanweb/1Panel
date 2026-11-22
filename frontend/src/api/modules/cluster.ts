@@ -44,6 +44,10 @@ export const upgradeClusterNode = (id: number, version = '') => {
     return http.postLocalNode<any>(`/core/cluster/nodes/upgrade`, { id, version }, 60000);
 };
 
+export const setClusterNodeLoginLock = (req: Cluster.NodeLoginLockReq) => {
+    return http.postLocalNode<Cluster.NodeLoginLockResult[]>(`/core/cluster/nodes/login-lock`, req, 60000);
+};
+
 export const loadClusterNodeUpgradeStatus = (id: number) => {
     return http.postLocalNode<Cluster.NodeUpgradeStatus>(`/core/cluster/nodes/upgrade/status`, { id });
 };

@@ -144,22 +144,6 @@
                                 </el-card>
                             </div>
 
-                            <el-card v-if="selectedNode.disks.length" shadow="never" class="mb-4">
-                                <template #header>{{ $t('cluster.diskUsage') }}</template>
-                                <div v-for="disk in selectedNode.disks" :key="disk.path" class="disk-row">
-                                    <span class="disk-path" :title="disk.path">{{ disk.path }}</span>
-                                    <el-progress
-                                        class="disk-bar"
-                                        :percentage="Math.min(100, Number(disk.usedPercent.toFixed(1)))"
-                                        :status="disk.usedPercent >= 90 ? 'exception' : undefined"
-                                        :stroke-width="12"
-                                    />
-                                    <span class="disk-size">
-                                        {{ formatBytes(disk.used) }} / {{ formatBytes(disk.total) }}
-                                    </span>
-                                </div>
-                            </el-card>
-
                             <el-card shadow="never" class="mb-4">
                                 <template #header>{{ $t('menu.app') }}</template>
                                 <el-table :data="apps" style="width: 100%" v-loading="appsLoading">
@@ -513,14 +497,7 @@ const statCards = computed(() => {
         const failed = counts[idx] === null || (counts[idx] as number) < 0;
         return { ...card, warn: failed, note: failed ? notRefreshed : '' };
     });
-    const disk = node?.disks?.[0];
-    cards.push({
-        key: 'disk',
-        title: t('cluster.diskUsage'),
-        value: disk ? `${disk.usedPercent.toFixed(1)}%` : '—',
-        warn: !disk || disk.usedPercent >= 90,
-        note: disk ? `${disk.path}  ${formatBytes(disk.used)} / ${formatBytes(disk.total)}` : notRefreshed,
-    });
+    // Disk usage is shown only in the node list on the left.
     return cards;
 });
 // The aggregate's master-panel counts (null when the aggregate failed).
@@ -1063,7 +1040,7 @@ onBeforeUnmount(() => {
 
 .stat-cards {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 12px;
     align-items: stretch;
 }
@@ -1150,26 +1127,6 @@ onBeforeUnmount(() => {
     font-size: 12px;
     color: var(--el-text-color-regular);
     min-height: 22px;
-}
-
-.disk-row {
-    display: grid;
-    grid-template-columns: minmax(80px, 160px) 1fr auto;
-    align-items: center;
-    gap: 12px;
-    padding: 6px 0;
-    font-size: 13px;
-}
-
-.disk-path {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.disk-size {
-    color: var(--el-text-color-secondary);
-    white-space: nowrap;
 }
 
 .node-card-metric {

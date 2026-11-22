@@ -31,6 +31,7 @@ ErrSessionDataNotFound: "現在のセッションは期限切れです！"
 ErrSessionDataFormat: "現在のセッションデータ形式が異常です！"
 ErrPasswordExpired: 'パスワード期限切れ: {{ .detail }}'
 ErrLoginLocked: "失敗回数が多すぎます。ログインは 5 分間一時的にロックされています。"
+ErrManagedLoginLocked: "This panel is managed by the master node and its web login is disabled. Manage it from the master, or run \"1pctl managed-login unlock\" on the server for emergency access."
 ErrApiConfigStatusInvalid: 'API利用不可: {{ .detail }}'
 ErrApiConfigKeyInvalid: 'APIキーが無効です: {{ .detail }}'
 ErrApiConfigIPInvalid: 'IPが許可されていません: {{ .detail }}'

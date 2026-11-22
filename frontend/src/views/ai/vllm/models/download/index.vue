@@ -20,6 +20,10 @@
             <el-form-item :label="$t('vllm.revision')" prop="revision">
                 <el-input v-model.trim="form.revision" placeholder="main / master" />
             </el-form-item>
+            <el-form-item>
+                <el-checkbox v-model="form.useProxy">{{ $t('proxyNode.useProxy') }}</el-checkbox>
+                <span class="input-help">{{ $t('proxyNode.useProxyModelHelper') }}</span>
+            </el-form-item>
             <el-alert type="info" :closable="false" show-icon :title="$t('vllm.downloadHelper')" />
         </el-form>
         <template #footer>
@@ -35,7 +39,7 @@
 import { reactive, ref } from 'vue';
 import { FormInstance } from 'element-plus';
 import { Rules } from '@/global/form-rules';
-import { downloadVllmModel } from '@/api/modules/vllm';
+import { downloadVllmModel, loadVllmSettings } from '@/api/modules/vllm';
 import { newUUID } from '@/utils/id';
 import { MsgSuccess } from '@/utils/message';
 import i18n from '@/lang';
@@ -44,7 +48,7 @@ const em = defineEmits(['search', 'task']);
 const open = ref(false);
 const loading = ref(false);
 const formRef = ref<FormInstance>();
-const form = reactive({ source: 'modelscope', repoId: '', kind: 'model', revision: '' });
+const form = reactive({ source: 'modelscope', repoId: '', kind: 'model', revision: '', useProxy: false });
 
 const checkRepo = (_rule: any, value: string, callback: any) => {
     if (!/^[A-Za-z0-9][A-Za-z0-9_.-]*\/[A-Za-z0-9][A-Za-z0-9_.-]*$/.test(value || '')) {
@@ -64,7 +68,14 @@ const acceptParams = (params?: { repoId?: string; source?: string }) => {
     form.repoId = params?.repoId || '';
     form.kind = 'model';
     form.revision = '';
+    form.useProxy = false;
     open.value = true;
+    // default to the proxy choice of the vLLM settings
+    loadVllmSettings()
+        .then((res) => {
+            form.useProxy = !!res.data?.proxyMode && res.data.proxyMode !== 'none';
+        })
+        .catch(() => undefined);
 };
 
 const submit = async () => {

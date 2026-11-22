@@ -30,6 +30,10 @@ type VllmModelDownload struct {
 	Revision string `json:"revision"`
 	RecipeID uint   `json:"recipeId"`
 	TaskID   string `json:"taskID"`
+	// UseProxy overrides the default proxy choice of the vLLM settings for
+	// this download: true = through the proxy (subscription node unless a
+	// custom proxy is configured), false = direct, nil = settings default.
+	UseProxy *bool `json:"useProxy"`
 }
 
 type VllmModelImport struct {

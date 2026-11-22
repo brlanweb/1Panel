@@ -26,7 +26,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Proxy nodes (Settings → Proxy node).
+// Proxy nodes (Settings → Panel → Proxy → Subscription).
 //
 // The user pastes a Clash-format subscription URL. The panel downloads it,
 // keeps only its `proxies`, and runs them in a mihomo (Clash Meta) container
@@ -183,10 +183,10 @@ func (u *ProxyNodeService) Status() dto.ProxyNodeStatus {
 // 1panel-network) use, e.g. vLLM model downloads and deployments.
 func (u *ProxyNodeService) ProxyURLForContainer() (string, error) {
 	if proxyNodeSetting(proxyNodeSettingURL, "") == "" {
-		return "", buserr.WithDetail("ErrInvalidParams", "no proxy subscription configured (Settings → Proxy node)", nil)
+		return "", buserr.WithDetail("ErrInvalidParams", "no proxy subscription configured (Settings → Panel → Proxy → Subscription)", nil)
 	}
 	if !proxyNodeRunning() {
-		return "", buserr.WithDetail("ErrInvalidParams", "the proxy node container is not running (Settings → Proxy node)", nil)
+		return "", buserr.WithDetail("ErrInvalidParams", "the proxy node container is not running (Settings → Panel → Proxy → Subscription)", nil)
 	}
 	_, user, pass := proxyNodeCredentials()
 	return fmt.Sprintf("http://%s:%s@%s:%d", user, pass, proxyNodeContainer, proxyNodeInnerPort), nil

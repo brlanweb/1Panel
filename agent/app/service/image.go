@@ -277,10 +277,22 @@ func (u *ImageService) ImagePull(req dto.ImagePull) error {
 		return fmt.Errorf("new task for image pull failed, err: %v", err)
 	}
 
+	proxyURL := ""
+	if req.UseProxy {
+		proxyURL, err = NewIProxyNodeService().ProxyURLForHost()
+		if err != nil {
+			return err
+		}
+	}
 	for _, item := range req.ImageName {
 		itemName := strings.ReplaceAll(path.Base(item), ":", "_")
 		taskItem.AddSubTask(i18n.GetWithName("ImagePull", itemName), func(t *task.Task) error {
 			taskItem.Logf("----------------- %s -----------------", itemName)
+			if proxyURL != "" {
+				pullErr := pullImageWithProxyNode(taskItem, req.RepoID, item, proxyURL)
+				taskItem.LogWithStatus(i18n.GetMsgByKey("TaskPull"), pullErr)
+				return pullErr
+			}
 			if req.RepoID == 0 {
 				pullErr := pullImages(taskItem, client, item)
 				taskItem.LogWithStatus(i18n.GetMsgByKey("TaskPull"), pullErr)
@@ -320,6 +332,26 @@ func (u *ImageService) ImagePull(req dto.ImagePull) error {
 		_ = taskItem.Execute()
 	}()
 	return nil
+}
+
+// pullImageWithProxyNode pulls one image (optionally from a configured
+// image repository) through the subscription proxy node.
+func pullImageWithProxyNode(t *task.Task, repoID uint, item, proxyURL string) error {
+	imageName := item
+	opt := proxyPullOptions{Force: true}
+	if repoID != 0 {
+		imageRepo, err := imageRepoRepo.Get(repo.WithByID(repoID))
+		t.LogWithStatus(i18n.GetMsgByKey("ImageRepoAuthFromDB"), err)
+		if err != nil {
+			return err
+		}
+		imageName = imageRepo.DownloadUrl + "/" + item
+		opt.Insecure = imageRepo.Protocol == "http"
+		if imageRepo.Auth {
+			opt.Username, opt.Password = imageRepo.Username, imageRepo.Password
+		}
+	}
+	return pullImageViaProxy(context.Background(), t, imageName, proxyURL, opt)
 }
 
 func (u *ImageService) ImageLoad(req dto.ImageLoad) error {

@@ -1,6 +1,5 @@
 <template>
-    <DrawerPro v-model="open" :header="$t('proxyNode.title')" @close="handleClose" size="large">
-        <el-alert type="info" :closable="false" class="mb-4" :title="$t('proxyNode.helper')" />
+    <div>
         <el-form ref="formRef" label-position="top" :model="form" :rules="rules" v-loading="loading">
             <el-form-item :label="$t('proxyNode.subscription')" prop="subscriptionUrl">
                 <el-input
@@ -97,18 +96,11 @@
                 </el-form-item>
             </template>
         </el-form>
-        <template #footer>
-            <span class="input-help footer-help">{{ $t('proxyNode.saveHelper') }}</span>
-            <el-button @click="handleClose" :disabled="loading">{{ $t('commons.button.cancel') }}</el-button>
-            <el-button type="primary" @click="onSave" :disabled="loading">
-                {{ $t('commons.button.save') }}
-            </el-button>
-        </template>
-    </DrawerPro>
+    </div>
 </template>
 
 <script lang="ts" setup>
-import { computed, onUnmounted, reactive, ref } from 'vue';
+import { computed, onMounted, onUnmounted, reactive, ref } from 'vue';
 import { FormInstance } from 'element-plus';
 import { Odometer } from '@element-plus/icons-vue';
 import i18n from '@/lang';
@@ -127,6 +119,7 @@ import {
 
 const emit = defineEmits(['search']);
 
+// active while the hosting drawer is open (controls status polling)
 const open = ref(false);
 const loading = ref(false);
 const formRef = ref<FormInstance>();
@@ -207,7 +200,7 @@ const schedulePoll = () => {
     }, 1500);
 };
 
-const acceptParams = async () => {
+const load = async () => {
     open.value = true;
     loading.value = true;
     try {
@@ -222,26 +215,29 @@ const acceptParams = async () => {
     schedulePoll();
 };
 
-const onSave = async () => {
-    if (!formRef.value) return;
-    await formRef.value.validate(async (valid) => {
-        if (!valid) return;
-        loading.value = true;
-        try {
-            await saveProxyNode({
-                subscriptionUrl: form.subscriptionUrl,
-                image: form.image,
-                port: form.port,
-                selected: selected.value,
-            });
-            MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
-            await loadStatus();
-            emit('search');
-        } finally {
-            loading.value = false;
-        }
-        schedulePoll();
-    });
+const save = async (): Promise<boolean> => {
+    if (!formRef.value) return false;
+    try {
+        await formRef.value.validate();
+    } catch {
+        return false;
+    }
+    loading.value = true;
+    try {
+        await saveProxyNode({
+            subscriptionUrl: form.subscriptionUrl,
+            image: form.image,
+            port: form.port,
+            selected: selected.value,
+        });
+        MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
+        await loadStatus();
+        emit('search');
+    } finally {
+        loading.value = false;
+    }
+    schedulePoll();
+    return true;
 };
 
 const onRefresh = async () => {
@@ -284,14 +280,17 @@ const onOperate = async (operate: 'start' | 'stop') => {
     }
 };
 
-const handleClose = () => {
+const stop = () => {
     open.value = false;
     clearTimeout(pollTimer);
 };
 
+onMounted(() => {
+    void load();
+});
 onUnmounted(() => clearTimeout(pollTimer));
 
-defineExpose({ acceptParams });
+defineExpose({ load, save, stop, loading });
 </script>
 
 <style scoped>

@@ -8818,6 +8818,15 @@ const message = {
         saveHelper:
             'Saving downloads the subscription and starts the proxy container; the speed test runs in the background',
         direct: 'Direct (DIRECT)',
+        subscriptionType: 'Subscription (Clash)',
+        scopeHelper:
+            'The subscription proxy is never used as the global panel proxy. It only applies to image pulls and model downloads when "Download through proxy" is checked.',
+        useProxy: 'Download through proxy',
+        useProxyHelper: 'Uses the current node of the subscription in Settings → Panel → Proxy, for this pull only',
+        useProxyUnavailable:
+            'No subscription proxy is configured or it is not running. Choose "Subscription (Clash)" in Settings → Panel → Proxy',
+        useProxyModelHelper:
+            'The model and the downloader image are fetched through the proxy node (or the custom proxy when configured)',
     },
     vllm: {
         proxy: 'Proxy',
@@ -8828,7 +8837,7 @@ const message = {
         proxyUrl: 'Proxy URL',
         proxyUrlHelper: 'e.g. http://user:pass@host:7890 or socks5://host:1080, reachable from containers',
         proxyNodeHelper:
-            'Uses the node selected in Settings → Panel → Proxy nodes (containers reach it through 1panel-network)',
+            'Uses the node selected in Settings → Panel → Proxy → Subscription (Clash) (containers reach it through 1panel-network)',
         proxyScopeHelper:
             'The proxy is only used for model downloads and vLLM image pulls and is never set as a global proxy. Other panel features, the Docker daemon and deployed model services do not go through it.',
         modelPrepare: 'Model preparation',

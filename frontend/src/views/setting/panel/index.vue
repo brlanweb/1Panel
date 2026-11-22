@@ -145,13 +145,6 @@
                                 </el-input>
                             </el-form-item>
 
-                            <el-form-item :label="$t('setting.proxyNode')">
-                                <el-button @click="proxyNodeRef.acceptParams()" icon="Setting">
-                                    {{ $t('commons.button.set') }}
-                                </el-button>
-                                <span class="input-help">{{ $t('setting.proxyNodeHelper') }}</span>
-                            </el-form-item>
-
                             <el-form-item
                                 v-if="!isEnterprise"
                                 :label="$t('setting.developerMode')"
@@ -197,7 +190,6 @@
         <PanelName ref="panelNameRef" @search="search()" />
         <SystemIP ref="systemIPRef" @search="search()" />
         <Proxy ref="proxyRef" @search="search()" />
-        <ProxyNode ref="proxyNodeRef" />
         <Timeout ref="timeoutRef" @search="search()" />
         <HideMenu ref="hideMenuRef" @search="search()" />
         <CacheSettings ref="cacheRef" />
@@ -222,7 +214,6 @@ import Timeout from '@/views/setting/panel/timeout/index.vue';
 import PanelName from '@/views/setting/panel/name/index.vue';
 import SystemIP from '@/views/setting/panel/systemip/index.vue';
 import Proxy from '@/views/setting/panel/proxy/index.vue';
-import ProxyNode from '@/views/setting/panel/proxy-node/index.vue';
 import CacheSettings from '@/views/setting/panel/cache/index.vue';
 import HideMenu from '@/views/setting/panel/hidemenu/index.vue';
 import { getXpackProxyDocker } from '@/extensions/xpack';
@@ -290,7 +281,6 @@ const show = ref();
 const panelNameRef = ref();
 const systemIPRef = ref();
 const proxyRef = ref();
-const proxyNodeRef = ref();
 const timeoutRef = ref();
 const hideMenuRef = ref();
 const cacheRef = ref();
@@ -391,6 +381,7 @@ const onChangeProxy = () => {
         passwd: form.proxyPasswd,
         passwdKeep: form.proxyPasswdKeep,
         proxyDocker: form.proxyDocker,
+        subscription: !form.proxyUrl,
     });
 };
 

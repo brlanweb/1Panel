@@ -242,6 +242,7 @@ export namespace Container {
         taskID: string;
         repoID: number;
         imageName: Array<string>;
+        useProxy?: boolean;
     }
     export interface ImageTag {
         sourceID: string;

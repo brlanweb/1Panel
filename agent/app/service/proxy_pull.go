@@ -18,30 +18,52 @@ import (
 	"github.com/google/go-containerregistry/pkg/v1/tarball"
 )
 
+// proxyPullOptions tunes pullImageViaProxy.
+type proxyPullOptions struct {
+	// Force downloads even when the image already exists locally (explicit
+	// "pull image" requests); otherwise an existing image is reused, like
+	// compose's default pull_policy (missing).
+	Force bool
+	// Username / Password authenticate against the registry.
+	Username string
+	Password string
+	// Insecure allows plain-HTTP registries.
+	Insecure bool
+}
+
 // pullImageViaProxy downloads an image from its registry through proxyURL
 // and loads it into the local Docker engine.
 //
 // The proxy is scoped to this single download: neither the Docker daemon
 // configuration nor the process environment is touched, so every other
 // panel feature (app store, docker pulls elsewhere, upgrades, …) keeps
-// connecting directly. If the image already exists locally nothing is
-// downloaded, matching compose's default pull_policy (missing).
-func pullImageViaProxy(ctx context.Context, t *task.Task, imageName, proxyURL string) error {
+// connecting directly.
+func pullImageViaProxy(ctx context.Context, t *task.Task, imageName, proxyURL string, o ...proxyPullOptions) error {
+	var opt proxyPullOptions
+	if len(o) > 0 {
+		opt = o[0]
+	}
 	cli, err := docker.NewDockerClient()
 	if err != nil {
 		return err
 	}
 	defer cli.Close()
-	if _, err := cli.ImageInspect(ctx, imageName); err == nil {
-		logPull(t, "image %s already exists, skip pulling", imageName)
-		return nil
+	if !opt.Force {
+		if _, err := cli.ImageInspect(ctx, imageName); err == nil {
+			logPull(t, "image %s already exists, skip pulling", imageName)
+			return nil
+		}
 	}
 
 	proxy, err := url.Parse(proxyURL)
 	if err != nil || proxy.Host == "" {
 		return fmt.Errorf("invalid proxy url")
 	}
-	ref, err := name.ParseReference(imageName)
+	var nameOpts []name.Option
+	if opt.Insecure {
+		nameOpts = append(nameOpts, name.Insecure)
+	}
+	ref, err := name.ParseReference(imageName, nameOpts...)
 	if err != nil {
 		return fmt.Errorf("invalid image name %s: %v", imageName, err)
 	}
@@ -50,8 +72,12 @@ func pullImageViaProxy(ctx context.Context, t *task.Task, imageName, proxyURL st
 	opts := []remote.Option{
 		remote.WithContext(ctx),
 		remote.WithTransport(transport),
-		remote.WithAuthFromKeychain(authn.DefaultKeychain),
 		remote.WithPlatform(v1.Platform{OS: "linux", Architecture: runtime.GOARCH}),
+	}
+	if opt.Username != "" || opt.Password != "" {
+		opts = append(opts, remote.WithAuth(&authn.Basic{Username: opt.Username, Password: opt.Password}))
+	} else {
+		opts = append(opts, remote.WithAuthFromKeychain(authn.DefaultKeychain))
 	}
 	logPull(t, "pull image %s through the proxy node", imageName)
 	img, err := remote.Image(ref, opts...)

@@ -172,9 +172,30 @@ type vllmProxy struct {
 	hostURL string
 }
 
-func (s *VllmService) loadVllmProxy() (*vllmProxy, error) {
+// loadVllmProxyFor resolves the proxy of one download: nil uses the vLLM
+// settings, false disables the proxy, true forces it (custom proxy when one
+// is configured, otherwise the subscription node).
+func (s *VllmService) loadVllmProxyFor(useProxy *bool) (*vllmProxy, error) {
+	if useProxy == nil {
+		return s.loadVllmProxy()
+	}
+	if !*useProxy {
+		return nil, nil
+	}
 	st := s.LoadSettings()
-	switch st.ProxyMode {
+	if st.ProxyMode == "custom" && st.ProxyURL != "" {
+		return s.loadVllmProxyMode("custom")
+	}
+	return s.loadVllmProxyMode("node")
+}
+
+func (s *VllmService) loadVllmProxy() (*vllmProxy, error) {
+	return s.loadVllmProxyMode(s.LoadSettings().ProxyMode)
+}
+
+func (s *VllmService) loadVllmProxyMode(mode string) (*vllmProxy, error) {
+	st := s.LoadSettings()
+	switch mode {
 	case "node":
 		svc := NewIProxyNodeService()
 		containerURL, err := svc.ProxyURLForContainer()
@@ -279,7 +300,7 @@ func (s *VllmService) DownloadModel(req dto.VllmModelDownload) error {
 	if err := s.repo.SaveModel(item); err != nil {
 		return err
 	}
-	go s.runModelDownload(item)
+	go s.runModelDownload(item, req.UseProxy)
 	return nil
 }
 
@@ -307,7 +328,7 @@ func (s *VllmService) CancelModelDownload(id uint) error {
 
 // runModelDownload runs the official CLI in a disposable container. The
 // CLIs resume partial downloads, so retry after a failure continues.
-func (s *VllmService) runModelDownload(item *model.VllmModel) {
+func (s *VllmService) runModelDownload(item *model.VllmModel, useProxy *bool) {
 	ctx, cancel := context.WithCancel(context.Background())
 	vllmDownloads.Lock()
 	vllmDownloads.cancel[item.ID] = cancel
@@ -322,7 +343,7 @@ func (s *VllmService) runModelDownload(item *model.VllmModel) {
 	st := s.LoadSettings()
 	containerName := fmt.Sprintf("1panel-vllm-download-%d", item.ID)
 	args := []string{"run", "--rm", "--name", containerName, "-v", item.Dir + ":/target"}
-	proxy, proxyErr := s.loadVllmProxy()
+	proxy, proxyErr := s.loadVllmProxyFor(useProxy)
 	if proxyErr != nil {
 		item.Status, item.Message = constant.StatusFailed, truncateVllmMsg(proxyErr.Error())
 		_ = s.repo.SaveModel(item)

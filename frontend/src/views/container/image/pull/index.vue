@@ -18,6 +18,14 @@
                 <el-input-tag v-else v-model="form.imageName" />
                 <span class="input-help">{{ $t('container.imagePullHelper') }}</span>
             </el-form-item>
+            <el-form-item>
+                <el-checkbox v-model="form.useProxy" :disabled="!proxyNodeReady">
+                    {{ $t('proxyNode.useProxy') }}
+                </el-checkbox>
+                <span class="input-help">
+                    {{ proxyNodeReady ? $t('proxyNode.useProxyHelper') : $t('proxyNode.useProxyUnavailable') }}
+                </span>
+            </el-form-item>
         </el-form>
         <template #footer>
             <span class="dialog-footer">
@@ -43,13 +51,28 @@ import { Container } from '@/api/interface/container';
 import TaskLog from '@/components/log/task/index.vue';
 import { MsgSuccess } from '@/utils/message';
 import { newUUID } from '@/utils/id';
+import { loadProxyNodeStatus } from '@/api/modules/proxy-node';
 const drawerVisible = ref(false);
 const form = reactive({
     taskID: '',
     fromRepo: true,
     repoID: null as number,
     imageName: [] as string[],
+    useProxy: false,
 });
+const proxyNodeReady = ref(false);
+
+// The subscription proxy is opt-in per pull and defaults to on whenever a
+// node is configured and running.
+const loadProxyNode = async () => {
+    try {
+        const res = await loadProxyNodeStatus();
+        proxyNodeReady.value = !!res.data?.subscriptionUrl && !!res.data?.running;
+    } catch {
+        proxyNodeReady.value = false;
+    }
+    form.useProxy = proxyNodeReady.value;
+};
 const verifyImage = (rule: any, value: any, callback: any) => {
     if (!value || value.length === 0) {
         callback(new Error(i18n.global.t('commons.rule.requiredInput')));
@@ -83,6 +106,8 @@ const repos = ref();
 
 const acceptParams = async (params: DialogProps): Promise<void> => {
     drawerVisible.value = true;
+    form.useProxy = false;
+    void loadProxyNode();
     form.fromRepo = true;
     form.imageName = params.imageName ? [params.imageName] : [];
     repos.value = params.repos || [];

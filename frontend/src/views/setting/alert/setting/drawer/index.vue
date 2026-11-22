@@ -246,12 +246,18 @@ const telegramRules = {
 };
 
 function checkTelegramToken(_rule: unknown, value: string, callback: (error?: Error) => void) {
-    if (value && !/^[0-9]{3,20}:[A-Za-z0-9_-]{20,100}$/.test(value.trim())) {
+    if (value && !/^[0-9]{3,20}:[A-Za-z0-9_-]{20,100}$/.test(normalizeTelegramToken(value))) {
         callback(new Error(i18n.global.t('xpack.alert.telegramTokenInvalid')));
         return;
     }
     callback();
 }
+
+// Accept tokens pasted together with the "bot" prefix of an API URL.
+const normalizeTelegramToken = (value: string) =>
+    String(value || '')
+        .trim()
+        .replace(/^bot(?=[0-9]+:)/i, '');
 
 const customWebhookRules = {
     'customWebhook.displayName': [{ validator: checkDisplayNameDuplicate, trigger: 'blur' }],
@@ -540,9 +546,9 @@ const buildEmailConfig = () => ({
 
 const buildTelegramConfig = () => ({
     displayName: form.webhookName,
-    botToken: serializeLegacySecretValue(form.telegramToken, true),
-    chatId: form.telegramChatId.trim(),
-    apiBase: form.telegramApiBase.trim(),
+    botToken: serializeLegacySecretValue(normalizeTelegramToken(form.telegramToken), true),
+    chatId: String(form.telegramChatId || '').trim(),
+    apiBase: String(form.telegramApiBase || '').trim(),
 });
 
 const buildWebhookConfig = () => ({
@@ -645,6 +651,31 @@ const saveAlertConfig = async () => {
     }
 };
 
+// Surfaces failures that would otherwise be swallowed silently: a failed
+// form validation (scrolls to and names the first invalid field) and
+// unexpected script errors. API errors are already shown by the http layer.
+const validateForm = async (formEl: FormInstance): Promise<boolean> => {
+    try {
+        await formEl.validate();
+        return true;
+    } catch (fields) {
+        if (fields instanceof Error) {
+            reportUnexpectedError(fields);
+            return false;
+        }
+        const first = Object.values((fields || {}) as Record<string, { message?: string }[]>)[0]?.[0];
+        MsgError(first?.message || i18n.global.t('commons.rule.requiredInput'));
+        return false;
+    }
+};
+
+const reportUnexpectedError = (e: unknown) => {
+    if (e instanceof Error && !(e as { isAxiosError?: boolean }).isAxiosError) {
+        console.error(e);
+        MsgError(e.message);
+    }
+};
+
 const onSave = async (formEl: FormInstance | undefined) => {
     if (!formEl) return;
     if (isEdit.value && !form.revision) {
@@ -664,14 +695,12 @@ const onSave = async (formEl: FormInstance | undefined) => {
         }
         return;
     }
-    await formEl.validate(async (valid) => {
-        if (!valid) return;
-        try {
-            await saveAlertConfig();
-        } catch {
-            return;
-        }
-    });
+    if (!(await validateForm(formEl))) return;
+    try {
+        await saveAlertConfig();
+    } catch (e) {
+        reportUnexpectedError(e);
+    }
 };
 
 const onTest = async (formEl: FormInstance | undefined) => {
@@ -703,27 +732,25 @@ const onTest = async (formEl: FormInstance | undefined) => {
         return;
     }
     if (isDirectType.value) {
-        await formEl.validate(async (valid) => {
-            if (!valid) return;
-            loading.value = true;
-            try {
-                const config = form.type === 'telegram' ? buildTelegramConfig() : buildWebhookConfig();
-                const res = await TestAlertConfig({
-                    ...(form.id ? { id: form.id } : {}),
-                    type: form.type as Alert.AlertConfigDirectTest['type'],
-                    config: JSON.stringify(config),
-                });
-                if (res.data) {
-                    MsgSuccess(i18n.global.t('xpack.alert.alertTestOk'));
-                } else {
-                    MsgError(i18n.global.t('xpack.alert.alertTestFailed'));
-                }
-            } catch {
-                return;
-            } finally {
-                loading.value = false;
+        if (!(await validateForm(formEl))) return;
+        loading.value = true;
+        try {
+            const config = form.type === 'telegram' ? buildTelegramConfig() : buildWebhookConfig();
+            const res = await TestAlertConfig({
+                ...(form.id ? { id: form.id } : {}),
+                type: form.type as Alert.AlertConfigDirectTest['type'],
+                config: JSON.stringify(config),
+            });
+            if (res.data) {
+                MsgSuccess(i18n.global.t('xpack.alert.alertTestOk'));
+            } else {
+                MsgError(i18n.global.t('xpack.alert.alertTestFailed'));
             }
-        });
+        } catch (e) {
+            reportUnexpectedError(e);
+        } finally {
+            loading.value = false;
+        }
         return;
     }
     if (form.type !== 'email') return;

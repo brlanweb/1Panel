@@ -44,6 +44,9 @@ type ImagePull struct {
 	TaskID    string   `json:"taskID"`
 	RepoID    uint     `json:"repoID"`
 	ImageName []string `json:"imageName" validate:"required"`
+	// UseProxy pulls through the subscription proxy node (Settings → Panel
+	// → Proxy → Subscription) for this request only.
+	UseProxy bool `json:"useProxy"`
 }
 
 type ImageTag struct {

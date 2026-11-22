@@ -20,9 +20,19 @@
                     <el-option value="socks5" label="SOCKS5" />
                     <el-option value="http" label="HTTP" />
                     <el-option value="https" label="HTTPS" />
+                    <el-option value="subscription" :label="$t('proxyNode.subscriptionType')" />
                 </el-select>
             </el-form-item>
-            <div v-if="form.proxyType !== 'close'">
+            <!--
+                Subscription proxy: Clash subscription + node selection. It is
+                never installed as the panel's global proxy; it is only used by
+                image pulls and model downloads that opt in.
+            -->
+            <div v-if="form.proxyType === 'subscription'">
+                <el-alert type="info" :closable="false" show-icon class="mb-4" :title="$t('proxyNode.scopeHelper')" />
+                <ProxyNodeForm ref="proxyNodeFormRef" />
+            </div>
+            <div v-else-if="form.proxyType !== 'close'">
                 <el-form-item :label="$t('setting.proxyUrl')" prop="proxyUrl">
                     <el-input
                         clearable
@@ -57,7 +67,15 @@
             <el-button :disabled="loading" @click="proxyVisible = false">
                 {{ $t('commons.button.cancel') }}
             </el-button>
-            <el-button :disabled="loading" type="primary" @click="submitChangePassword(formRef)">
+            <el-button
+                v-if="form.proxyType === 'subscription'"
+                :disabled="loading"
+                type="primary"
+                @click="onSaveSubscription"
+            >
+                {{ $t('commons.button.save') }}
+            </el-button>
+            <el-button v-else :disabled="loading" type="primary" @click="submitChangePassword(formRef)">
                 {{ $t('commons.button.confirm') }}
             </el-button>
         </template>
@@ -78,12 +96,14 @@ import { useGlobalStore } from '@/composables/useGlobalStore';
 import ConfirmDialog from '@/components/confirm-dialog/index.vue';
 import DockerProxyDialog from '@/components/docker-proxy/dialog.vue';
 import { loadDockerStatus } from '@/api/modules/container';
+import ProxyNodeForm from '@/views/setting/panel/proxy-node/form.vue';
 
 const { isXpackOrEE } = useGlobalStore();
 const emit = defineEmits<{ (e: 'search'): void }>();
 
 const confirmDialogRef = ref();
 const formRef = ref<FormInstance>();
+const proxyNodeFormRef = ref();
 const rules = reactive({
     proxyType: [Rules.requiredSelect],
     proxyUrl: [Rules.noSpace, Rules.requiredInput],
@@ -116,6 +136,8 @@ interface DialogProps {
     passwd: string;
     passwdKeep: string;
     proxyDocker: string;
+    // opens on the subscription tab when no global proxy is configured
+    subscription?: boolean;
 }
 const acceptParams = (params: DialogProps): void => {
     if (params.url) {
@@ -134,6 +156,9 @@ const acceptParams = (params: DialogProps): void => {
     form.proxyDocker = params.proxyDocker === 'Enable';
     proxyDockerVisible.value = params.proxyDocker === 'Enable';
     proxyVisible.value = true;
+    if (params.subscription && form.proxyType === 'close') {
+        form.proxyType = 'subscription';
+    }
     form.proxyPasswdKeepItem = params.passwdKeep === 'Enable';
     loadDocker();
 };
@@ -214,11 +239,27 @@ const onSubmit = async () => {
     }
 };
 
+const onSaveSubscription = async () => {
+    loading.value = true;
+    try {
+        await proxyNodeFormRef.value?.save();
+    } finally {
+        loading.value = false;
+    }
+};
+
 const handleClose = () => {
     proxyVisible.value = false;
+    proxyNodeFormRef.value?.stop();
 };
 
 defineExpose({
     acceptParams,
 });
 </script>
+
+<style scoped>
+.mb-4 {
+    margin-bottom: 16px;
+}
+</style>

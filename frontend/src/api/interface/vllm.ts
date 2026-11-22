@@ -39,6 +39,7 @@ export namespace Vllm {
         revision: string;
         recipeId?: number;
         taskID: string;
+        useProxy?: boolean;
     }
 
     export interface ModelImport {

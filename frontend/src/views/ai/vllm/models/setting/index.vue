@@ -35,10 +35,9 @@
                 <el-input v-model.trim="form.proxyUrl" placeholder="http://127.0.0.1:7890" />
                 <span class="input-help">{{ $t('vllm.proxyUrlHelper') }}</span>
             </el-form-item>
-            <el-form-item v-if="form.proxyMode !== 'none'" prop="proxyDeploy">
-                <el-checkbox v-model="form.proxyDeploy">{{ $t('vllm.proxyDeploy') }}</el-checkbox>
-                <span class="input-help">{{ $t('vllm.proxyDeployHelper') }}</span>
-            </el-form-item>
+            <el-alert v-if="form.proxyMode !== 'none'" type="info" :closable="false" show-icon>
+                {{ $t('vllm.proxyScopeHelper') }}
+            </el-alert>
         </el-form>
         <template #footer>
             <el-button @click="open = false" :disabled="loading">{{ $t('commons.button.cancel') }}</el-button>
@@ -70,7 +69,6 @@ const form = reactive<Vllm.Settings>({
     modelScopeToken: '',
     proxyMode: 'none',
     proxyUrl: '',
-    proxyDeploy: false,
 });
 const rules = reactive({
     modelDir: [Rules.requiredInput],

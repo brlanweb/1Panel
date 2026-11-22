@@ -19,6 +19,7 @@ func (a *WebsiteRouter) InitRouter(Router *gin.RouterGroup) {
 		websiteRouter.POST("/operate", baseApi.OpWebsite)
 		websiteRouter.POST("/log/search", baseApi.GetWebsiteLog)
 		websiteRouter.POST("/log/operate", baseApi.OpWebsiteLog)
+		websiteRouter.POST("/log/trend", baseApi.GetWebsiteLogTrend)
 		websiteRouter.POST("/check", baseApi.CreateWebsiteCheck)
 		websiteRouter.POST("/options", baseApi.GetWebsiteOptions)
 		websiteRouter.POST("/update", baseApi.UpdateWebsite)

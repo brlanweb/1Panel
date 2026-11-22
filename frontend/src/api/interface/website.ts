@@ -152,6 +152,19 @@ export namespace Website {
         alias: string;
     }
 
+    export interface WebSiteLogTrendReq {
+        id: number;
+        range: 'today' | '7d' | '30d';
+    }
+
+    export interface WebSiteLogTrend {
+        enable: boolean;
+        labels: string[];
+        pv: number[];
+        uv: number[];
+        ips: number[];
+    }
+
     export interface WebSiteLog {
         enable: boolean;
         content: string;

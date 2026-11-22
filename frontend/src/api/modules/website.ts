@@ -40,6 +40,15 @@ export const getWebsiteLog = (req: Website.WebSiteLogReq, node?: string) => {
     );
 };
 
+export const getWebsiteLogTrend = (req: Website.WebSiteLogTrendReq, node?: string) => {
+    return http.post<Website.WebSiteLogTrend>(
+        `/websites/log/trend`,
+        req,
+        undefined,
+        node ? { CurrentNode: node } : undefined,
+    );
+};
+
 export const updateWebsite = (req: Website.WebSiteUpdateReq, node?: string) => {
     const query = node ? `?operateNode=${node}` : '';
     return http.post<any>(`/websites/update${query}`, req);

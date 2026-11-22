@@ -99,14 +99,14 @@
                             <template #header>
                                 <div class="card-header-with-select">
                                     <span>{{ $t('cluster.visitorTrend') }}</span>
-                                    <el-select v-model="trendRange" class="p-w-150" @change="buildTrend">
+                                    <el-select v-model="trendRange" class="p-w-150" @change="loadTrend">
                                         <el-option :label="$t('cluster.today')" value="today" />
                                         <el-option :label="$t('cluster.last7Days')" value="7d" />
                                         <el-option :label="$t('cluster.last30Days')" value="30d" />
                                     </el-select>
                                 </div>
                             </template>
-                            <v-charts type="line" :option="trendOption" height="280px" />
+                            <v-charts type="line" :option="trendOption" height="280px" v-loading="trendLoading" />
                         </el-card>
                     </el-tab-pane>
 
@@ -135,24 +135,21 @@
                             <template #header>
                                 <div class="card-header-with-select">
                                     <span>{{ $t('cluster.visitorTrend') }}</span>
-                                    <el-select v-model="trendRange" class="p-w-150" @change="buildTrend">
+                                    <el-select v-model="trendRange" class="p-w-150" @change="loadTrend">
                                         <el-option :label="$t('cluster.today')" value="today" />
                                         <el-option :label="$t('cluster.last7Days')" value="7d" />
                                         <el-option :label="$t('cluster.last30Days')" value="30d" />
                                     </el-select>
                                 </div>
                             </template>
-                            <v-charts type="line" :option="trendOption" height="280px" />
+                            <v-charts type="line" :option="trendOption" height="280px" v-loading="trendLoading" />
                         </el-card>
-                        <el-table :data="hourlyRows" style="width: 100%">
+                        <el-table :data="trendRows" style="width: 100%" v-loading="trendLoading">
                             <el-table-column :label="$t('commons.table.date')" prop="label" width="160px" />
                             <el-table-column :label="$t('cluster.monitorPv')" prop="pv" align="right" />
                             <el-table-column :label="$t('cluster.monitorUv')" prop="uv" align="right" />
-                            <el-table-column :label="$t('cluster.monitorTraffic')" align="right">
-                                <template #default="{ row }">{{ formatBytes(row.trafficBytes) }}</template>
-                            </el-table-column>
+                            <el-table-column :label="$t('cluster.monitorIps')" prop="ips" align="right" />
                         </el-table>
-                        <el-empty v-if="!hourlyRows.length" :description="$t('commons.msg.noneData')" />
                     </el-tab-pane>
 
                     <el-tab-pane :label="$t('cluster.monitorReqLog')" name="reqlog">
@@ -302,7 +299,7 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import i18n from '@/lang';
 import { searchClusterNodes } from '@/api/modules/cluster';
-import { searchWebsites, getWebsiteLog, opWebsiteLog } from '@/api/modules/website';
+import { searchWebsites, getWebsiteLog, getWebsiteLogTrend, opWebsiteLog } from '@/api/modules/website';
 import { readByLine } from '@/api/modules/files';
 import { Website } from '@/api/interface/website';
 import { Cluster } from '@/api/interface/cluster';
@@ -538,25 +535,6 @@ const reqChips = computed(() => {
         { label: i18n.global.t('cluster.monitorAvgResp'), value: '—' },
     ];
 });
-const hourlyRows = computed(() => {
-    const days = trendRange.value === 'today' ? 1 : trendRange.value === '7d' ? 7 : 30;
-    const cutoff = Date.now() - days * 24 * 3600 * 1000;
-    const byHour = new Map<string, ReqRow[]>();
-    for (const row of reqRows.value) {
-        if (row.time < cutoff) continue;
-        const d = new Date(row.time);
-        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(
-            2,
-            '0',
-        )} ${String(d.getHours()).padStart(2, '0')}:00`;
-        const list = byHour.get(key) || [];
-        list.push(row);
-        byHour.set(key, list);
-    }
-    return [...byHour.entries()]
-        .map(([label, rows]) => ({ label, ...aggregateRows(rows) }))
-        .sort((a, b) => (a.label < b.label ? -1 : 1));
-});
 const filteredReqRows = computed(() => {
     return reqRows.value
         .filter((row) => {
@@ -574,17 +552,55 @@ const filteredReqRows = computed(() => {
         .slice(0, 500);
 });
 
+// Visitor trend is aggregated by the agent over the whole range (current
+// access.log plus cut-log archives); the 2000-line window used by the other
+// cards cannot cover 7 / 30 days.
+const trendData = ref<Website.WebSiteLogTrend | null>(null);
+const trendLoading = ref(false);
+let trendSeq = 0;
+const trendRows = computed(() => {
+    const d = trendData.value;
+    if (!d) return [];
+    return d.labels.map((label, i) => ({ label, pv: d.pv[i] || 0, uv: d.uv[i] || 0, ips: d.ips[i] || 0 })).reverse();
+});
+
 const buildTrend = () => {
-    const rows = hourlyRows.value;
+    const d = trendData.value;
     trendOption.value = {
-        tooltip: { trigger: 'axis' },
-        xAxis: { type: 'category', data: rows.map((item) => item.label) },
-        yAxis: { type: 'value' },
-        series: [
-            { name: i18n.global.t('cluster.monitorPv'), type: 'line', data: rows.map((item) => item.pv) },
-            { name: i18n.global.t('cluster.monitorUv'), type: 'line', data: rows.map((item) => item.uv) },
+        xData: d?.labels || [],
+        yData: [
+            { name: i18n.global.t('cluster.monitorPv'), data: d?.pv || [] },
+            { name: i18n.global.t('cluster.monitorUv'), data: d?.uv || [] },
+            { name: i18n.global.t('cluster.monitorIps'), data: d?.ips || [] },
         ],
+        grid: { left: '5%', right: '5%', bottom: '12%' },
+        formatStr: '',
+        yAxis: [{ type: 'value', minInterval: 1 }],
     };
+};
+
+const loadTrend = async () => {
+    const site = selectedWebsite.value;
+    const seq = ++trendSeq;
+    if (!site || !logEnabled.value) {
+        trendData.value = null;
+        buildTrend();
+        return;
+    }
+    trendLoading.value = true;
+    try {
+        const res = await getWebsiteLogTrend({ id: site.id, range: trendRange.value }, nodeName.value);
+        if (seq !== trendSeq) return;
+        trendData.value = res.data;
+    } catch {
+        if (seq !== trendSeq) return;
+        trendData.value = null;
+    } finally {
+        if (seq === trendSeq) {
+            trendLoading.value = false;
+            buildTrend();
+        }
+    }
 };
 
 const loadNodes = async () => {
@@ -609,6 +625,7 @@ const onNodeChange = async () => {
     logEnabledSwitch.value = false;
     errorLogSwitch.value = false;
     loadError.value = '';
+    trendData.value = null;
     await loadWebsites();
     buildTrend();
 };
@@ -678,13 +695,12 @@ const loadSite = async () => {
         rows.sort((a, b) => b.time - a.time);
         reqRows.value = rows;
         parsedLines.value = lines.length;
-        buildTrend();
     } catch (e: any) {
         reqRows.value = [];
         loadError.value = e?.message || i18n.global.t('cluster.monitorLoadError');
     } finally {
         loading.value = false;
-        buildTrend();
+        loadTrend();
         if (activeTab.value === 'sites') {
             loadSiteRows();
         }

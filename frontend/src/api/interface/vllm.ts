@@ -10,7 +10,6 @@ export namespace Vllm {
         modelScopeToken: string;
         proxyMode: 'none' | 'node' | 'custom';
         proxyUrl: string;
-        proxyDeploy: boolean;
     }
 
     export interface Search extends ReqPage {

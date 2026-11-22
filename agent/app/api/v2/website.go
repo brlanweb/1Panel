@@ -353,6 +353,27 @@ func (b *BaseApi) GetWebsiteLog(c *gin.Context) {
 }
 
 // @Tags Website
+// @Summary Load website visitor trend
+// @Accept json
+// @Param request body request.WebsiteLogTrendReq true "request"
+// @Success 200 {object} response.WebsiteLogTrend
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /websites/log/trend [post]
+func (b *BaseApi) GetWebsiteLogTrend(c *gin.Context) {
+	var req request.WebsiteLogTrendReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	res, err := websiteService.GetWebsiteLogTrend(req)
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, res)
+}
+
+// @Tags Website
 // @Summary Operate website log
 // @Accept json
 // @Param request body request.WebsiteLogReq true "request"

@@ -51,7 +51,6 @@ const (
 	vllmSettingModelScopeToken = "VllmModelScopeToken"
 	vllmSettingProxyMode       = "VllmProxyMode"
 	vllmSettingProxyURL        = "VllmProxyURL"
-	vllmSettingProxyDeploy     = "VllmProxyDeploy"
 
 	defaultModelScopeURL = "https://www.modelscope.cn"
 	defaultVllmImage     = "vllm/vllm-openai:latest"
@@ -113,7 +112,6 @@ func (s *VllmService) LoadSettings() dto.VllmSettings {
 		ModelScopeToken: get(vllmSettingModelScopeToken, ""),
 		ProxyMode:       get(vllmSettingProxyMode, "none"),
 		ProxyURL:        get(vllmSettingProxyURL, ""),
-		ProxyDeploy:     get(vllmSettingProxyDeploy, "") == "true",
 	}
 }
 
@@ -146,7 +144,6 @@ func (s *VllmService) SaveSettings(req dto.VllmSettings) error {
 	pairs := map[string]string{
 		vllmSettingProxyMode:       req.ProxyMode,
 		vllmSettingProxyURL:        strings.TrimSpace(req.ProxyURL),
-		vllmSettingProxyDeploy:     strconv.FormatBool(req.ProxyDeploy),
 		vllmSettingModelDir:        filepath.Clean(req.ModelDir),
 		vllmSettingTokenizerDir:    filepath.Clean(req.TokenizerDir),
 		vllmSettingHFEndpoint:      strings.TrimRight(req.HFEndpoint, "/"),
@@ -162,36 +159,64 @@ func (s *VllmService) SaveSettings(req dto.VllmSettings) error {
 	return nil
 }
 
-// vllmProxyEnv returns the proxy environment for vLLM containers and the
-// docker network they must join to reach it ("" = default network).
-// forDeploy selects the deployment scope (only when ProxyDeploy is set).
-func (s *VllmService) vllmProxyEnv(forDeploy bool) (map[string]string, string, error) {
+// vllmProxy describes the proxy used by vLLM. It is deliberately scoped:
+// only model downloads (env of the short-lived downloader container) and
+// vLLM image pulls (an in-process registry client) use it. The Docker
+// daemon, the panel process environment and the running vLLM deployments are
+// never proxied, so every other feature keeps connecting directly.
+type vllmProxy struct {
+	// containerURL is reachable from containers attached to network.
+	containerURL string
+	network      string
+	// hostURL is reachable from the agent process (image pulls).
+	hostURL string
+}
+
+func (s *VllmService) loadVllmProxy() (*vllmProxy, error) {
 	st := s.LoadSettings()
-	if forDeploy && !st.ProxyDeploy {
-		return nil, "", nil
-	}
-	var proxyURL, network string
 	switch st.ProxyMode {
 	case "node":
-		u, err := NewIProxyNodeService().ProxyURLForContainer()
+		svc := NewIProxyNodeService()
+		containerURL, err := svc.ProxyURLForContainer()
 		if err != nil {
-			return nil, "", err
+			return nil, err
 		}
-		proxyURL, network = u, "1panel-network"
+		hostURL, err := svc.ProxyURLForHost()
+		if err != nil {
+			return nil, err
+		}
+		return &vllmProxy{containerURL: containerURL, network: "1panel-network", hostURL: hostURL}, nil
 	case "custom":
-		proxyURL = st.ProxyURL
+		if st.ProxyURL == "" {
+			return nil, nil
+		}
+		return &vllmProxy{containerURL: st.ProxyURL, hostURL: st.ProxyURL}, nil
 	default:
-		return nil, "", nil
+		return nil, nil
 	}
-	if proxyURL == "" {
-		return nil, "", nil
+}
+
+// containerEnv is injected only into the model downloader container.
+func (p *vllmProxy) containerEnv() map[string]string {
+	if p == nil || p.containerURL == "" {
+		return nil
 	}
+	u := p.containerURL
 	noProxy := "localhost,127.0.0.1,::1"
 	return map[string]string{
-		"HTTP_PROXY": proxyURL, "HTTPS_PROXY": proxyURL, "ALL_PROXY": proxyURL,
-		"http_proxy": proxyURL, "https_proxy": proxyURL, "all_proxy": proxyURL,
+		"HTTP_PROXY": u, "HTTPS_PROXY": u, "ALL_PROXY": u,
+		"http_proxy": u, "https_proxy": u, "all_proxy": u,
 		"NO_PROXY": noProxy, "no_proxy": noProxy,
-	}, network, nil
+	}
+}
+
+// pullImage pulls imageName through the proxy (no-op without proxy or when
+// the image already exists; compose/docker then pull directly as usual).
+func (p *vllmProxy) pullImage(ctx context.Context, t *task.Task, imageName string) error {
+	if p == nil || p.hostURL == "" {
+		return nil
+	}
+	return pullImageViaProxy(ctx, t, imageName, p.hostURL)
 }
 
 // ------------------------------------------------------------------ models
@@ -297,16 +322,16 @@ func (s *VllmService) runModelDownload(item *model.VllmModel) {
 	st := s.LoadSettings()
 	containerName := fmt.Sprintf("1panel-vllm-download-%d", item.ID)
 	args := []string{"run", "--rm", "--name", containerName, "-v", item.Dir + ":/target"}
-	proxyEnv, proxyNetwork, proxyErr := s.vllmProxyEnv(false)
+	proxy, proxyErr := s.loadVllmProxy()
 	if proxyErr != nil {
 		item.Status, item.Message = constant.StatusFailed, truncateVllmMsg(proxyErr.Error())
 		_ = s.repo.SaveModel(item)
 		return
 	}
-	if proxyNetwork != "" {
-		args = append(args, "--network", proxyNetwork)
+	if proxy != nil && proxy.network != "" {
+		args = append(args, "--network", proxy.network)
 	}
-	for k, v := range proxyEnv {
+	for k, v := range proxy.containerEnv() {
 		args = append(args, "-e", k+"="+v)
 	}
 	var script string
@@ -366,6 +391,9 @@ func (s *VllmService) runModelDownload(item *model.VllmModel) {
 	}
 	dlTask.AddSubTaskWithOps(task.GetTaskName(item.RepoID, task.TaskPull, task.TaskScopeAI), func(t *task.Task) error {
 		t.Logf("download %s (%s) from %s into %s", item.RepoID, item.Kind, item.Source, item.Dir)
+		if err := proxy.pullImage(ctx, t, vllmDownloaderImage); err != nil {
+			return err
+		}
 		mgr := cmd.NewCommandMgr(cmd.WithTask(*t), cmd.WithContext(ctx), cmd.WithTimeout(24*time.Hour))
 		return mgr.Run("docker", args...)
 	}, nil, 0, 24*time.Hour)
@@ -583,11 +611,7 @@ func (s *VllmService) SaveDeployment(req dto.VllmDeploymentSave) error {
 	item.Args, item.Env, item.RecipeID = req.Args, req.Env, req.RecipeID
 	item.ContainerName = "1panel-vllm-" + item.Name
 	item.Dir = path.Join(global.Dir.DataDir, "ai/vllm/deployments", item.Name)
-	proxyEnv, proxyNetwork, err := s.vllmProxyEnv(true)
-	if err != nil {
-		return err
-	}
-	composeContent, err := buildVllmCompose(item, proxyEnv, proxyNetwork)
+	composeContent, err := buildVllmCompose(item)
 	if err != nil {
 		return err
 	}
@@ -619,6 +643,15 @@ func (s *VllmService) runDeploymentTask(item *model.VllmDeployment, taskID, oper
 	}
 	composePath := path.Join(item.Dir, "docker-compose.yml")
 	t.AddSubTaskWithOps(task.GetTaskName(item.Name, operate, task.TaskScopeAI), func(t *task.Task) error {
+		// The proxy only covers pulling the vLLM image; the deployed
+		// container itself runs without any proxy.
+		proxy, err := s.loadVllmProxy()
+		if err != nil {
+			return err
+		}
+		if err := proxy.pullImage(context.Background(), t, item.Image); err != nil {
+			return err
+		}
 		_, _ = compose.Down(composePath)
 		return compose.UpWithTask(composePath, t, false)
 	}, nil, 0, 2*time.Hour)
@@ -633,7 +666,7 @@ func (s *VllmService) runDeploymentTask(item *model.VllmDeployment, taskID, oper
 // buildVllmCompose renders the compose project for a local instance. All
 // user values go into the YAML structure (never into a shell string), and
 // engine args are passed as an argv list.
-func buildVllmCompose(d *model.VllmDeployment, proxyEnv map[string]string, proxyNetwork string) (string, error) {
+func buildVllmCompose(d *model.VllmDeployment) (string, error) {
 	command := []string{
 		"--model", path.Join(vllmContainerModels, "model"),
 		"--served-model-name", d.ServedName,
@@ -680,12 +713,6 @@ func buildVllmCompose(d *model.VllmDeployment, proxyEnv map[string]string, proxy
 		"command":        command,
 		"labels":         map[string]string{"createdBy": "1Panel", "1panel.vllm": d.Name},
 	}
-	for k, v := range proxyEnv {
-		// Explicit deployment env wins over the global proxy.
-		if _, ok := env[k]; !ok {
-			env[k] = v
-		}
-	}
 	if len(env) > 0 {
 		service["environment"] = env
 	}
@@ -705,10 +732,6 @@ func buildVllmCompose(d *model.VllmDeployment, proxyEnv map[string]string, proxy
 		// mounts; put them in a recipe's env/args or edit the compose file.
 	}
 	project := map[string]interface{}{"services": map[string]interface{}{d.Name: service}}
-	if proxyNetwork != "" {
-		service["networks"] = []string{proxyNetwork}
-		project["networks"] = map[string]interface{}{proxyNetwork: map[string]bool{"external": true}}
-	}
 	out, err := yaml.Marshal(project)
 	if err != nil {
 		return "", err

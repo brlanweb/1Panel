@@ -73,6 +73,7 @@ type IProxyNodeService interface {
 	Test() error
 	Operate(operate string) error
 	ProxyURLForContainer() (string, error)
+	ProxyURLForHost() (string, error)
 }
 
 func NewIProxyNodeService() IProxyNodeService {
@@ -189,6 +190,17 @@ func (u *ProxyNodeService) ProxyURLForContainer() (string, error) {
 	}
 	_, user, pass := proxyNodeCredentials()
 	return fmt.Sprintf("http://%s:%s@%s:%d", user, pass, proxyNodeContainer, proxyNodeInnerPort), nil
+}
+
+// ProxyURLForHost is the proxy address the agent process itself uses (the
+// listener is published on 127.0.0.1 only). It is used per request, e.g.
+// for vLLM image pulls; it is never installed as a global proxy.
+func (u *ProxyNodeService) ProxyURLForHost() (string, error) {
+	if _, err := u.ProxyURLForContainer(); err != nil {
+		return "", err
+	}
+	_, user, pass := proxyNodeCredentials()
+	return fmt.Sprintf("http://%s:%s@127.0.0.1:%d", user, pass, proxyNodePort()), nil
 }
 
 func (u *ProxyNodeService) Save(req dto.ProxyNodeSave) error {

@@ -84,6 +84,16 @@ type WebsiteLog struct {
 	Path    string `json:"path"`
 }
 
+// WebsiteLogTrend is the visitor trend of a website: hourly buckets for
+// today, daily buckets for 7d / 30d. The slices share the same index.
+type WebsiteLogTrend struct {
+	Enable bool     `json:"enable"`
+	Labels []string `json:"labels"`
+	PV     []int    `json:"pv"`
+	UV     []int    `json:"uv"`
+	IPs    []int    `json:"ips"`
+}
+
 type PHPConfig struct {
 	Params           map[string]string `json:"params"`
 	DisableFunctions []string          `json:"disableFunctions"`

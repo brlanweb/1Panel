@@ -3594,7 +3594,7 @@ const message = {
     },
     setting: {
         proxyNode: '節點配置',
-        proxyNodeHelper: '通過 Clash 訂閱配置代理節點，供 vLLM 等功能使用',
+        proxyNodeHelper: '通過 Clash 訂閱配置代理節點，僅用於 vLLM 模型下載和鏡像拉取',
         panelCache: {
             title: '快取設定',
             tabs: '標籤頁快取',
@@ -7872,7 +7872,7 @@ const message = {
     },
     proxyNode: {
         title: '節點配置',
-        helper: '填入 Clash 格式訂閱鏈接，保存後自動下載節點并對全部節點測速与測延遲（後台進行，不影響操作）。節點通過 mihomo 容器提供帶認證的 HTTP/SOCKS5 代理，vLLM 等功能可直接使用。',
+        helper: '填入 Clash 格式訂閱鏈接，保存後自動下載節點并對全部節點測速与測延遲（後台進行，不影響操作）。節點通過 mihomo 容器提供帶認證的代理，僅用於 vLLM 模型下載和鏡像拉取，不會作為全域代理。',
         subscription: '訂閱鏈接',
         subscriptionHelper: '支持 Clash / Clash Meta 格式訂閱',
         node: '當前節點',
@@ -7908,8 +7908,8 @@ const message = {
         proxyUrl: '代理地址',
         proxyUrlHelper: '如 http://user:pass@host:7890 或 socks5://host:1080，需在容器內可訪問',
         proxyNodeHelper: '使用 設置 → 面板 → 節點配置 中選擇的節點（容器通過 1panel-network 訪問代理）',
-        proxyDeploy: '模型部署也使用代理',
-        proxyDeployHelper: '開啟後新建 / 編輯的部署会注入 HTTP(S)_PROXY 環境變量，修改後需重新保存部署生效',
+        proxyScopeHelper:
+            '代理僅用於模型下載和 vLLM 鏡像拉取，不會設定為全域代理；面板其他功能、Docker 守護程序及已部署的模型服務均不經過代理',
         modelPrepare: '模型准备',
         deployment: '模型部署',
         downloadModel: '下载模型',

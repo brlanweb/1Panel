@@ -4145,7 +4145,7 @@ const message = {
     },
     setting: {
         proxyNode: 'Proxy nodes',
-        proxyNodeHelper: 'Configure proxy nodes from a Clash subscription for vLLM and other features',
+        proxyNodeHelper: 'Configure proxy nodes from a Clash subscription, used only for vLLM model downloads and image pulls',
         panelCache: {
             title: 'Cache settings',
             tabs: 'Tab cache',
@@ -8791,7 +8791,7 @@ const message = {
     proxyNode: {
         title: 'Proxy Nodes',
         helper:
-            'Enter a Clash subscription URL. After saving, the nodes are downloaded and every node is tested for latency and speed in the background. The nodes run in a mihomo container that provides an authenticated HTTP/SOCKS5 proxy usable by vLLM and other features.',
+            'Enter a Clash subscription URL. After saving, the nodes are downloaded and every node is tested for latency and speed in the background. The nodes run in a mihomo container that provides an authenticated proxy used only for vLLM model downloads and image pulls, never as a global proxy.',
         subscription: 'Subscription URL',
         subscriptionHelper: 'Clash / Clash Meta format',
         node: 'Current node',
@@ -8829,9 +8829,8 @@ const message = {
         proxyUrlHelper: 'e.g. http://user:pass@host:7890 or socks5://host:1080, reachable from containers',
         proxyNodeHelper:
             'Uses the node selected in Settings → Panel → Proxy nodes (containers reach it through 1panel-network)',
-        proxyDeploy: 'Also use the proxy for deployments',
-        proxyDeployHelper:
-            'New or re-saved deployments get HTTP(S)_PROXY environment variables; re-save a deployment to apply',
+        proxyScopeHelper:
+            'The proxy is only used for model downloads and vLLM image pulls and is never set as a global proxy. Other panel features, the Docker daemon and deployed model services do not go through it.',
         modelPrepare: 'Model preparation',
         deployment: 'Model deployment',
         downloadModel: 'Download model',

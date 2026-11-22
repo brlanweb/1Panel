@@ -238,6 +238,11 @@ type WebsiteLogSearchReq struct {
 	PageSize int    `json:"pageSize"`
 }
 
+type WebsiteLogTrendReq struct {
+	ID    uint   `json:"id" validate:"required"`
+	Range string `json:"range" validate:"omitempty,oneof=today 7d 30d"`
+}
+
 type WebsiteDefaultUpdate struct {
 	ID uint `json:"id"`
 }

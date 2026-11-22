@@ -88,6 +88,7 @@ type IWebsiteService interface {
 	ChangeDefaultServer(id uint) error
 	PreInstallCheck(req request.WebsiteInstallCheckReq) ([]response.WebsitePreInstallCheck, error)
 	GetWebsiteLog(req request.WebsiteLogSearchReq) (*response.WebsiteLog, error)
+	GetWebsiteLogTrend(req request.WebsiteLogTrendReq) (*response.WebsiteLogTrend, error)
 	OpWebsiteLog(req request.WebsiteLogReq) error
 	UpdateStream(req request.StreamUpdate) error
 

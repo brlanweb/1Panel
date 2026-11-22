@@ -8115,7 +8115,7 @@ const message = {
             telegramChatId: 'Chat ID',
             telegramName: 'Name (optional)',
             telegramNameHelper: 'Distinguishes several bots in the list; defaults to the chat ID when empty',
-            telegramTokenHelper: 'Create a bot by talking to @BotFather in Telegram to get the token',
+            telegramTokenHelper: "Create a bot by talking to {'@'}BotFather in Telegram to get the token",
             telegramTokenInvalid: 'Invalid bot token, expected digits:string',
             telegramChatIdHelper:
                 'User / group / channel ID that receives messages. Group IDs usually start with -100; add the bot to the group or message it once first',
@@ -8853,7 +8853,7 @@ const message = {
         proxyNode: 'Use the proxy node',
         proxyCustom: 'Custom proxy',
         proxyUrl: 'Proxy URL',
-        proxyUrlHelper: 'e.g. http://user:pass@host:7890 or socks5://host:1080, reachable from containers',
+        proxyUrlHelper: "e.g. http://user:pass{'@'}host:7890 or socks5://host:1080, reachable from containers",
         proxyNodeHelper:
             'Uses the node selected in Settings → Panel → Proxy → Subscription (Clash) (containers reach it through 1panel-network)',
         proxyScopeHelper:

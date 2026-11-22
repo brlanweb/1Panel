@@ -7208,7 +7208,7 @@ const message = {
             telegramChatId: 'Chat ID',
             telegramName: '名稱（可選）',
             telegramNameHelper: '在列表中區分多個機器人，留空則自動使用 Chat ID 命名',
-            telegramTokenHelper: '在 Telegram 中与 @BotFather 對話創建機器人獲取 Token',
+            telegramTokenHelper: "在 Telegram 中与 {'@'}BotFather 對話創建機器人獲取 Token",
             telegramTokenInvalid: 'Bot Token 格式不正確，應為 數字:字符串',
             telegramChatIdHelper:
                 '接收消息的用戶 / 群組 / 頻道 ID，群組一般以 -100 開頭；需先把機器人拉入群組或與其對話一次',
@@ -7917,7 +7917,7 @@ const message = {
         proxyNode: '使用訂閱代理',
         proxyCustom: '自定义代理',
         proxyUrl: '代理地址',
-        proxyUrlHelper: '如 http://user:pass@host:7890 或 socks5://host:1080，需在容器內可訪問',
+        proxyUrlHelper: "如 http://user:pass{'@'}host:7890 或 socks5://host:1080，需在容器內可訪問",
         proxyNodeHelper: '使用 設置 → 面板 → 代理 →「訂閱（Clash）」中選擇的節點（容器通過 1panel-network 訪問代理）',
         proxyScopeHelper:
             '代理僅用於模型下載和 vLLM 鏡像拉取，不會設定為全域代理；面板其他功能、Docker 守護程序及已部署的模型服務均不經過代理',

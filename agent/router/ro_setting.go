@@ -17,6 +17,7 @@ func (s *SettingRouter) InitRouter(Router *gin.RouterGroup) {
 		settingRouter.POST("/file-history/search", baseApi.GetFileHistorySettingInfo)
 		settingRouter.GET("/website/dir", baseApi.LoadWebsiteDir)
 		settingRouter.GET("/search/available", baseApi.GetSystemAvailable)
+		settingRouter.GET("/market", baseApi.GetShanghaiComposite)
 		settingRouter.POST("/update", baseApi.UpdateSetting)
 		settingRouter.POST("/terminal/ai/update", baseApi.UpdateTerminalAISetting)
 		settingRouter.POST("/files/ai/update", baseApi.UpdateFileManageAISetting)
@@ -26,6 +27,7 @@ func (s *SettingRouter) InitRouter(Router *gin.RouterGroup) {
 
 		settingRouter.GET("/proxy-node", baseApi.LoadProxyNodeStatus)
 		settingRouter.POST("/proxy-node/save", baseApi.SaveProxyNode)
+		settingRouter.POST("/proxy-node/close", baseApi.CloseProxyNode)
 		settingRouter.POST("/proxy-node/refresh", baseApi.RefreshProxyNode)
 		settingRouter.POST("/proxy-node/select", baseApi.SelectProxyNode)
 		settingRouter.POST("/proxy-node/test", baseApi.TestProxyNodes)

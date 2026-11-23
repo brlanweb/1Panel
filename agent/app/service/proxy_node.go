@@ -38,9 +38,10 @@ import (
 //   - inside the docker network 1panel-network as
 //     1panel-proxy-node:7890 (for containers such as vLLM).
 //
-// After every save all nodes are tested in the background — latency first
-// (mihomo /proxies/{name}/delay), then download speed through a per-node
-// listener — without blocking the UI; the page polls the status.
+// Saving only stores the subscription and brings the container up. Latency
+// and speed tests are started separately from the UI (mihomo
+// /proxies/{name}/delay, then download speed through a per-node listener)
+// and run in the background; the page polls the status.
 const (
 	proxyNodeSettingURL      = "ProxyNodeSubscriptionURL"
 	proxyNodeSettingImage    = "ProxyNodeImage"
@@ -69,6 +70,7 @@ type ProxyNodeService struct{}
 type IProxyNodeService interface {
 	Status() dto.ProxyNodeStatus
 	Save(req dto.ProxyNodeSave) error
+	Close() error
 	Refresh() error
 	Select(name string) error
 	Test() error
@@ -294,7 +296,37 @@ func (u *ProxyNodeService) Refresh() error {
 			}
 		}()
 	}
-	return u.Test()
+	return nil
+}
+
+// Close stops the subscription proxy and forgets it, so choosing "close" in
+// the proxy settings actually turns the subscription off instead of only
+// clearing the global proxy.
+func (u *ProxyNodeService) Close() error {
+	if proxyNodeRunning() {
+		if err := u.Operate("stop"); err != nil {
+			return err
+		}
+	}
+	for _, key := range []string{
+		proxyNodeSettingURL,
+		proxyNodeSettingSelected,
+		proxyNodeSettingResults,
+		proxyNodeSettingUpdated,
+	} {
+		if err := settingRepo.UpdateOrCreate(key, ""); err != nil {
+			return err
+		}
+	}
+	proxyNodeState.mu.Lock()
+	proxyNodeState.nodes = nil
+	proxyNodeState.testing = false
+	proxyNodeState.testDone = 0
+	proxyNodeState.testTotal = 0
+	proxyNodeState.testedAt = ""
+	proxyNodeState.message = ""
+	proxyNodeState.mu.Unlock()
+	return nil
 }
 
 func (u *ProxyNodeService) Select(name string) error {

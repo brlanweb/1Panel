@@ -109,6 +109,7 @@ import { MsgSuccess } from '@/utils/message';
 import { computeSize } from '@/utils/size';
 import { ProxyNode } from '@/api/interface/proxy-node';
 import {
+    closeProxyNode,
     loadProxyNodeStatus,
     operateProxyNode,
     refreshProxyNode,
@@ -240,6 +241,25 @@ const save = async (): Promise<boolean> => {
     return true;
 };
 
+// close stops the subscription container and clears the saved subscription,
+// so switching the proxy type back to "close" actually turns it off.
+const close = async (): Promise<boolean> => {
+    if (!status.subscriptionUrl && !status.running) {
+        return true;
+    }
+    loading.value = true;
+    try {
+        await closeProxyNode();
+        form.subscriptionUrl = '';
+        selected.value = '';
+        await loadStatus();
+        emit('search');
+    } finally {
+        loading.value = false;
+    }
+    return true;
+};
+
 const onRefresh = async () => {
     loading.value = true;
     try {
@@ -290,7 +310,7 @@ onMounted(() => {
 });
 onUnmounted(() => clearTimeout(pollTimer));
 
-defineExpose({ load, save, stop, loading });
+defineExpose({ load, save, close, stop, test: onTest, loading });
 </script>
 
 <style scoped>

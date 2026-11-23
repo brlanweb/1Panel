@@ -8,6 +8,9 @@ export const loadProxyNodeStatus = () => {
 export const saveProxyNode = (req: ProxyNode.Save) => {
     return http.post(`/settings/proxy-node/save`, req, TimeoutEnum.T_5M);
 };
+export const closeProxyNode = () => {
+    return http.post(`/settings/proxy-node/close`, {}, TimeoutEnum.T_5M);
+};
 export const refreshProxyNode = () => {
     return http.post(`/settings/proxy-node/refresh`, {}, TimeoutEnum.T_5M);
 };

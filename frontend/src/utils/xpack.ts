@@ -7,6 +7,7 @@ import {
 } from '@/extensions/xpack';
 import { GlobalStore } from '@/store';
 import faviconUrl from '@/assets/images/favicon.svg';
+import { applyMarketTheme, loadShanghaiCompositeRising } from '@/utils/market-theme';
 
 let switchThemeFn: (() => void) | undefined;
 
@@ -39,10 +40,9 @@ export async function initFavicon() {
     const globalStore = GlobalStore();
     document.title = globalStore.themeConfig.panelName;
     const favicon = globalStore.themeConfig.favicon;
-    const isPro = globalStore.isXpackOrEE;
-    const themeColor = globalStore.themeConfig.primary;
+    const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--market-accent').trim();
     const customFaviconUrl = `/api/v2/images/favicon?t=${Date.now()}`;
-    const fallbackSvg = isPro ? await getColoredFavicon(faviconUrl, themeColor) : '/public/favicon.png';
+    const fallbackSvg = themeColor ? await getColoredFavicon(faviconUrl, themeColor) : '/public/favicon.png';
     const setLink = (href: string) => {
         let link = document.querySelector("link[rel*='icon']") as HTMLLinkElement;
         if (!link) {
@@ -100,6 +100,7 @@ export async function loadMasterProductProFromDB() {
     globalStore.isEnterpriseLicenseLoaded = true;
     globalStore.isMasterProductPro = false;
     switchTheme();
+    applyMarketTheme(await loadShanghaiCompositeRising());
     initFavicon();
     loadDataFromDB();
 }
@@ -131,6 +132,7 @@ export async function getXpackSettingForTheme() {
         resetXSetting();
     }
     switchTheme();
+    applyMarketTheme(await loadShanghaiCompositeRising());
     initFavicon();
 }
 

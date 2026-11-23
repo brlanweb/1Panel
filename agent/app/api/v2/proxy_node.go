@@ -17,7 +17,7 @@ func (b *BaseApi) LoadProxyNodeStatus(c *gin.Context) {
 }
 
 // @Tags Proxy Node
-// @Summary Save a Clash subscription, download it and start testing all nodes
+// @Summary Save a Clash subscription and start the proxy container
 // @Accept json
 // @Param request body dto.ProxyNodeSave true "request"
 // @Success 200
@@ -31,6 +31,21 @@ func (b *BaseApi) SaveProxyNode(c *gin.Context) {
 		return
 	}
 	if err := proxyNodeService.Save(req); err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.Success(c)
+}
+
+// @Tags Proxy Node
+// @Summary Close the subscription proxy and clear its configuration
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /settings/proxy-node/close [post]
+// @x-panel-log {"bodyKeys":[],"paramKeys":[],"BeforeFunctions":[],"formatZH":"关闭代理节点订阅","formatEN":"close proxy node subscription"}
+func (b *BaseApi) CloseProxyNode(c *gin.Context) {
+	if err := proxyNodeService.Close(); err != nil {
 		helper.InternalServer(c, err)
 		return
 	}

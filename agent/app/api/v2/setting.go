@@ -1,6 +1,11 @@
 package v2
 
 import (
+	"encoding/json"
+	"io"
+	"net/http"
+	"time"
+
 	"github.com/1Panel-dev/1Panel/agent/app/api/v2/helper"
 	"github.com/1Panel-dev/1Panel/agent/app/dto"
 	"github.com/1Panel-dev/1Panel/agent/app/dto/request"
@@ -47,6 +52,42 @@ func (b *BaseApi) GetTerminalAISettingInfo(c *gin.Context) {
 // @Router /settings/search/available [get]
 func (b *BaseApi) GetSystemAvailable(c *gin.Context) {
 	helper.Success(c)
+}
+
+// shanghaiCompositeURL is the Eastmoney quote for the Shanghai Composite
+// (secid 1.000001). f43 is the last price, f60 yesterday's close, f170 the
+// change in percent. The browser cannot call it directly because of CORS,
+// so the panel reads it once per page load and only returns the direction.
+const shanghaiCompositeURL = "https://push2.eastmoney.com/api/qt/stock/get?secid=1.000001&fields=f43,f60,f170&fltt=2"
+
+// @Tags System Setting
+// @Summary Whether the Shanghai Composite is up, read once per page load
+// @Success 200 {object} map[string]bool
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /settings/market [get]
+func (b *BaseApi) GetShanghaiComposite(c *gin.Context) {
+	rising := false
+	client := &http.Client{Timeout: 4 * time.Second}
+	req, err := http.NewRequest(http.MethodGet, shanghaiCompositeURL, nil)
+	if err == nil {
+		req.Header.Set("User-Agent", "Mozilla/5.0")
+		req.Header.Set("Referer", "https://quote.eastmoney.com/")
+		if resp, err := client.Do(req); err == nil {
+			defer resp.Body.Close()
+			body, _ := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
+			var quote struct {
+				Data struct {
+					Price         float64 `json:"f43"`
+					PreviousClose float64 `json:"f60"`
+				} `json:"data"`
+			}
+			if json.Unmarshal(body, &quote) == nil && quote.Data.PreviousClose > 0 {
+				rising = quote.Data.Price > quote.Data.PreviousClose
+			}
+		}
+	}
+	helper.SuccessWithData(c, gin.H{"rising": rising})
 }
 
 // @Tags System Setting

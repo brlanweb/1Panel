@@ -27,6 +27,9 @@ export const loadBaseDir = (node?: string) => {
 export const loadWebsiteDir = () => {
     return http.get<string>(`/settings/website/dir`);
 };
+export const loadShanghaiComposite = () => {
+    return http.get<{ rising: boolean }>(`/settings/market`);
+};
 export const loadDaemonJsonPath = () => {
     return http.get<string>(`/settings/daemonjson`, {});
 };

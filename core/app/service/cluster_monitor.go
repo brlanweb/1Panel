@@ -187,10 +187,10 @@ func (s *ClusterMonitorService) refreshRealtime() (dto.ClusterMonitorRealtimeRes
 func (s *ClusterMonitorService) sampleRealtime(node model.ClusterNode) dto.ClusterMonitorRealtime {
 	item := dto.ClusterMonitorRealtime{NodeID: node.ID, Name: node.Name, SampledAt: time.Now().UnixMilli()}
 	key := fmt.Sprintf("rt-%d", node.ID)
-	if node.ID != 0 && node.Status == model.ClusterNodeStatusOffline {
-		item.Error = firstNonEmpty(node.LastError, "node is offline")
-		return item
-	}
+	// A stored "offline" is only a hint from the last probe. Skipping the
+	// call here is what kept a recovered node offline until someone opened
+	// the node page and clicked check. The failure backoff below already
+	// stops an unreachable host from timing out on every tick.
 	if s.inBackoff(key) {
 		item.Error = "node unreachable, retrying shortly"
 		return item
@@ -336,9 +336,6 @@ func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode) dto.Cluster
 		}
 		item.Error = errMsg
 		return item
-	}
-	if node.ID != 0 && node.Status == model.ClusterNodeStatusOffline {
-		return keepLast(firstNonEmpty(node.LastError, "node is offline"))
 	}
 	var data agentStatic
 	var err error

@@ -28,11 +28,11 @@
                 never installed as the panel's global proxy; it is only used by
                 image pulls and model downloads that opt in.
             -->
-            <div v-if="form.proxyType === 'subscription'">
+            <div v-show="form.proxyType === 'subscription'">
                 <el-alert type="info" :closable="false" show-icon class="mb-4" :title="$t('proxyNode.scopeHelper')" />
                 <ProxyNodeForm ref="proxyNodeFormRef" @search="emit('search')" />
             </div>
-            <div v-else-if="form.proxyType !== 'close'">
+            <div v-if="form.proxyType !== 'close' && form.proxyType !== 'subscription'">
                 <el-form-item :label="$t('setting.proxyUrl')" prop="proxyUrl">
                     <el-input
                         clearable
@@ -67,14 +67,14 @@
             <el-button :disabled="loading" @click="proxyVisible = false">
                 {{ $t('commons.button.cancel') }}
             </el-button>
-            <el-button
-                v-if="form.proxyType === 'subscription'"
-                :disabled="loading"
-                type="primary"
-                @click="onSaveSubscription"
-            >
-                {{ $t('commons.button.save') }}
-            </el-button>
+            <template v-else-if="form.proxyType === 'subscription'">
+                <el-button :disabled="loading" @click="onTestSubscription">
+                    {{ $t('proxyNode.test') }}
+                </el-button>
+                <el-button :disabled="loading" type="primary" @click="onSaveSubscription">
+                    {{ $t('commons.button.save') }}
+                </el-button>
+            </template>
             <el-button v-else :disabled="loading" type="primary" @click="submitChangePassword(formRef)">
                 {{ $t('commons.button.confirm') }}
             </el-button>
@@ -172,6 +172,16 @@ const submitChangePassword = async (formEl: FormInstance | undefined) => {
     if (!formEl) return;
     formEl.validate(async (valid) => {
         if (!valid) return;
+        // The subscription lives in its own settings. Closing the proxy has
+        // to tear that down too, otherwise the panel keeps showing it.
+        if (form.proxyType === '' || form.proxyType === 'close') {
+            loading.value = true;
+            try {
+                await proxyNodeFormRef.value?.close();
+            } finally {
+                loading.value = false;
+            }
+        }
         let isClose = form.proxyType === '' || form.proxyType === 'close';
         let params = {
             proxyType: isClose ? '' : form.proxyType,
@@ -242,10 +252,17 @@ const onSubmit = async () => {
 const onSaveSubscription = async () => {
     loading.value = true;
     try {
-        await proxyNodeFormRef.value?.save();
+        const saved = await proxyNodeFormRef.value?.save();
+        if (saved) {
+            proxyVisible.value = false;
+        }
     } finally {
         loading.value = false;
     }
+};
+
+const onTestSubscription = async () => {
+    await proxyNodeFormRef.value?.test?.();
 };
 
 const handleClose = () => {

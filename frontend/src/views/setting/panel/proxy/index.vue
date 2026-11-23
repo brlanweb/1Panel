@@ -67,7 +67,7 @@
             <el-button :disabled="loading" @click="proxyVisible = false">
                 {{ $t('commons.button.cancel') }}
             </el-button>
-            <template v-else-if="form.proxyType === 'subscription'">
+            <template v-if="form.proxyType === 'subscription'">
                 <el-button :disabled="loading" @click="onTestSubscription">
                     {{ $t('proxyNode.test') }}
                 </el-button>

@@ -18,6 +18,7 @@ import { reactive, ref } from 'vue';
 import i18n from '@/lang';
 import { MsgSuccess } from '@/utils/message';
 import { updateSetting } from '@/api/modules/setting';
+import { applyDocumentTitle } from '@/utils/xpack';
 import { FormInstance } from 'element-plus';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 const { themeConfig } = useGlobalStore();
@@ -62,7 +63,7 @@ const onSavePanelName = async (formEl: FormInstance | undefined) => {
         await updateSetting({ key: 'PanelName', value: form.panelName })
             .then(async () => {
                 themeConfig.value = { ...themeConfig.value, panelName: form.panelName };
-                document.title = form.panelName;
+                applyDocumentTitle(form.panelName);
                 MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
                 loading.value = false;
                 drawerVisible.value = false;

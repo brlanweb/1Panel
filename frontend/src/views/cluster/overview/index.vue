@@ -32,6 +32,17 @@
                                         <el-button :icon="Setting" circle @click="goNodeManage" />
                                     </el-tooltip>
                                 </div>
+                                <el-button
+                                    class="upgrade-all-btn mt-2"
+                                    size="small"
+                                    type="primary"
+                                    plain
+                                    :disabled="!upgradeableNodes.length || upgradingAll"
+                                    @click="onUpgradeAll"
+                                >
+                                    {{ $t('cluster.upgradeAll') }}
+                                    <span v-if="upgradeableNodes.length"> ({{ upgradeableNodes.length }})</span>
+                                </el-button>
                                 <el-input
                                     v-model="searchKeyword"
                                     :placeholder="$t('commons.button.search')"
@@ -583,7 +594,10 @@ const canUpgrade = (node: OverviewNode) =>
     node.status === 'online' &&
     !!latestVersion.value &&
     !!node.version &&
-    compareVersion(latestVersion.value, node.version) > 0;
+    compareVersion(latestVersion.value, node.version) > 0 &&
+    !upgradeStates.value[node.key];
+const upgradeableNodes = computed(() => nodes.value.filter(canUpgrade));
+const upgradingAll = ref(false);
 const isLatest = (node: OverviewNode) =>
     !!latestVersion.value && !!node.version && compareVersion(latestVersion.value, node.version) <= 0;
 
@@ -653,11 +667,15 @@ const onUpgradeNode = async (node: OverviewNode) => {
         return;
     }
     try {
-        await upgradeClusterNode(node.nodeId, target);
+        await startNodeUpgrade(node, target);
     } catch {
         return; // error shown by the http layer
     }
     MsgSuccess(i18n.global.t('cluster.upgradeStarted', [node.displayName]));
+};
+
+const startNodeUpgrade = async (node: OverviewNode, target: string) => {
+    await upgradeClusterNode(node.nodeId, target);
     upgradeStates.value[node.key] = {
         id: node.nodeId,
         stage: 'downloading',
@@ -669,6 +687,38 @@ const onUpgradeNode = async (node: OverviewNode) => {
         reachable: true,
     };
     pollUpgrade(node, target, Date.now() + 20 * 60 * 1000);
+};
+
+const onUpgradeAll = async () => {
+    const target = latestVersion.value;
+    const pending = upgradeableNodes.value.slice();
+    if (!pending.length || !target) return;
+    try {
+        await ElMessageBox.confirm(
+            i18n.global.t('cluster.upgradeAllConfirm', [pending.length, target]),
+            i18n.global.t('cluster.upgradeAll'),
+            { type: 'warning' },
+        );
+    } catch {
+        return;
+    }
+    upgradingAll.value = true;
+    let started = 0;
+    try {
+        for (const node of pending) {
+            try {
+                await startNodeUpgrade(node, target);
+                started++;
+            } catch {
+                // The request layer already shows the error for this node.
+            }
+        }
+    } finally {
+        upgradingAll.value = false;
+    }
+    if (started) {
+        MsgSuccess(i18n.global.t('cluster.upgradeAllStarted', [started]));
+    }
 };
 
 const loadGroups = async () => {
@@ -1083,11 +1133,15 @@ onBeforeUnmount(() => {
     align-items: center;
 }
 
+.upgrade-all-btn {
+    width: 100%;
+}
+
 .node-card {
     border: 1px solid var(--el-border-color);
-    border-radius: 8px;
-    padding: 12px;
-    margin-top: 12px;
+    border-radius: 6px;
+    padding: 8px 10px;
+    margin-top: 6px;
     cursor: pointer;
 }
 
@@ -1113,7 +1167,7 @@ onBeforeUnmount(() => {
 .node-card-addr {
     color: var(--el-text-color-secondary);
     font-size: 12px;
-    margin: 6px 0;
+    margin: 2px 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1132,15 +1186,15 @@ onBeforeUnmount(() => {
 .node-card-metric {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    margin-top: 8px;
+    gap: 2px;
+    margin-top: 4px;
     font-size: 12px;
 }
 
 .node-card-actions {
     display: flex;
-    gap: 8px;
-    margin-top: 12px;
+    gap: 6px;
+    margin-top: 6px;
 }
 
 .card-header-with-select {

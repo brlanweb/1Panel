@@ -45,7 +45,10 @@ import CardWithHeader from '@/components/card-with-header/index.vue';
 import { loadClusterMonitorRealtime, loadClusterMonitorStatic } from '@/api/modules/cluster';
 import { Cluster } from '@/api/interface/cluster';
 import { routerToName } from '@/utils/router';
+import { useGlobalStore } from '@/composables/useGlobalStore';
 import i18n from '@/lang';
+
+const { currentNode } = useGlobalStore();
 
 // Loaded once on mount, then every 30 seconds while the home page is open.
 const REFRESH_MS = 30000;
@@ -58,18 +61,25 @@ let timer: ReturnType<typeof setInterval> | undefined;
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
 
 const nodes = computed(() =>
-    staticNodes.value.map((node) => ({
-        nodeId: node.nodeId,
-        name: node.nodeId === 0 ? i18n.global.t('xpack.alert.clusterMasterNode') : node.name,
-        ip: node.entryHost || node.publicIP || node.internalIPs?.[0] || '',
-        online: node.online,
-        error: node.error,
-        metrics: [
-            { key: 'cpu', label: 'CPU', value: clamp(cpuMap.value[node.nodeId]) },
-            { key: 'mem', label: i18n.global.t('xpack.alert.clusterMemory'), value: clamp(node.memoryUsedPercent) },
-            { key: 'disk', label: i18n.global.t('home.disk'), value: clamp(node.diskUsedPercent) },
-        ],
-    })),
+    staticNodes.value
+        .filter((node) => {
+            // The dashboard itself is already the selected node; listing it
+            // again in the cluster card only repeats the same status.
+            if (!currentNode.value || currentNode.value === 'local') return node.nodeId !== 0;
+            return node.name !== currentNode.value;
+        })
+        .map((node) => ({
+            nodeId: node.nodeId,
+            name: node.nodeId === 0 ? i18n.global.t('xpack.alert.clusterMasterNode') : node.name,
+            ip: node.entryHost || node.publicIP || node.internalIPs?.[0] || '',
+            online: node.online,
+            error: node.error,
+            metrics: [
+                { key: 'cpu', label: 'CPU', value: clamp(cpuMap.value[node.nodeId]) },
+                { key: 'mem', label: i18n.global.t('xpack.alert.clusterMemory'), value: clamp(node.memoryUsedPercent) },
+                { key: 'disk', label: i18n.global.t('home.disk'), value: clamp(node.diskUsedPercent) },
+            ],
+        })),
 );
 
 const ringColor = (value: number) => {

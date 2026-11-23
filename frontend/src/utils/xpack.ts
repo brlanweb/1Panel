@@ -36,9 +36,17 @@ async function getColoredFavicon(url: string, color: string) {
     return `data:image/svg+xml,${encodeURIComponent(svgText)}`;
 }
 
+export function applyDocumentTitle(panelName?: string) {
+    const globalStore = GlobalStore();
+    const title = panelName || globalStore.themeConfig.panelName || '';
+    const node = globalStore.currentNode;
+    const nodeName = !node || node === 'local' ? globalStore.getMasterAlias?.() || '' : node;
+    document.title = nodeName && nodeName !== title ? `${nodeName} · ${title}` : title;
+}
+
 export async function initFavicon() {
     const globalStore = GlobalStore();
-    document.title = globalStore.themeConfig.panelName;
+    applyDocumentTitle(globalStore.themeConfig.panelName);
     const favicon = globalStore.themeConfig.favicon;
     const themeColor = getComputedStyle(document.documentElement).getPropertyValue('--market-accent').trim();
     const customFaviconUrl = `/api/v2/images/favicon?t=${Date.now()}`;
@@ -78,7 +86,7 @@ export async function getXpackSetting() {
 const loadDataFromDB = async () => {
     const globalStore = GlobalStore();
     const res = await getSettingBaseInfo();
-    document.title = res.data.panelName;
+    applyDocumentTitle(res.data.panelName);
     globalStore.entrance = res.data.securityEntrance;
     globalStore.openMenuTabs = res.data.menuTabs === 'Enable';
     globalStore.menuAccordion = res.data.menuAccordion === 'Enable';

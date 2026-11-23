@@ -63,7 +63,7 @@ import useResize from './hooks/useResize';
 import { MenuStore, TabsStore } from '@/store';
 import { getSystemAvailable } from '@/api/modules/setting';
 import { openMenu } from '@/utils/router';
-import { loadMasterProductProFromDB, loadProductProFromDB } from '@/utils/xpack';
+import { applyDocumentTitle, loadMasterProductProFromDB, loadProductProFromDB } from '@/utils/xpack';
 import { useTheme } from '@/global/use-theme';
 import TaskList from '@/components/task-list/index.vue';
 import i18n from '@/lang';
@@ -137,6 +137,8 @@ const loadContent = () => {
     itemName = itemName.replaceAll('${nodeAddr}', currentNodeAddr.value || '127.0.0.1');
     return itemName;
 };
+
+watch(currentNode, () => applyDocumentTitle(), { immediate: true });
 
 watch(
     () => isLoading.value,

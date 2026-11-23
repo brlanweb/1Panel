@@ -539,6 +539,10 @@ const message = {
         panelVersion: 'Panel version',
         latestVersion: 'Up to date',
         upgradeTo: 'Update to {0}',
+        upgradeAll: 'Update all',
+        upgradeAllConfirm:
+            'Update the panels of {0} outdated nodes to {1}? Each node downloads and installs on its own, and its panel restarts for about 1-3 minutes.',
+        upgradeAllStarted: 'Started updating {0} nodes',
         upgradeConfirm:
             'Update the panel of node "{0}" from {1} to {2}? The node panel restarts and is unavailable for about 1-3 minutes.',
         upgradeStarted: 'Update of node "{0}" started',

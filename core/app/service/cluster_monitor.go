@@ -33,11 +33,19 @@ import (
 // A node that fails is backed off for a few seconds so an unreachable host
 // does not cost a full timeout on every 1s tick.
 const (
-	realtimeTTL          = 800 * time.Millisecond
-	realtimeTimeout      = 3 * time.Second
-	staticTTL            = 30 * time.Second
-	staticForceMinAge    = 5 * time.Second
-	staticTimeout        = 10 * time.Second
+	realtimeTTL       = 800 * time.Millisecond
+	realtimeTimeout   = 3 * time.Second
+	staticTTL         = 30 * time.Second
+	staticForceMinAge = 5 * time.Second
+	staticTimeout     = 10 * time.Second
+	// staticHWTimeout covers the node's vendor tool shell-outs (nvidia-smi
+	// -q -x on a multi-GPU host takes seconds; the agent caps it at 8s)
+	// plus the master -> node core -> node agent hops. The page waits 30s.
+	staticHWTimeout = 20 * time.Second
+	// legacyRecheck is how long a node stays on the legacy endpoints before
+	// the new /dashboard/monitor/* API is tried again (the node may have
+	// been upgraded, or the "missing route" was a transient restart error).
+	legacyRecheck        = 2 * time.Minute
 	monitorFailBackoff   = 10 * time.Second
 	monitorWarnPercent   = 80.0
 	monitorCritPercent   = 90.0
@@ -61,9 +69,16 @@ type ClusterMonitorService struct {
 	prevCounters map[uint]netSample
 	failedUntil  map[string]time.Time
 	// legacyNodes are remote panels without /dashboard/monitor/* (older
-	// agents); they are read through the regular dashboard endpoints.
-	legacyNodes map[uint]bool
+	// agents); they are read through the regular dashboard endpoints,
+	// which carry no CPU temperature / GPU data. The value is when the
+	// node was marked: the mark expires after legacyRecheck so an upgraded
+	// node (or one that only failed while restarting) gets GPU data again
+	// without restarting the master.
+	legacyNodes map[uint]time.Time
 	lastStatic  map[uint]dto.ClusterMonitorStatic
+	// gpuNoneUntil: nodes whose /ai/gpu/load fallback found no
+	// accelerators are not asked again before this time.
+	gpuNoneUntil map[uint]time.Time
 }
 
 type netSample struct {
@@ -84,7 +99,7 @@ type IClusterMonitorService interface {
 var sharedClusterMonitor = &ClusterMonitorService{
 	prevCounters: map[uint]netSample{},
 	failedUntil:  map[string]time.Time{},
-	legacyNodes:  map[uint]bool{},
+	legacyNodes:  map[uint]time.Time{},
 	lastStatic:   map[uint]dto.ClusterMonitorStatic{},
 }
 
@@ -131,13 +146,24 @@ func (s *ClusterMonitorService) markFailed(key string, failed bool) {
 func (s *ClusterMonitorService) isLegacy(id uint) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	return s.legacyNodes[id]
+	markedAt, ok := s.legacyNodes[id]
+	if !ok {
+		return false
+	}
+	if time.Since(markedAt) >= legacyRecheck {
+		delete(s.legacyNodes, id)
+		return false
+	}
+	return true
 }
 
 func (s *ClusterMonitorService) setLegacy(id uint) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.legacyNodes[id] = true
+	if s.legacyNodes == nil {
+		s.legacyNodes = map[uint]time.Time{}
+	}
+	s.legacyNodes[id] = time.Now()
 }
 
 // ------------------------------------------------------------- realtime
@@ -360,11 +386,12 @@ func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode, withHW bool
 	if node.ID != 0 && s.isLegacy(node.ID) {
 		err = s.legacyStatic(node, &data)
 	} else {
-		staticPath := "/api/v2/dashboard/monitor/static"
+		staticPath, timeout := "/api/v2/dashboard/monitor/static", staticTimeout
 		if withHW {
 			staticPath += "?hw=1"
+			timeout = staticHWTimeout
 		}
-		err = s.callNode(node, staticPath, &data, staticTimeout)
+		err = s.callNode(node, staticPath, &data, timeout)
 		if err != nil && node.ID != 0 && isMissingRouteErr(err) {
 			s.setLegacy(node.ID)
 			err = s.legacyStatic(node, &data)
@@ -372,6 +399,15 @@ func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode, withHW bool
 	}
 	if err != nil {
 		return keepLast(truncateErr(err.Error()))
+	}
+	// The node gave no accelerators (older agent without ?hw=1, legacy
+	// endpoints, or the sensor collection timed out): read them the way
+	// the AI -> GPU page does.
+	if withHW && len(data.GPUs) == 0 {
+		if gpus, ok := s.loadGPUFallback(node); ok {
+			data.GPUs = gpus
+			data.HWSampled = true
+		}
 	}
 	item.Online = true
 	item.Hostname, item.OS, item.PrettyDistro, item.KernelArch = data.Hostname, data.OS, data.PrettyDistro, data.KernelArch
@@ -555,10 +591,14 @@ func (s *ClusterMonitorService) withRisks(res dto.ClusterMonitorStaticRes) dto.C
 
 // isMissingRouteErr reports whether a remote call failed because the
 // endpoint does not exist on that (older) panel.
+// isMissingRouteErr reports whether the node lacks the /dashboard/monitor/*
+// API (an older agent). Only explicit 404s count: an unreadable body (HTML
+// 502 while the node restarts) or an arbitrary "not found" message must not
+// push a current node onto the legacy endpoints, which carry no GPU data.
 func isMissingRouteErr(err error) bool {
 	msg := strings.ToLower(err.Error())
-	return strings.Contains(msg, "http 404") || strings.Contains(msg, "unreadable response") ||
-		strings.Contains(msg, "not found") || strings.Contains(msg, "code 404")
+	return strings.Contains(msg, "http 404") || strings.Contains(msg, "code 404") ||
+		strings.Contains(msg, "route not found") || strings.Contains(msg, "404 page not found")
 }
 
 func entryHost(entryURL string) string {

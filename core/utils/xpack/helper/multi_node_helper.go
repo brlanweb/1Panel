@@ -39,6 +39,9 @@ func (m *multiNodeHelper) UpdateGroup(name string, group, newGroup uint) error {
 func (m *multiNodeHelper) CheckBackupUsed(name string) error { return nil }
 
 func (m *multiNodeHelper) LoadRequestTransport() *http.Transport {
+	if transport := panelProxyTransport(); transport != nil {
+		return transport
+	}
 	return &http.Transport{
 		TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
 		DialContext: (&net.Dialer{

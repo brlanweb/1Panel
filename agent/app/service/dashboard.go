@@ -39,7 +39,7 @@ type IDashboardService interface {
 	LoadCurrentInfoForNode() *dto.NodeCurrent
 	LoadCurrentInfo(ioOption string, netOption string) *dto.DashboardCurrent
 	LoadMonitorRealtime() *dto.MonitorRealtime
-	LoadMonitorStatic() *dto.MonitorStatic
+	LoadMonitorStatic(withHW bool) *dto.MonitorStatic
 	LoadTopCPU() []dto.Process
 	LoadTopMem() []dto.Process
 

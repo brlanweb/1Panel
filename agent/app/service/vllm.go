@@ -442,7 +442,24 @@ func (s *VllmService) ImportModel(req dto.VllmModelImport) error {
 	if _, err := os.Stat(path.Join(dir, "config.json")); err != nil && req.Kind == "model" {
 		return buserr.WithDetail("ErrInvalidParams", "config.json not found in "+dir+" (not a Hugging Face format model)", nil)
 	}
-	item := &model.VllmModel{RepoID: strings.TrimSpace(req.RepoID), Source: "local", Kind: req.Kind, Dir: dir, Status: constant.StatusSuccess, Size: dirSize(dir)}
+	source := req.Source
+	if source == "" {
+		source = "local"
+	}
+	item := &model.VllmModel{
+		RepoID: strings.TrimSpace(req.RepoID), Source: source, Kind: req.Kind, Revision: req.Revision,
+		Dir: dir, Status: constant.StatusSuccess, Size: dirSize(dir),
+	}
+	// Re-importing the same directory (e.g. a model sent again from the
+	// cluster master) updates the existing record instead of duplicating it.
+	if old, _ := s.repo.GetModel(func(db *gorm.DB) *gorm.DB {
+		return db.Where("dir = ? AND kind = ?", dir, req.Kind)
+	}); old != nil {
+		if old.Status == vllmStatusDownloading {
+			return buserr.WithDetail("ErrInvalidParams", old.RepoID+" is downloading into this directory", nil)
+		}
+		item.ID, item.CreatedAt, item.RecipeID = old.ID, old.CreatedAt, old.RecipeID
+	}
 	return s.repo.SaveModel(item)
 }
 

@@ -7877,6 +7877,12 @@ const message = {
         local: '本機',
         search: '搜索節點名稱 / IP',
         onlyRisk: '只看有风險',
+        temperature: '溫度',
+        gpu: 'GPU',
+        gpuCards: '張卡',
+        maxTemp: '最高',
+        kindCpuTemp: 'CPU 溫度過高',
+        kindGpuTemp: 'GPU 溫度過高',
     },
     proxyNode: {
         title: '訂閱代理',
@@ -7977,6 +7983,10 @@ const message = {
         gpuDevices: 'GPU 设备',
         apiKeyHelper: '设置后调用接口需携带 Authorization: Bearer <key>',
         nameHelper: '仅支持字母、数字、. _ -，且以字母或数字开头',
+        sendToNode: '發送到節點',
+        sendToNodeHelper:
+            '模型檔案將逐個傳輸到目標節點的相同目錄，並自動登記到目標節點的模型列表；目標已存在且大小一致的檔案會略過，中斷後重新發送可續傳。主節點需要至少一個最大檔案大小的暫存空間。',
+        sendSourceUnknown: '無法識別目前節點對應的叢集節點，請先在叢集管理中新增該節點',
     },
 };
 export default {

@@ -14,6 +14,10 @@ const (
 	// /update (explicit overwrite). The official xpack push endpoint is NOT
 	// used: it answers ErrXpackNotFound on open-source panels.
 	ClusterSyncKindPhp = "php"
+	// ClusterSyncKindModel is a vLLM model directory (Key = absolute dir).
+	// It is copied file by file to the same path on the target and then
+	// registered in the target's vLLM model list.
+	ClusterSyncKindModel = "model"
 )
 
 // ClusterSyncResource is one normalized resource listed from a source node.
@@ -31,7 +35,7 @@ type ClusterSyncResource struct {
 }
 
 type ClusterSyncResourceSearch struct {
-	Kind         string `json:"kind" validate:"required,oneof=file image app cert php"`
+	Kind         string `json:"kind" validate:"required,oneof=file image app cert php model"`
 	SourceNodeID uint   `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	// File resources only: directory to list on the source node.
 	Path string `json:"path"`
@@ -53,7 +57,7 @@ type ClusterSyncResourcePage struct {
 }
 
 type ClusterSyncPreviewReq struct {
-	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
+	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php model"`
 	SourceNodeID  uint     `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`
@@ -77,7 +81,7 @@ type ClusterSyncPreviewItem struct {
 }
 
 type ClusterSyncExecuteReq struct {
-	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php"`
+	Kind          string   `json:"kind" validate:"required,oneof=file image app cert php model"`
 	SourceNodeID  uint     `json:"sourceNodeId"` // 0 is the local (master) panel; `required` would reject it
 	TargetNodeIDs []uint   `json:"targetNodeIds" validate:"required,min=1"`
 	ResourceKeys  []string `json:"resourceKeys" validate:"required,min=1"`

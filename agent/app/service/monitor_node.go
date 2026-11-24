@@ -69,7 +69,11 @@ func (u *DashboardService) LoadMonitorRealtime() *dto.MonitorRealtime {
 	return &data
 }
 
-func (u *DashboardService) LoadMonitorStatic() *dto.MonitorStatic {
+// LoadMonitorStatic returns the static sample. withHW adds CPU temperature
+// and accelerator metrics; they shell out to vendor tools (nvidia-smi ...),
+// so they are only collected when a user is looking at a page that shows
+// them, never for the background alert sampler.
+func (u *DashboardService) LoadMonitorStatic(withHW bool) *dto.MonitorStatic {
 	var data dto.MonitorStatic
 	if hostInfo, err := psutil.HOST.GetHostInfo(false); err == nil {
 		data.Hostname = hostInfo.Hostname
@@ -101,6 +105,12 @@ func (u *DashboardService) LoadMonitorStatic() *dto.MonitorStatic {
 	data.InternalIPs = loadInternalIPs()
 	data.PublicIP = publicIPCache.get()
 	data.NetBytesSent, data.NetBytesRecv = loadPhysicalNetCounters()
+	if withHW {
+		hw := loadHardwareSample()
+		data.CPUTemperature = hw.cpuTemp
+		data.GPUs = hw.gpus
+		data.HWSampled = true
+	}
 	return &data
 }
 

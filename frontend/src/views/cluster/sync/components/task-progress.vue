@@ -91,9 +91,10 @@ import { dateFormatSimple } from '@/utils/date';
 import { ElMessageBox } from 'element-plus';
 import { MsgSuccess } from '@/utils/message';
 
-// File and image transfers can be cancelled (temp files are removed).
+// File, image and model transfers can be cancelled (temp files are removed;
+// a re-sent model resumes from the files already on the target).
 // App migration installs on the target first, so cancel is not offered.
-const cancellable = computed(() => ['file', 'image'].includes(task.value?.kind || ''));
+const cancellable = computed(() => ['file', 'image', 'model'].includes(task.value?.kind || ''));
 const cancelling = ref(false);
 const onCancel = () => {
     ElMessageBox.confirm(i18n.global.t('cluster.cancelTaskConfirm'), i18n.global.t('cluster.cancelTask'), {

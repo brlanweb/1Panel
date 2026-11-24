@@ -29,6 +29,13 @@ type ClusterNode struct {
 	DiskUsedPercent float64 `json:"diskUsedPercent"`
 	DiskTotal       uint64  `json:"diskTotal"`
 	DiskUsed        uint64  `json:"diskUsed"`
+	// Hardware snapshot from the last cluster monitor static sample:
+	// hottest CPU sensor, accelerator count and the busiest / hottest
+	// accelerator. GpuCount 0 = no GPU (the UI hides GPU columns).
+	CpuTemperature float64 `json:"cpuTemperature"`
+	GpuCount       int     `json:"gpuCount"`
+	GpuUtilMax     float64 `json:"gpuUtilMax"`
+	GpuTempMax     float64 `json:"gpuTempMax"`
 	// Status of the most recent sync task targeting this node as a target
 	// (success / partial / failed / — when never targeted).
 	LastSyncStatus string     `json:"lastSyncStatus"`

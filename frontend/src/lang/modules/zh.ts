@@ -848,6 +848,8 @@ const message = {
         clusterNodes: '集群节点',
         clusterRefreshHint: '每 30 秒刷新',
         clusterNoNode: '暂无节点数据',
+        cpuTemp: 'CPU 温度',
+        gpuTemp: 'GPU 温度',
         alertInfo: '告警信息',
         alertFailing: '{0} 项异常',
         alertAllOk: '全部正常',
@@ -8305,6 +8307,12 @@ const message = {
         local: '本机',
         search: '搜索节点名称 / IP',
         onlyRisk: '只看有风险',
+        temperature: '温度',
+        gpu: 'GPU',
+        gpuCards: '张卡',
+        maxTemp: '最高',
+        kindCpuTemp: 'CPU 温度过高',
+        kindGpuTemp: 'GPU 温度过高',
     },
     proxyNode: {
         title: '订阅代理',
@@ -8405,6 +8413,10 @@ const message = {
         gpuDevices: 'GPU 设备',
         apiKeyHelper: '设置后调用接口需携带 Authorization: Bearer <key>',
         nameHelper: '仅支持字母、数字、. _ -，且以字母或数字开头',
+        sendToNode: '发送到节点',
+        sendToNodeHelper:
+            '模型文件将逐个传输到目标节点的相同目录，并自动登记到目标节点的模型列表；目标已存在且大小一致的文件会跳过，中断后重新发送可续传。主节点需要至少一个最大文件大小的临时空间。',
+        sendSourceUnknown: '无法识别当前节点对应的集群节点，请先在集群管理中添加该节点',
     },
 };
 export default {

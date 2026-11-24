@@ -95,5 +95,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddClusterManagedLogin,
 		migrations.RenamePanelToXPanel,
 		migrations.MergeClusterPanelsMenu,
+		migrations.AddClusterNodeHardwareColumns,
 	}
 }

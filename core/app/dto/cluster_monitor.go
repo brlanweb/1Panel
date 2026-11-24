@@ -60,15 +60,36 @@ type ClusterMonitorStatic struct {
 	InternalIPs []string `json:"internalIPs"`
 	PublicIP    string   `json:"publicIP"`
 
+	// CpuTemperature is the hottest CPU sensor in °C (0 = not available).
+	CpuTemperature float64 `json:"cpuTemperature"`
+	// GPUs is empty on nodes without accelerators. GpuUtilMax /
+	// GpuTempMax summarise the busiest / hottest device.
+	GPUs       []ClusterMonitorGPU `json:"gpus"`
+	GpuUtilMax float64             `json:"gpuUtilMax"`
+	GpuTempMax float64             `json:"gpuTempMax"`
+
 	Error     string `json:"error"`
 	SampledAt int64  `json:"sampledAt"`
+}
+
+// ClusterMonitorGPU is one accelerator of a node. Nil metrics were not
+// reported by the vendor tool.
+type ClusterMonitorGPU struct {
+	Index       int      `json:"index"`
+	Kind        string   `json:"kind"`
+	Vendor      string   `json:"vendor"`
+	Name        string   `json:"name"`
+	Utilization *float64 `json:"utilization"`
+	Temperature *float64 `json:"temperature"`
+	MemoryUsed  *float64 `json:"memoryUsed"`
+	MemoryTotal *float64 `json:"memoryTotal"`
 }
 
 // ClusterMonitorRisk is one threshold breach found in the latest samples.
 type ClusterMonitorRisk struct {
 	NodeID  uint    `json:"nodeId"`
 	Name    string  `json:"name"`
-	Kind    string  `json:"kind"`  // offline / cpu / memory / disk
+	Kind    string  `json:"kind"`  // offline / cpu / memory / disk / cpuTemp / gpuTemp
 	Level   string  `json:"level"` // warning / critical
 	Value   float64 `json:"value"`
 	Target  string  `json:"target"` // disk mount path for disk risks
@@ -87,6 +108,9 @@ type ClusterMonitorStaticRes struct {
 	// consistently with the risk list.
 	WarnPercent     float64 `json:"warnPercent"`
 	CriticalPercent float64 `json:"criticalPercent"`
+	// Temperature thresholds (°C) for CPU / GPU temperature risks.
+	WarnTemp     float64 `json:"warnTemp"`
+	CriticalTemp float64 `json:"criticalTemp"`
 }
 
 type ClusterMonitorRealtimeRes struct {
@@ -95,4 +119,6 @@ type ClusterMonitorRealtimeRes struct {
 
 type ClusterMonitorStaticReq struct {
 	Force bool `json:"force"`
+	// WithHW also collects CPU temperature / GPU metrics on the nodes.
+	WithHW bool `json:"withHW"`
 }

@@ -48,6 +48,10 @@ type ClusterNodeInfo struct {
 	DiskUsedPercent float64    `json:"diskUsedPercent"`
 	DiskTotal       uint64     `json:"diskTotal"`
 	DiskUsed        uint64     `json:"diskUsed"`
+	CpuTemperature  float64    `json:"cpuTemperature"`
+	GpuCount        int        `json:"gpuCount"`
+	GpuUtilMax      float64    `json:"gpuUtilMax"`
+	GpuTempMax      float64    `json:"gpuTempMax"`
 	// Managed login lock snapshot: nil = never read / node too old.
 	LoginLocked      *bool     `json:"loginLocked"`
 	LoginUnlockUntil int64     `json:"loginUnlockUntil"`

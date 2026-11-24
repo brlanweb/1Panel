@@ -92,6 +92,7 @@
         <SettingDrawer ref="settingRef" />
         <RecipeDrawer ref="recipeRef" />
         <TaskLog ref="taskLogRef" width="70%" @close="search" />
+        <SendDialog ref="sendRef" />
 
         <DialogPro v-model="delOpen" :title="$t('commons.button.delete')" size="small">
             <div>{{ $t('vllm.deleteModelHelper', [delRow?.repoId]) }}</div>
@@ -113,6 +114,7 @@ import DownloadDialog from './download/index.vue';
 import ImportDialog from './import/index.vue';
 import SettingDrawer from './setting/index.vue';
 import RecipeDrawer from './recipe/index.vue';
+import SendDialog from './send/index.vue';
 import TaskLog from '@/components/log/task/index.vue';
 import { Vllm } from '@/api/interface/vllm';
 import { cancelVllmModel, deleteVllmModel, pageVllmModels, retryVllmModel } from '@/api/modules/vllm';
@@ -132,6 +134,7 @@ const importRef = ref();
 const settingRef = ref();
 const recipeRef = ref();
 const taskLogRef = ref();
+const sendRef = ref();
 const delOpen = ref(false);
 const delFile = ref(true);
 const delRow = ref<Vllm.Model>();
@@ -173,6 +176,12 @@ const buttons = [
             searchLater();
         },
         disabled: (row: Vllm.Model) => row.source === 'local' || row.status === 'Downloading',
+    },
+    {
+        label: i18n.global.t('vllm.sendToNode'),
+        click: (row: Vllm.Model) => sendRef.value.acceptParams(row),
+        // only complete models are a consistent set of files
+        disabled: (row: Vllm.Model) => row.status !== 'Success' || !row.dir,
     },
     {
         label: i18n.global.t('commons.button.delete'),

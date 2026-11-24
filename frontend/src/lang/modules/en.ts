@@ -888,6 +888,8 @@ const message = {
         clusterNodes: 'Cluster nodes',
         clusterRefreshHint: 'refreshes every 30s',
         clusterNoNode: 'No node data yet',
+        cpuTemp: 'CPU temp',
+        gpuTemp: 'GPU temp',
         alertInfo: 'Alerts',
         alertFailing: '{0} failing',
         alertAllOk: 'All OK',
@@ -8910,6 +8912,12 @@ const message = {
         local: 'Local',
         search: 'Search node name / IP',
         onlyRisk: 'Only with risks',
+        temperature: 'Temperature',
+        gpu: 'GPU',
+        gpuCards: 'card(s)',
+        maxTemp: 'max',
+        kindCpuTemp: 'High CPU temperature',
+        kindGpuTemp: 'High GPU temperature',
     },
     proxyNode: {
         title: 'Proxy Nodes',
@@ -9017,6 +9025,10 @@ const message = {
         gpuDevices: 'GPU devices',
         apiKeyHelper: 'When set, requests must send Authorization: Bearer <key>',
         nameHelper: 'Letters, digits, . _ - only, starting with a letter or digit',
+        sendToNode: 'Send to node',
+        sendToNodeHelper:
+            'Model files are copied one by one to the same directory on the target nodes and the model is registered in their model list. Files already present with the same size are skipped, so re-sending resumes an interrupted transfer. The master needs temporary space for the largest single file.',
+        sendSourceUnknown: 'The current node is not a registered cluster node; add it in cluster management first',
     },
 };
 

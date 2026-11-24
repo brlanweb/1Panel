@@ -34,7 +34,7 @@ func (b *BaseApi) LoadClusterMonitorStatic(c *gin.Context) {
 	if err := helper.CheckBindAndValidate(&req, c); err != nil {
 		return
 	}
-	data, err := clusterMonitorService.Static(req.Force)
+	data, err := clusterMonitorService.Static(req.Force, req.WithHW)
 	if err != nil {
 		helper.InternalServer(c, err)
 		return

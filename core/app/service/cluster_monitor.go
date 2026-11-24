@@ -41,6 +41,8 @@ const (
 	monitorFailBackoff   = 10 * time.Second
 	monitorWarnPercent   = 80.0
 	monitorCritPercent   = 90.0
+	monitorWarnTemp      = 80.0
+	monitorCritTemp      = 90.0
 	monitorFanoutLimit   = 8
 	monitorLocalNodeName = "local"
 )
@@ -48,11 +50,14 @@ const (
 type ClusterMonitorService struct {
 	group singleflight.Group
 
-	mu           sync.Mutex
-	realtime     dto.ClusterMonitorRealtimeRes
-	realtimeAt   time.Time
-	static       dto.ClusterMonitorStaticRes
-	staticAt     time.Time
+	mu         sync.Mutex
+	realtime   dto.ClusterMonitorRealtimeRes
+	realtimeAt time.Time
+	static     dto.ClusterMonitorStaticRes
+	staticAt   time.Time
+	// staticHW is true when the cached static sample includes hardware
+	// sensors (CPU temperature / GPU).
+	staticHW     bool
 	prevCounters map[uint]netSample
 	failedUntil  map[string]time.Time
 	// legacyNodes are remote panels without /dashboard/monitor/* (older
@@ -68,7 +73,10 @@ type netSample struct {
 
 type IClusterMonitorService interface {
 	Realtime() (dto.ClusterMonitorRealtimeRes, error)
-	Static(force bool) (dto.ClusterMonitorStaticRes, error)
+	// Static returns the cached static sample. withHW asks the nodes for
+	// CPU temperature / GPU metrics too (vendor tool shell-outs); only
+	// pages a user is looking at pass true, the alert sampler never does.
+	Static(force, withHW bool) (dto.ClusterMonitorStaticRes, error)
 }
 
 // sharedClusterMonitor is the single cache used by the monitor page and the
@@ -259,17 +267,23 @@ func (s *ClusterMonitorService) legacyRealtime(node model.ClusterNode, out *agen
 
 // --------------------------------------------------------------- static
 
-func (s *ClusterMonitorService) Static(force bool) (dto.ClusterMonitorStaticRes, error) {
+func (s *ClusterMonitorService) Static(force, withHW bool) (dto.ClusterMonitorStaticRes, error) {
 	s.mu.Lock()
 	age := time.Since(s.staticAt)
-	if age < staticTTL && (!force || age < staticForceMinAge) {
+	// A cached sample with hardware serves both kinds of callers; one
+	// without hardware only serves callers that did not ask for it.
+	if age < staticTTL && (!force || age < staticForceMinAge) && (s.staticHW || !withHW) {
 		cached := s.static
 		s.mu.Unlock()
 		return s.withRisks(cached), nil
 	}
 	s.mu.Unlock()
-	res, err, _ := s.group.Do("static", func() (interface{}, error) {
-		return s.refreshStatic()
+	key := "static"
+	if withHW {
+		key = "static-hw"
+	}
+	res, err, _ := s.group.Do(key, func() (interface{}, error) {
+		return s.refreshStatic(withHW)
 	})
 	if err != nil {
 		return dto.ClusterMonitorStaticRes{}, err
@@ -294,9 +308,12 @@ type agentStatic struct {
 	Disks             []dto.ClusterMonitorDisk `json:"disks"`
 	InternalIPs       []string                 `json:"internalIPs"`
 	PublicIP          string                   `json:"publicIP"`
+	CPUTemperature    float64                  `json:"cpuTemperature"`
+	GPUs              []dto.ClusterMonitorGPU  `json:"gpus"`
+	HWSampled         bool                     `json:"hwSampled"`
 }
 
-func (s *ClusterMonitorService) refreshStatic() (dto.ClusterMonitorStaticRes, error) {
+func (s *ClusterMonitorService) refreshStatic(withHW bool) (dto.ClusterMonitorStaticRes, error) {
 	nodes, err := monitorNodes()
 	if err != nil {
 		return dto.ClusterMonitorStaticRes{}, err
@@ -307,7 +324,7 @@ func (s *ClusterMonitorService) refreshStatic() (dto.ClusterMonitorStaticRes, er
 	for i, node := range nodes {
 		i, node := i, node
 		group.Go(func() error {
-			results[i] = s.sampleStatic(node)
+			results[i] = s.sampleStatic(node, withHW)
 			return nil
 		})
 	}
@@ -316,11 +333,12 @@ func (s *ClusterMonitorService) refreshStatic() (dto.ClusterMonitorStaticRes, er
 	s.mu.Lock()
 	s.static = res
 	s.staticAt = time.Now()
+	s.staticHW = withHW
 	s.mu.Unlock()
 	return res, nil
 }
 
-func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode) dto.ClusterMonitorStatic {
+func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode, withHW bool) dto.ClusterMonitorStatic {
 	item := dto.ClusterMonitorStatic{NodeID: node.ID, Name: node.Name, EntryHost: entryHost(node.EntryURL), SampledAt: time.Now().UnixMilli()}
 	keepLast := func(errMsg string) dto.ClusterMonitorStatic {
 		s.mu.Lock()
@@ -342,7 +360,11 @@ func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode) dto.Cluster
 	if node.ID != 0 && s.isLegacy(node.ID) {
 		err = s.legacyStatic(node, &data)
 	} else {
-		err = s.callNode(node, "/api/v2/dashboard/monitor/static", &data, staticTimeout)
+		staticPath := "/api/v2/dashboard/monitor/static"
+		if withHW {
+			staticPath += "?hw=1"
+		}
+		err = s.callNode(node, staticPath, &data, staticTimeout)
 		if err != nil && node.ID != 0 && isMissingRouteErr(err) {
 			s.setLegacy(node.ID)
 			err = s.legacyStatic(node, &data)
@@ -369,10 +391,42 @@ func (s *ClusterMonitorService) sampleStatic(node model.ClusterNode) dto.Cluster
 	if item.PublicIP == "" && isPublicAddr(item.EntryHost) {
 		item.PublicIP = item.EntryHost
 	}
+	item.CpuTemperature = data.CPUTemperature
+	item.GPUs = data.GPUs
+	item.GpuUtilMax, item.GpuTempMax = gpuMaxima(data.GPUs)
 	s.mu.Lock()
 	s.lastStatic[node.ID] = item
 	s.mu.Unlock()
+	// Only a sample that really read the sensors updates the stored
+	// snapshot; a plain (alert sampler) sample must not zero it.
+	if node.ID != 0 && withHW && data.HWSampled {
+		persistNodeHardware(node.ID, item)
+	}
 	return item
+}
+
+// gpuMaxima returns the highest utilization and temperature across devices.
+func gpuMaxima(gpus []dto.ClusterMonitorGPU) (util, temp float64) {
+	for _, g := range gpus {
+		if g.Utilization != nil && *g.Utilization > util {
+			util = *g.Utilization
+		}
+		if g.Temperature != nil && *g.Temperature > temp {
+			temp = *g.Temperature
+		}
+	}
+	return util, temp
+}
+
+// persistNodeHardware stores the latest temperature / GPU summary on the
+// node row so the node list shows them without opening the monitor page.
+func persistNodeHardware(id uint, item dto.ClusterMonitorStatic) {
+	_ = clusterNodeRepo.Update(id, map[string]interface{}{
+		"cpu_temperature": item.CpuTemperature,
+		"gpu_count":       len(item.GPUs),
+		"gpu_util_max":    item.GpuUtilMax,
+		"gpu_temp_max":    item.GpuTempMax,
+	})
 }
 
 // legacyStatic reads an older remote agent through /dashboard/base/all/all.
@@ -428,6 +482,18 @@ func (s *ClusterMonitorService) withRisks(res dto.ClusterMonitorStaticRes) dto.C
 		Risks:           []dto.ClusterMonitorRisk{},
 		WarnPercent:     monitorWarnPercent,
 		CriticalPercent: monitorCritPercent,
+		WarnTemp:        monitorWarnTemp,
+		CriticalTemp:    monitorCritTemp,
+	}
+	tempLevel := func(value float64) string {
+		switch {
+		case value >= monitorCritTemp:
+			return "critical"
+		case value >= monitorWarnTemp:
+			return "warning"
+		default:
+			return ""
+		}
 	}
 	add := func(risk dto.ClusterMonitorRisk) {
 		out.Risks = append(out.Risks, risk)
@@ -466,6 +532,21 @@ func (s *ClusterMonitorService) withRisks(res dto.ClusterMonitorStaticRes) dto.C
 		for _, disk := range node.Disks {
 			if lv := level(disk.UsedPercent); lv != "" {
 				add(dto.ClusterMonitorRisk{NodeID: node.NodeID, Name: node.Name, Kind: "disk", Level: lv, Value: disk.UsedPercent, Target: disk.Path})
+			}
+		}
+		if lv := tempLevel(node.CpuTemperature); lv != "" {
+			add(dto.ClusterMonitorRisk{NodeID: node.NodeID, Name: node.Name, Kind: "cpuTemp", Level: lv, Value: node.CpuTemperature})
+		}
+		// GPU utilization is shown but never raised as a risk: an inference
+		// card sitting at 100% is its normal working state. Only the
+		// temperature indicates a fault (cooling, fan, airflow).
+		for _, gpu := range node.GPUs {
+			if gpu.Temperature == nil {
+				continue
+			}
+			if lv := tempLevel(*gpu.Temperature); lv != "" {
+				target := fmt.Sprintf("#%d %s", gpu.Index, gpu.Name)
+				add(dto.ClusterMonitorRisk{NodeID: node.NodeID, Name: node.Name, Kind: "gpuTemp", Level: lv, Value: *gpu.Temperature, Target: target})
 			}
 		}
 	}

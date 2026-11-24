@@ -174,6 +174,8 @@ export const loadClusterMonitorRealtime = () => {
     );
 };
 
-export const loadClusterMonitorStatic = (force = false) => {
-    return http.postLocalNode<Cluster.MonitorStaticRes>(`/core/cluster/resource/static`, { force }, 30000);
+// withHW also reads CPU temperature / GPU metrics on the nodes (vendor tool
+// shell-outs); pass it only from pages that display them.
+export const loadClusterMonitorStatic = (force = false, withHW = false) => {
+    return http.postLocalNode<Cluster.MonitorStaticRes>(`/core/cluster/resource/static`, { force, withHW }, 30000);
 };

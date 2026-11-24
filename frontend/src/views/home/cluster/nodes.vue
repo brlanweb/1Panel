@@ -17,6 +17,11 @@
                             <span class="cluster-node__name" :title="node.name">{{ node.name }}</span>
                             <span class="cluster-node__ip">{{ node.ip }}</span>
                         </div>
+                        <div v-if="node.online && node.temps.length" class="cluster-node__temps">
+                            <span v-for="tp in node.temps" :key="tp.key" :style="{ color: tempColor(tp.value) }">
+                                {{ tp.label }} {{ tp.value.toFixed(0) }}°C
+                            </span>
+                        </div>
                         <div v-if="node.online" class="cluster-node__rings">
                             <div v-for="m in node.metrics" :key="m.key" class="ring-item">
                                 <el-progress
@@ -60,6 +65,15 @@ let timer: ReturnType<typeof setInterval> | undefined;
 
 const clamp = (v: number) => Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
 
+// Same thresholds as the cluster resource page (sent by the backend).
+const warnTemp = ref(80);
+const critTemp = ref(90);
+const tempColor = (value: number) => {
+    if (value >= critTemp.value) return 'var(--el-color-danger)';
+    if (value >= warnTemp.value) return 'var(--el-color-warning)';
+    return 'var(--el-text-color-secondary)';
+};
+
 const nodes = computed(() =>
     staticNodes.value
         .filter((node) => {
@@ -78,6 +92,16 @@ const nodes = computed(() =>
                 { key: 'cpu', label: 'CPU', value: clamp(cpuMap.value[node.nodeId]) },
                 { key: 'mem', label: i18n.global.t('xpack.alert.clusterMemory'), value: clamp(node.memoryUsedPercent) },
                 { key: 'disk', label: i18n.global.t('home.disk'), value: clamp(node.diskUsedPercent) },
+                // GPU ring only for nodes with accelerators (busiest card).
+                ...(node.gpus?.length ? [{ key: 'gpu', label: 'GPU', value: clamp(node.gpuUtilMax) }] : []),
+            ],
+            temps: [
+                ...(node.cpuTemperature
+                    ? [{ key: 'cpu', label: i18n.global.t('home.cpuTemp'), value: node.cpuTemperature }]
+                    : []),
+                ...(node.gpuTempMax
+                    ? [{ key: 'gpu', label: i18n.global.t('home.gpuTemp'), value: node.gpuTempMax }]
+                    : []),
             ],
         })),
 );
@@ -89,13 +113,19 @@ const ringColor = (value: number) => {
 };
 
 const load = async () => {
+    // Nothing is sampled while the tab is in the background.
+    if (document.hidden) return;
     try {
         const [staticRes, realtimeRes] = await Promise.allSettled([
-            loadClusterMonitorStatic(false),
+            // withHW: temperature / GPU are read on the nodes only while
+            // this card is on screen.
+            loadClusterMonitorStatic(false, true),
             loadClusterMonitorRealtime(),
         ]);
         if (staticRes.status === 'fulfilled') {
             staticNodes.value = staticRes.value.data?.nodes || [];
+            warnTemp.value = staticRes.value.data?.warnTemp || 80;
+            critTemp.value = staticRes.value.data?.criticalTemp || 90;
         }
         if (realtimeRes.status === 'fulfilled') {
             const map: Record<number, number> = {};
@@ -109,13 +139,20 @@ const load = async () => {
     }
 };
 
+// Refresh at once when the tab becomes visible again.
+const onVisibilityChange = () => {
+    if (!document.hidden) load();
+};
+
 onMounted(() => {
     load();
     timer = setInterval(load, REFRESH_MS);
+    document.addEventListener('visibilitychange', onVisibilityChange);
 });
 
 onBeforeUnmount(() => {
     if (timer) clearInterval(timer);
+    document.removeEventListener('visibilitychange', onVisibilityChange);
 });
 </script>
 
@@ -183,6 +220,13 @@ onBeforeUnmount(() => {
         font-size: 12px;
         color: var(--el-text-color-secondary);
         white-space: nowrap;
+    }
+
+    &__temps {
+        display: flex;
+        gap: 12px;
+        margin-top: 4px;
+        font-size: 12px;
     }
 
     &__rings {

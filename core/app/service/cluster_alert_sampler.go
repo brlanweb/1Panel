@@ -116,7 +116,9 @@ func (s *clusterAlertSampler) run(now time.Time) {
 		return
 	}
 	monitor := sharedClusterMonitor
-	static, err := monitor.Static(false)
+	// No hardware sensors here: GPU / temperature are only collected while
+	// a user is viewing them.
+	static, err := monitor.Static(false, false)
 	if err != nil {
 		global.LOG.Errorf("cluster alert sampler: static sample failed: %v", err)
 		return

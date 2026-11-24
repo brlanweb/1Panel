@@ -141,6 +141,67 @@
                                         <span v-else>—</span>
                                     </template>
                                 </el-table-column>
+                                <el-table-column :label="$t('clusterResource.temperature')" width="100">
+                                    <template #default="{ row }">
+                                        <span
+                                            v-if="row.online && row.cpuTemperature"
+                                            :style="{ color: tempColor(row.cpuTemperature) }"
+                                        >
+                                            {{ row.cpuTemperature.toFixed(0) }}°C
+                                        </span>
+                                        <span v-else>—</span>
+                                    </template>
+                                </el-table-column>
+                                <el-table-column v-if="hasGpu" :label="$t('clusterResource.gpu')" min-width="200">
+                                    <template #default="{ row }">
+                                        <template v-if="row.gpus?.length">
+                                            <el-popover placement="bottom" :width="420" trigger="hover">
+                                                <template #reference>
+                                                    <div>
+                                                        <el-progress
+                                                            :percentage="round(row.gpuUtilMax)"
+                                                            :color="'var(--el-color-primary)'"
+                                                            :stroke-width="10"
+                                                        />
+                                                        <div class="node-sub">
+                                                            {{ row.gpus.length }} {{ $t('clusterResource.gpuCards') }}
+                                                            <span
+                                                                v-if="row.gpuTempMax"
+                                                                :style="{ color: tempColor(row.gpuTempMax) }"
+                                                            >
+                                                                · {{ $t('clusterResource.maxTemp') }}
+                                                                {{ row.gpuTempMax.toFixed(0) }}°C
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </template>
+                                                <div v-for="g in row.gpus" :key="g.kind + g.index" class="disk-line">
+                                                    <div class="disk-line-head">
+                                                        <span class="disk-path">#{{ g.index }} {{ g.name }}</span>
+                                                        <span>
+                                                            <span
+                                                                v-if="g.temperature !== null"
+                                                                :style="{ color: tempColor(g.temperature) }"
+                                                            >
+                                                                {{ g.temperature.toFixed(0) }}°C
+                                                            </span>
+                                                            <span v-if="g.memoryTotal">
+                                                                · {{ gpuMem(g.memoryUsed) }} /
+                                                                {{ gpuMem(g.memoryTotal) }}
+                                                            </span>
+                                                        </span>
+                                                    </div>
+                                                    <el-progress
+                                                        v-if="g.utilization !== null"
+                                                        :percentage="round(g.utilization)"
+                                                        :stroke-width="6"
+                                                    />
+                                                </div>
+                                            </el-popover>
+                                        </template>
+                                        <span v-else>—</span>
+                                    </template>
+                                </el-table-column>
                                 <el-table-column :label="$t('clusterResource.netSpeed')" min-width="130">
                                     <template #default="{ row }">
                                         <template v-if="row.online">
@@ -383,6 +444,17 @@ const barColor = (value: number) => {
     if (value >= warn) return 'var(--el-color-warning)';
     return 'var(--el-color-primary)';
 };
+// The GPU column is only shown when at least one node has accelerators.
+const hasGpu = computed(() => (staticData.value?.nodes || []).some((n) => n.gpus?.length));
+const tempColor = (value: number) => {
+    const warn = staticData.value?.warnTemp || 80;
+    const crit = staticData.value?.criticalTemp || 90;
+    if (value >= crit) return 'var(--el-color-danger)';
+    if (value >= warn) return 'var(--el-color-warning)';
+    return '';
+};
+// GPU memory is reported in MiB.
+const gpuMem = (mib: number | null) => (mib === null ? '—' : computeSize(Math.round(mib * 1024 * 1024)));
 const maxDiskPercent = (row: Cluster.MonitorStatic) =>
     Math.max(row.diskUsedPercent || 0, ...(row.disks || []).map((d) => d.usedPercent || 0));
 
@@ -407,6 +479,10 @@ const riskText = (risk: Cluster.MonitorRisk) => {
             return `${t('clusterResource.kindMemory')} ${risk.value.toFixed(1)}%`;
         case 'disk':
             return `${t('clusterResource.kindDisk')} ${risk.target} ${risk.value.toFixed(1)}%`;
+        case 'cpuTemp':
+            return `${t('clusterResource.kindCpuTemp')} ${risk.value.toFixed(0)}°C`;
+        case 'gpuTemp':
+            return `${t('clusterResource.kindGpuTemp')} ${risk.target} ${risk.value.toFixed(0)}°C`;
     }
     return '';
 };
@@ -414,7 +490,7 @@ const riskText = (risk: Cluster.MonitorRisk) => {
 const loadStatic = async (force = false) => {
     staticLoading.value = true;
     try {
-        const res = await loadClusterMonitorStatic(force);
+        const res = await loadClusterMonitorStatic(force, true);
         staticData.value = res.data;
         staticAt.value = new Date().toLocaleTimeString();
     } catch {

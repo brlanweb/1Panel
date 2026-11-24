@@ -194,9 +194,10 @@ func (b *BaseApi) LoadMonitorRealtime(c *gin.Context) {
 // @Success 200 {object} dto.MonitorStatic
 // @Security ApiKeyAuth
 // @Security Timestamp
+// @Param hw query string false "1 = also collect CPU temperature / GPU metrics"
 // @Router /dashboard/monitor/static [get]
 func (b *BaseApi) LoadMonitorStatic(c *gin.Context) {
-	helper.SuccessWithData(c, dashboardService.LoadMonitorStatic())
+	helper.SuccessWithData(c, dashboardService.LoadMonitorStatic(c.Query("hw") == "1"))
 }
 
 // @Tags Dashboard

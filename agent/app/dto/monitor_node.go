@@ -43,4 +43,27 @@ type MonitorStatic struct {
 
 	NetBytesSent uint64 `json:"netBytesSent"`
 	NetBytesRecv uint64 `json:"netBytesRecv"`
+
+	// CPUTemperature is the hottest CPU / SoC sensor in °C (0 = no sensor,
+	// e.g. most cloud VMs).
+	CPUTemperature float64 `json:"cpuTemperature"`
+	// GPUs lists the accelerators (NVIDIA / AMD GPU, Ascend NPU, Intel
+	// XPU) found on the node; empty when none or no vendor tool installed.
+	GPUs []MonitorGPUBrief `json:"gpus"`
+	// HWSampled is true when CPUTemperature / GPUs were collected for this
+	// response (?hw=1); false means "not asked", not "no hardware".
+	HWSampled bool `json:"hwSampled"`
+}
+
+// MonitorGPUBrief is the per-device summary used by the cluster monitor.
+// Nil metrics mean the vendor tool did not report them.
+type MonitorGPUBrief struct {
+	Index       int      `json:"index"`
+	Kind        string   `json:"kind"` // gpu / npu / xpu
+	Vendor      string   `json:"vendor"`
+	Name        string   `json:"name"`
+	Utilization *float64 `json:"utilization"` // %
+	Temperature *float64 `json:"temperature"` // °C
+	MemoryUsed  *float64 `json:"memoryUsed"`  // MiB
+	MemoryTotal *float64 `json:"memoryTotal"` // MiB
 }

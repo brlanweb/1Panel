@@ -39,7 +39,7 @@
                         {{ $t('cluster.taskDetail') }}
                     </el-button>
                     <el-button
-                        v-if="row.status === 'running' && ['file', 'image'].includes(row.kind)"
+                        v-if="row.status === 'running' && ['file', 'image', 'model'].includes(row.kind)"
                         link
                         type="danger"
                         @click="onCancel(row)"
@@ -93,6 +93,8 @@ const kindLabel = (kind: string) => {
             return i18n.global.t('xpack.sync.ssl');
         case 'php':
             return i18n.global.t('xpack.sync.phpExtensionsTitle');
+        case 'model':
+            return i18n.global.t('vllm.kindModel');
     }
     return kind;
 };

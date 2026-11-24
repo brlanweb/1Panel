@@ -15,6 +15,10 @@ export namespace Cluster {
         lastError: string;
         cpuUsedPercent: number;
         memUsedPercent: number;
+        cpuTemperature: number;
+        gpuCount: number;
+        gpuUtilMax: number;
+        gpuTempMax: number;
         appCount: number;
         websiteCount: number;
         lastSyncStatus: string;
@@ -129,7 +133,7 @@ export namespace Cluster {
         latestVersion?: string;
     }
 
-    export type SyncKind = 'file' | 'image' | 'app' | 'cert' | 'php';
+    export type SyncKind = 'file' | 'image' | 'app' | 'cert' | 'php' | 'model';
 
     export interface SyncResource {
         key: string;
@@ -386,14 +390,30 @@ export namespace Cluster {
         disks: MonitorDisk[];
         internalIPs: string[];
         publicIP: string;
+        cpuTemperature: number;
+        gpus: MonitorGPU[] | null;
+        gpuUtilMax: number;
+        gpuTempMax: number;
         error: string;
         sampledAt: number;
+    }
+
+    // One accelerator; null metrics were not reported by the vendor tool.
+    export interface MonitorGPU {
+        index: number;
+        kind: string;
+        vendor: string;
+        name: string;
+        utilization: number | null;
+        temperature: number | null;
+        memoryUsed: number | null;
+        memoryTotal: number | null;
     }
 
     export interface MonitorRisk {
         nodeId: number;
         name: string;
-        kind: 'offline' | 'cpu' | 'memory' | 'disk';
+        kind: 'offline' | 'cpu' | 'memory' | 'disk' | 'cpuTemp' | 'gpuTemp';
         level: 'warning' | 'critical';
         value: number;
         target: string;
@@ -410,6 +430,8 @@ export namespace Cluster {
         critical: number;
         warnPercent: number;
         criticalPercent: number;
+        warnTemp: number;
+        criticalTemp: number;
     }
 
     export interface MonitorRealtimeRes {

@@ -189,7 +189,7 @@ const syncResourceDir = "dir"
 
 func validSyncKind(kind string) bool {
 	switch kind {
-	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert, dto.ClusterSyncKindPhp:
+	case dto.ClusterSyncKindFile, dto.ClusterSyncKindImage, dto.ClusterSyncKindApp, dto.ClusterSyncKindCert, dto.ClusterSyncKindPhp, dto.ClusterSyncKindModel:
 		return true
 	}
 	return false
@@ -449,6 +449,8 @@ func (s *ClusterSyncService) listResourcesPage(kind string, node model.ClusterNo
 		}
 		out.Total = result.Total
 		return out, nil
+	case dto.ClusterSyncKindModel:
+		return s.listModelResources(node, opts, page, pageSize)
 	}
 	return out, buserr.New("ErrInvalidParams")
 }
@@ -881,6 +883,17 @@ func (s *ClusterSyncService) compareOnTarget(kind string, target model.ClusterNo
 				}
 				return model.ClusterSyncActionSkipConflict, "target has a PHP template with the same name but different extensions"
 			}
+		}
+		return model.ClusterSyncActionCreate, ""
+	case dto.ClusterSyncKindModel:
+		// Files are compared one by one during the transfer (same size =
+		// skipped), so an existing directory is merged / resumed.
+		item, ok, err := s.lookupFile(target, res.Key)
+		if err != nil {
+			return model.ClusterSyncActionFailed, "could not list target directory: " + truncateErr(err.Error())
+		}
+		if ok && item.Extra != syncResourceDir {
+			return model.ClusterSyncActionSkipConflict, "target has a file at the model directory path"
 		}
 		return model.ClusterSyncActionCreate, ""
 	}
@@ -1725,6 +1738,8 @@ func (s *ClusterSyncService) transferOne(kind string, source, target model.Clust
 		return s.transferImage(source, target, res, opts)
 	case dto.ClusterSyncKindApp:
 		return s.transferApp(source, target, res, opts)
+	case dto.ClusterSyncKindModel:
+		return s.transferModel(source, target, res, opts)
 	case dto.ClusterSyncKindCert:
 		// Fetch the full certificate from the source (private key + PEM).
 		// Keys live only in memory for the duration of this call and are

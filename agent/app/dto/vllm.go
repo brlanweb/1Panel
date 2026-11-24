@@ -40,6 +40,11 @@ type VllmModelImport struct {
 	RepoID string `json:"repoId" validate:"required"`
 	Kind   string `json:"kind" validate:"required,oneof=model tokenizer"`
 	Dir    string `json:"dir" validate:"required"`
+	// Source / Revision are set when a cluster master copies a downloaded
+	// model to this node, so the record keeps its origin (and "resume"
+	// keeps working). Empty Source = a local directory registered by hand.
+	Source   string `json:"source" validate:"omitempty,oneof=local modelscope huggingface"`
+	Revision string `json:"revision"`
 }
 
 type VllmModelDelete struct {

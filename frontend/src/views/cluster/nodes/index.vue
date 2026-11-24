@@ -111,6 +111,37 @@
                             <span v-else>—</span>
                         </template>
                     </el-table-column>
+                    <el-table-column
+                        :label="$t('clusterResource.temperature')"
+                        prop="cpuTemperature"
+                        width="90px"
+                        align="center"
+                    >
+                        <template #default="{ row }">
+                            <span v-if="row.status === 'online' && row.cpuTemperature">
+                                {{ row.cpuTemperature.toFixed(0) }}°C
+                            </span>
+                            <span v-else>—</span>
+                        </template>
+                    </el-table-column>
+                    <el-table-column
+                        v-if="hasGpu"
+                        :label="$t('clusterResource.gpu')"
+                        prop="gpuUtilMax"
+                        min-width="130px"
+                        align="center"
+                    >
+                        <template #default="{ row }">
+                            <template v-if="row.status === 'online' && row.gpuCount > 0">
+                                <div>{{ (row.gpuUtilMax || 0).toFixed(0) }}%</div>
+                                <div class="node-sub">
+                                    {{ row.gpuCount }} {{ $t('clusterResource.gpuCards') }}
+                                    <span v-if="row.gpuTempMax">· {{ row.gpuTempMax.toFixed(0) }}°C</span>
+                                </div>
+                            </template>
+                            <span v-else>—</span>
+                        </template>
+                    </el-table-column>
                     <el-table-column :label="$t('cluster.appCount')" prop="appCount" width="80px" align="center" />
                     <el-table-column
                         :label="$t('cluster.websiteCount')"
@@ -149,7 +180,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import i18n from '@/lang';
 import Operate from './components/operate.vue';
 import {
@@ -176,6 +207,8 @@ const data = ref<Cluster.NodeInfo[]>([]);
 const selects = ref([]);
 const columns = ref([]);
 const groups = ref<Group.GroupInfo[]>([]);
+// Temperature / GPU values come from the cluster resource monitor sample.
+const hasGpu = computed(() => data.value.some((row) => row.gpuCount > 0));
 const overview = reactive<Cluster.NodeOverview>({
     total: 0,
     online: 0,
@@ -424,5 +457,9 @@ onMounted(async () => {
 <style scoped>
 .mb-4 {
     margin-bottom: 16px;
+}
+.node-sub {
+    font-size: 12px;
+    color: var(--el-text-color-secondary);
 }
 </style>

@@ -47,6 +47,12 @@ var AddClusterNodesMenu = &gormigrate.Migration{
 	},
 }
 
+// AddClusterNodeHardwareColumns adds the CPU temperature / GPU snapshot columns.
+var AddClusterNodeHardwareColumns = &gormigrate.Migration{
+	ID:      "20261124-add-cluster-node-hardware",
+	Migrate: func(tx *gorm.DB) error { return tx.AutoMigrate(&model.ClusterNode{}) },
+}
+
 // AddClusterNodeDiskColumns adds the disk usage snapshot columns.
 var AddClusterNodeDiskColumns = &gormigrate.Migration{
 	ID:      "20261122-add-cluster-node-disk",

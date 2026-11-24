@@ -267,6 +267,13 @@ export namespace Setting {
         releaseNote: string;
         checkError?: string;
     }
+    export interface UpgradeProxyOptions {
+        panel: boolean;
+        panelAddr: string;
+        node: boolean;
+        nodeName: string;
+        nodeError: string;
+    }
     export interface UpgradeStatus {
         stage: 'idle' | 'downloading' | 'verifying' | 'installing' | 'failed';
         version: string;

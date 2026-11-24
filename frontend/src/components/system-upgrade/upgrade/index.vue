@@ -15,6 +15,19 @@
                     {{ upgradeInfo.testVersion }}
                 </el-radio>
             </el-radio-group>
+            <div class="upgrade-proxy">
+                <span class="upgrade-proxy__label">{{ $t('setting.upgradeDownloadVia') }}</span>
+                <el-radio-group v-model="proxyMode" :disabled="running">
+                    <el-radio value="direct">{{ $t('setting.upgradeViaDirect') }}</el-radio>
+                    <el-radio value="panel" :disabled="!proxyOptions.panel">
+                        {{ $t('setting.upgradeViaPanel') }}
+                    </el-radio>
+                    <el-radio value="node" :disabled="!proxyOptions.node">
+                        {{ $t('setting.upgradeViaNode') }}
+                    </el-radio>
+                </el-radio-group>
+                <div class="upgrade-proxy__hint">{{ proxyHint }}</div>
+            </div>
             <div v-if="running" class="upgrade-progress">
                 <div class="flx-align-center">
                     <el-icon class="is-loading mr-1"><Loading /></el-icon>
@@ -53,7 +66,7 @@
 <script setup lang="ts">
 import MarkDownEditor from '@/components/mkdown-editor/index.vue';
 
-import { loadReleaseNotes, loadUpgradeStatus, upgrade } from '@/api/modules/setting';
+import { loadReleaseNotes, loadUpgradeProxyOptions, loadUpgradeStatus, upgrade } from '@/api/modules/setting';
 import { Setting } from '@/api/interface/setting';
 import i18n, { loadLocaleMessages } from '@/lang';
 import { MsgSuccess } from '@/utils/message';
@@ -68,6 +81,53 @@ const releaseNotesLocale = computed(() => (isIntl.value ? 'en' : 'zh'));
 const versionTitle = computed(() => i18n.global.t('app.version', {}, { locale: releaseNotesLocale.value }));
 
 const drawerVisible = ref(false);
+
+// Download route for the package. Default: the subscription proxy when it
+// runs, else the global proxy when set, else direct.
+const PROXY_MODE_KEY = 'upgrade-download-proxy';
+const proxyMode = ref('direct');
+const proxyOptions = ref<Setting.UpgradeProxyOptions>({
+    panel: false,
+    panelAddr: '',
+    node: false,
+    nodeName: '',
+    nodeError: '',
+});
+const proxyHint = computed(() => {
+    switch (proxyMode.value) {
+        case 'panel':
+            return i18n.global.t('setting.upgradeViaPanelHint', [proxyOptions.value.panelAddr]);
+        case 'node':
+            return i18n.global.t('setting.upgradeViaNodeHint', [proxyOptions.value.nodeName || '-']);
+        default:
+            if (!proxyOptions.value.panel && !proxyOptions.value.node) {
+                return i18n.global.t('setting.upgradeNoProxyHint');
+            }
+            return i18n.global.t('setting.upgradeViaDirectHint');
+    }
+});
+const loadProxyOptions = async () => {
+    try {
+        const res = await loadUpgradeProxyOptions();
+        proxyOptions.value = res.data;
+    } catch {
+        // older backend: keep direct only
+    }
+    const saved = localStorage.getItem(PROXY_MODE_KEY) || '';
+    const available = (mode: string) =>
+        mode === 'direct' ||
+        (mode === 'panel' && proxyOptions.value.panel) ||
+        (mode === 'node' && proxyOptions.value.node);
+    if (saved && available(saved)) {
+        proxyMode.value = saved;
+    } else if (proxyOptions.value.node) {
+        proxyMode.value = 'node';
+    } else if (proxyOptions.value.panel) {
+        proxyMode.value = 'panel';
+    } else {
+        proxyMode.value = 'direct';
+    }
+};
 const upgradeInfo = ref();
 const loading = ref();
 const upgradeVersion = ref();
@@ -81,6 +141,7 @@ const acceptParams = async (params: DialogProps): Promise<void> => {
     upgradeInfo.value = params.upgradeInfo;
     upgradeVersion.value = params.upgradeVersion;
     drawerVisible.value = true;
+    loadProxyOptions();
     // Re-attach to a running download or show the last failure.
     status.value = null;
     poll();
@@ -160,7 +221,8 @@ const onUpgrade = async () => {
         cancelButtonText: i18n.global.t('commons.button.cancel'),
         type: 'info',
     }).then(async () => {
-        await upgrade(upgradeVersion.value);
+        localStorage.setItem(PROXY_MODE_KEY, proxyMode.value);
+        await upgrade(upgradeVersion.value, proxyMode.value);
         MsgSuccess(i18n.global.t('setting.upgradeStarted'));
         status.value = { stage: 'downloading', version: upgradeVersion.value } as Setting.UpgradeStatus;
         poll();
@@ -193,6 +255,17 @@ defineExpose({
         margin: 13px 0;
         padding: 0;
         font-size: 16px;
+    }
+}
+.upgrade-proxy {
+    padding: 8px 0 12px;
+    &__label {
+        margin-right: 12px;
+        font-size: 14px;
+    }
+    &__hint {
+        font-size: 12px;
+        color: var(--el-text-color-secondary);
     }
 }
 .upgrade-progress {

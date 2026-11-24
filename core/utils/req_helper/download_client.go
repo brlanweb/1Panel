@@ -13,3 +13,12 @@ import (
 func NewDownloadClientWithProxy(timeout time.Duration) *http.Client {
 	return newExternalHTTPClient(xpack.MultiNodeProvider.LoadRequestTransport(), timeout)
 }
+
+// NewDownloadClientWithTransport is NewDownloadClientWithProxy with an
+// explicit transport (nil = the panel proxy settings).
+func NewDownloadClientWithTransport(transport *http.Transport, timeout time.Duration) *http.Client {
+	if transport == nil {
+		transport = xpack.MultiNodeProvider.LoadRequestTransport()
+	}
+	return newExternalHTTPClient(transport, timeout)
+}

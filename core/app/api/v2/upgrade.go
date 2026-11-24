@@ -89,3 +89,13 @@ func (b *BaseApi) Upgrade(c *gin.Context) {
 func (b *BaseApi) GetUpgradeStatus(c *gin.Context) {
 	helper.SuccessWithData(c, upgradeService.LoadUpgradeStatus())
 }
+
+// @Tags System Setting
+// @Summary Load the proxies the upgrade download can use
+// @Success 200 {object} dto.UpgradeProxyOptions
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/settings/upgrade/proxies [get]
+func (b *BaseApi) GetUpgradeProxyOptions(c *gin.Context) {
+	helper.SuccessWithData(c, upgradeService.LoadUpgradeProxyOptions())
+}

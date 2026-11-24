@@ -32,6 +32,15 @@ func HandleRequestWithProxy(url, method string, timeout int) (int, []byte, error
 	return handleRequestWithTransport(url, method, transport, timeout)
 }
 
+// HandleRequestWithTransport is HandleRequestWithProxy with an explicit
+// transport (nil = the panel proxy settings).
+func HandleRequestWithTransport(url, method string, transport *http.Transport, timeout int) (int, []byte, error) {
+	if transport == nil {
+		transport = xpack.MultiNodeProvider.LoadRequestTransport()
+	}
+	return handleRequestWithTransport(url, method, transport, timeout)
+}
+
 func handleRequestWithTransport(url, method string, transport *http.Transport, timeout int) (int, []byte, error) {
 	defer func() {
 		if r := recover(); r != nil {

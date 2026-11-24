@@ -82,6 +82,7 @@ type IUpgradeService interface {
 	SearchUpgrade() (*dto.UpgradeInfo, error)
 	LoadRelease() ([]dto.ReleasesNotes, error)
 	LoadUpgradeStatus() dto.UpgradeStatus
+	LoadUpgradeProxyOptions() dto.UpgradeProxyOptions
 }
 
 func NewIUpgradeService() IUpgradeService {
@@ -156,6 +157,12 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 	if compareForkVersion(req.Version, global.CONF.Base.Version) <= 0 {
 		return fmt.Errorf("version %s is not newer than the running %s", req.Version, global.CONF.Base.Version)
 	}
+	// Resolve the download route before claiming the upgrade slot so a
+	// stopped subscription proxy is reported right away.
+	transport, err := upgradeTransport(req.Proxy)
+	if err != nil {
+		return err
+	}
 	resetForkReleaseCache() // the release may have just been published
 	downloadURL, fileName, err := forkPackageURL(req.Version, itemArch)
 	if err != nil {
@@ -169,14 +176,14 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		oldLang := ctl_conf.Load("LANGUAGE")
 		// Phase 1 (panel stays usable): download, verify, unpack, check.
 		pkgPath := downloadDir + "/" + fileName
-		if err := downloadForkPackage(downloadURL, pkgPath, reportDownload); err != nil {
+		if err := downloadForkPackage(downloadURL, pkgPath, transport, reportDownload); err != nil {
 			failUpgrade(req.Version, err)
 			_ = os.RemoveAll(baseDir)
 			return
 		}
 		global.LOG.Info("download all file successful!")
 		setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageVerifying })
-		if err := verifyForkPackageChecksum(req.Version, fileName, pkgPath); err != nil {
+		if err := verifyForkPackageChecksum(req.Version, fileName, pkgPath, transport); err != nil {
 			failUpgrade(req.Version, err)
 			_ = os.RemoveAll(baseDir)
 			return

@@ -53,7 +53,7 @@ func TestDownloadForkPackageResumesWithRange(t *testing.T) {
 
 	dst := filepath.Join(t.TempDir(), "pkg.tar.gz")
 	var lastDone, lastTotal int64
-	if err := downloadForkPackage(srv.URL, dst, func(d, total int64) { lastDone, lastTotal = d, total }); err != nil {
+	if err := downloadForkPackage(srv.URL, dst, nil, func(d, total int64) { lastDone, lastTotal = d, total }); err != nil {
 		t.Fatalf("download: %v", err)
 	}
 	got, _ := os.ReadFile(dst)
@@ -79,7 +79,7 @@ func TestDownloadForkPackageStopsOn404(t *testing.T) {
 		http.NotFound(w, r)
 	}))
 	defer srv.Close()
-	if err := downloadForkPackage(srv.URL, filepath.Join(t.TempDir(), "x"), nil); err == nil {
+	if err := downloadForkPackage(srv.URL, filepath.Join(t.TempDir(), "x"), nil, nil); err == nil {
 		t.Fatal("404 must fail")
 	}
 	if calls != 1 {
@@ -105,11 +105,11 @@ func TestVerifyForkPackageChecksum(t *testing.T) {
 		{Name: name, BrowserDownloadURL: "https://example.invalid/p"},
 		{Name: name + ".sha256", BrowserDownloadURL: srv.URL},
 	}}})
-	if err := verifyForkPackageChecksum("v9.9.9-cluster.1", name, pkg); err != nil {
+	if err := verifyForkPackageChecksum("v9.9.9-cluster.1", name, pkg, nil); err != nil {
 		t.Fatalf("good checksum rejected: %v", err)
 	}
 	body = strings.Repeat("0", 64)
-	if err := verifyForkPackageChecksum("v9.9.9-cluster.1", name, pkg); err == nil {
+	if err := verifyForkPackageChecksum("v9.9.9-cluster.1", name, pkg, nil); err == nil {
 		t.Fatal("bad checksum accepted")
 	}
 }

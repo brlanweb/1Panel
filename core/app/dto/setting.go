@@ -189,6 +189,19 @@ type BindInfo struct {
 
 type Upgrade struct {
 	Version string `json:"version" validate:"required"`
+	// Proxy for the package download: "" / auto (panel proxy if set,
+	// else direct), direct, panel (global proxy), node (subscription proxy).
+	Proxy string `json:"proxy" validate:"omitempty,oneof=auto direct panel node"`
+}
+
+// UpgradeProxyOptions tells the upgrade drawer which download routes exist.
+type UpgradeProxyOptions struct {
+	Panel     bool   `json:"panel"`
+	PanelAddr string `json:"panelAddr"`
+	Node      bool   `json:"node"`
+	NodeName  string `json:"nodeName"`
+	// NodeError explains why the subscription proxy is unavailable.
+	NodeError string `json:"nodeError"`
 }
 
 // UpgradeStatus is the live state of a fork upgrade (see fork_upgrade.go).

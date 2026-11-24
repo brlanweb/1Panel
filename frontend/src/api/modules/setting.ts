@@ -180,8 +180,12 @@ export const listReleases = () => {
 export const loadUpgradeStatus = () => {
     return http.get<Setting.UpgradeStatus>(`/core/settings/upgrade/status`);
 };
-export const upgrade = (version: string) => {
-    return http.post(`/core/settings/upgrade`, { version: version });
+// proxy: '' (auto) | 'direct' | 'panel' (global proxy) | 'node' (subscription proxy)
+export const upgrade = (version: string, proxy = '') => {
+    return http.post(`/core/settings/upgrade`, { version: version, proxy: proxy });
+};
+export const loadUpgradeProxyOptions = () => {
+    return http.get<Setting.UpgradeProxyOptions>(`/core/settings/upgrade/proxies`);
 };
 
 // memo

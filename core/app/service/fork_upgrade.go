@@ -123,7 +123,7 @@ func (u *UpgradeService) LoadUpgradeStatus() dto.UpgradeStatus {
 
 // downloadForkPackage downloads url to dst with progress, stall detection
 // and HTTP Range resume between attempts.
-func downloadForkPackage(url, dst string, progress func(done, total int64)) error {
+func downloadForkPackage(url, dst string, transport *http.Transport, progress func(done, total int64)) error {
 	part := dst + ".part"
 	_ = os.Remove(part)
 	var lastErr error
@@ -134,7 +134,7 @@ func downloadForkPackage(url, dst string, progress func(done, total int64)) erro
 			}
 			time.Sleep(forkDownloadRetryGap)
 		}
-		done, err := downloadForkPackageOnce(url, part, progress)
+		done, err := downloadForkPackageOnce(url, part, transport, progress)
 		if err == nil {
 			return os.Rename(part, dst)
 		}
@@ -151,7 +151,7 @@ func downloadForkPackage(url, dst string, progress func(done, total int64)) erro
 
 type permanentDownloadError struct{ error }
 
-func downloadForkPackageOnce(url, part string, progress func(done, total int64)) (int64, error) {
+func downloadForkPackageOnce(url, part string, transport *http.Transport, progress func(done, total int64)) (int64, error) {
 	var offset int64
 	if info, err := os.Stat(part); err == nil {
 		offset = info.Size()
@@ -165,7 +165,7 @@ func downloadForkPackageOnce(url, part string, progress func(done, total int64))
 	if offset > 0 {
 		req.Header.Set("Range", fmt.Sprintf("bytes=%d-", offset))
 	}
-	client := req_helper.NewDownloadClientWithProxy(forkDownloadTimeout)
+	client := req_helper.NewDownloadClientWithTransport(transport, forkDownloadTimeout)
 	defer client.CloseIdleConnections()
 	resp, err := client.Do(req)
 	if err != nil {
@@ -262,7 +262,7 @@ func downloadForkPackageOnce(url, part string, progress func(done, total int64))
 // verifyForkPackageChecksum checks the package against the release's
 // "<file>.sha256" asset. Releases without that asset are accepted (older
 // manually published releases) but a mismatch is always fatal.
-func verifyForkPackageChecksum(tag, fileName, pkgPath string) error {
+func verifyForkPackageChecksum(tag, fileName, pkgPath string, transport *http.Transport) error {
 	release, err := findForkRelease(tag)
 	if err != nil {
 		return err
@@ -277,7 +277,7 @@ func verifyForkPackageChecksum(tag, fileName, pkgPath string) error {
 		logForkReleaseError(fmt.Errorf("release %s has no %s.sha256, skipping checksum verification", tag, fileName))
 		return nil
 	}
-	status, body, err := req_helper.HandleRequestWithProxy(sumURL, http.MethodGet, 60)
+	status, body, err := req_helper.HandleRequestWithTransport(sumURL, http.MethodGet, transport, 60)
 	if err != nil {
 		return fmt.Errorf("load checksum failed: %v", err)
 	}

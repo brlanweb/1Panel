@@ -2,11 +2,9 @@ package service
 
 import (
 	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io"
-	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
@@ -79,45 +77,19 @@ func (u *ClusterNodeService) ListOptions() ([]dto.ClusterNodeOption, error) {
 			Addr:    strings.TrimRight(node.EntryURL, "/"),
 			Status:  status,
 			IsBound: true,
+			Version: node.Version,
+			Mode:    node.EffectiveMode(),
 		})
 	}
 	return options, nil
 }
 
 func clusterProxyTransport() *http.Transport {
-	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		TLSClientConfig:       &tls.Config{InsecureSkipVerify: true},
-		TLSHandshakeTimeout:   5 * time.Second,
-		ResponseHeaderTimeout: 60 * time.Second,
-		IdleConnTimeout:       90 * time.Second,
-	}
+	return sharedClusterTransports.getPanelTransport(false)
 }
 
-// clusterProxyWebsocketTransport is the transport for websocket upgrades
-// (terminals). It deliberately has NO ResponseHeaderTimeout and NO
-// IdleConnTimeout: once upgraded, the connection is a long-lived shell
-// session, not a request/response round trip. The 60s/90s limits of the
-// regular transport must never kill an idle terminal — a shell that sits
-// idle for 90s is normal, and the agent already closes the connection
-// itself every 60s for lease revalidation (close 4410), which the frontend
-// re-attaches. IdleConnTimeout does not apply to a hijacked connection in
-// Go's transport, but the handshake itself must not be subject to the
-// response-header deadline either, so upgrades get their own transport.
 func clusterProxyWebsocketTransport() *http.Transport {
-	return &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		DialContext: (&net.Dialer{
-			Timeout:   10 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).DialContext,
-		TLSClientConfig:     &tls.Config{InsecureSkipVerify: true},
-		TLSHandshakeTimeout: 5 * time.Second,
-	}
+	return sharedClusterTransports.getPanelTransport(true)
 }
 
 func isWebsocketUpgrade(r *http.Request) bool {

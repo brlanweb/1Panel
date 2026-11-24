@@ -62,6 +62,7 @@ import { Group } from '@/api/interface/group';
 import { Cluster } from '@/api/interface/cluster';
 import { Rules } from '@/global/form-rules';
 import { MsgError, MsgSuccess } from '@/utils/message';
+import bus from '@/global/bus';
 
 const loading = ref(false);
 const operateVisible = ref(false);
@@ -76,6 +77,7 @@ const form = reactive({
     entryUrl: '',
     remark: '',
     groupId: 0,
+    hostId: 0,
     apiKey: '',
 });
 
@@ -117,6 +119,12 @@ const listGroups = async () => {
 interface DialogProps {
     row?: Cluster.NodeInfo;
     isSelf?: boolean;
+    prefill?: {
+        name?: string;
+        entryUrl?: string;
+        hostId?: number;
+        remark?: string;
+    };
 }
 const acceptParams = (params: DialogProps): void => {
     listGroups();
@@ -127,14 +135,16 @@ const acceptParams = (params: DialogProps): void => {
         form.entryUrl = params.row.entryUrl;
         form.remark = params.row.remark || '';
         form.groupId = params.row.groupId || 0;
+        form.hostId = params.row.hostId || 0;
         form.apiKey = '';
     } else {
         isEdit.value = false;
         form.id = 0;
-        form.name = '';
-        form.entryUrl = params.isSelf ? window.location.origin : '';
-        form.remark = '';
+        form.name = params.prefill?.name || '';
+        form.entryUrl = params.isSelf ? window.location.origin : params.prefill?.entryUrl || '';
+        form.remark = params.prefill?.remark || '';
         form.groupId = 0;
+        form.hostId = params.prefill?.hostId || 0;
         form.apiKey = '';
     }
     operateVisible.value = true;
@@ -183,12 +193,14 @@ const onSubmit = async (formEl: FormInstance | undefined) => {
                   entryUrl: form.entryUrl,
                   remark: form.remark,
                   groupId: form.groupId,
+                  hostId: form.hostId || undefined,
                   apiKey: form.apiKey,
               };
         await api(req as any)
             .then(() => {
                 loading.value = false;
                 emit('search');
+                bus.emit('refreshClusterNodes');
                 operateVisible.value = false;
                 MsgSuccess(i18n.global.t('commons.msg.operationSuccess'));
             })

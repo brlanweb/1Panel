@@ -94,13 +94,8 @@ var localAgentSocketPath = "/etc/1panel/agent.sock"
 
 func localAgentHTTPClient(timeout time.Duration) *http.Client {
 	return &http.Client{
-		Timeout: timeout,
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				d := &net.Dialer{Timeout: timeout}
-				return d.DialContext(ctx, "unix", localAgentSocketPath)
-			},
-		},
+		Timeout:   timeout,
+		Transport: sharedClusterTransports.LocalAgentTransport(localAgentSocketPath),
 	}
 }
 

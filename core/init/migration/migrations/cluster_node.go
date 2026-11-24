@@ -58,3 +58,49 @@ var AddClusterNodeDiskColumns = &gormigrate.Migration{
 	ID:      "20261122-add-cluster-node-disk",
 	Migrate: func(tx *gorm.DB) error { return tx.AutoMigrate(&model.ClusterNode{}) },
 }
+
+// AddClusterNodeAgentColumns adds mode / host_id / agent_port / proxy_id_cipher
+// for agent-only (mTLS / reverse tunnel) nodes and SSH host enrollment.
+var AddClusterNodeAgentColumns = &gormigrate.Migration{
+	ID: "20261124-add-cluster-node-agent-columns",
+	Migrate: func(tx *gorm.DB) error {
+		if err := tx.AutoMigrate(&model.ClusterNode{}); err != nil {
+			return err
+		}
+		return tx.Model(&model.ClusterNode{}).
+			Where("mode IS NULL OR mode = ''").
+			Update("mode", model.ClusterNodeModePanel).Error
+	},
+}
+
+// AddSystemHostsMenu adds the "Host" entry under System-Menu reusing the
+// terminal host list for SSH management and one-click cluster enrollment.
+var AddSystemHostsMenu = &gormigrate.Migration{
+	ID: "20261124-add-system-hosts-menu",
+	Migrate: func(tx *gorm.DB) error {
+		return helper.UpdateHideMenu(tx, func(menus []dto.ShowMenu) []dto.ShowMenu {
+			item := dto.ShowMenu{
+				ID:       "1009",
+				Disabled: false,
+				Title:    "terminal.host",
+				IsShow:   true,
+				Label:    "SystemHosts",
+				Path:     "/hosts/servers",
+				Sort:     5,
+			}
+			for i := range menus {
+				if menus[i].Label != "System-Menu" {
+					continue
+				}
+				for _, child := range menus[i].Children {
+					if child.Label == item.Label || child.Path == item.Path {
+						return menus
+					}
+				}
+				menus[i].Children = append([]dto.ShowMenu{item}, menus[i].Children...)
+				return menus
+			}
+			return menus
+		})
+	},
+}

@@ -7,6 +7,7 @@ type ClusterNodeCreate struct {
 	EntryURL string `json:"entryUrl" validate:"required"`
 	Remark   string `json:"remark"`
 	GroupID  uint   `json:"groupId"`
+	HostID   uint   `json:"hostId"`
 	// Remote panel legacy API key. Stored AES-GCM encrypted, never returned.
 	APIKey string `json:"apiKey" validate:"required"`
 }
@@ -55,6 +56,10 @@ type ClusterNodeInfo struct {
 	// Managed login lock snapshot: nil = never read / node too old.
 	LoginLocked      *bool     `json:"loginLocked"`
 	LoginUnlockUntil int64     `json:"loginUnlockUntil"`
+	Mode             string    `json:"mode"`
+	HostID           uint      `json:"hostId"`
+	AgentPort        int       `json:"agentPort"`
+	TunnelConnected  bool      `json:"tunnelConnected"`
 	CreatedAt        time.Time `json:"createdAt"`
 	UpdatedAt        time.Time `json:"updatedAt"`
 }
@@ -66,10 +71,9 @@ type ClusterNodeOverview struct {
 	Unknown int64 `json:"unknown"`
 }
 
-// ClusterNodeOption is one entry of the bottom node switcher: the master
+// ClusterNodeOption is one entry of the node switcher: the master
 // ("local") entry is added by the frontend, the rest come from ListOptions.
-// Status uses the official switcher vocabulary (Healthy/Unhealthy/Unknown);
-// Version is always empty for panel nodes (no version endpoint exists).
+// Status uses the official switcher vocabulary (Healthy/Unhealthy/Unknown).
 type ClusterNodeOption struct {
 	ID      uint   `json:"id"`
 	Name    string `json:"name"`
@@ -77,6 +81,47 @@ type ClusterNodeOption struct {
 	Status  string `json:"status"`
 	IsBound bool   `json:"isBound"`
 	Version string `json:"version"`
+	Mode    string `json:"mode"`
+}
+
+// ClusterHostEnrollReq enrolls a local SSH host into the cluster by
+// installing either a lightweight agent (direct mTLS or reverse tunnel)
+// or a full XPanel instance over SSH.
+type ClusterHostEnrollReq struct {
+	HostID        uint   `json:"hostId" validate:"required"`
+	Name          string `json:"name" validate:"required"`
+	Mode          string `json:"mode" validate:"required,oneof=agent agent-tunnel panel"`
+	AgentPort     int    `json:"agentPort"`
+	MasterURL     string `json:"masterUrl"`
+	PanelPort     int    `json:"panelPort"`
+	AutoLockLogin bool   `json:"autoLockLogin"`
+	DownloadMode  string `json:"downloadMode"` // "online" (default) | "sftp"
+	GroupID       uint   `json:"groupId"`
+	Remark        string `json:"remark"`
+}
+
+type ClusterHostEnrollStatus struct {
+	TaskID     string     `json:"taskId"`
+	HostID     uint       `json:"hostId"`
+	NodeID     uint       `json:"nodeId"`
+	NodeName   string     `json:"nodeName"`
+	Mode       string     `json:"mode"`
+	Status     string     `json:"status"` // running | success | failed
+	Stage      string     `json:"stage"`
+	Logs       []string   `json:"logs"`
+	Error      string     `json:"error"`
+	StartedAt  time.Time  `json:"startedAt"`
+	FinishedAt *time.Time `json:"finishedAt,omitempty"`
+}
+
+type ClusterHostLink struct {
+	HostID          uint   `json:"hostId"`
+	NodeID          uint   `json:"nodeId"`
+	NodeName        string `json:"nodeName"`
+	Mode            string `json:"mode"`
+	Status          string `json:"status"`
+	Addr            string `json:"addr"`
+	TunnelConnected bool   `json:"tunnelConnected"`
 }
 
 // ClusterNodeSnapshot is one node's last aggregate refresh: live CPU/memory

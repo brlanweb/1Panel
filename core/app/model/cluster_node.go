@@ -44,6 +44,17 @@ type ClusterNode struct {
 	// nil = unknown (never read, or the node is too old to support it).
 	LoginLocked      *bool `json:"loginLocked"`
 	LoginUnlockUntil int64 `json:"loginUnlockUntil"`
+	// Mode selects how the master connects to this node:
+	//   "panel"        - full 1Panel/XPanel node over HTTPS + API key (default)
+	//   "agent"        - agent-only node over direct mTLS (no web panel)
+	//   "agent-tunnel" - agent-only node over reverse WebSocket tunnel (NAT-friendly)
+	Mode string `gorm:"not null;default:panel" json:"mode"`
+	// HostID optionally links this cluster node to a local SSH host row.
+	HostID uint `gorm:"index" json:"hostId"`
+	// AgentPort is the direct mTLS port for mode="agent" (default 9999).
+	AgentPort int `gorm:"default:9999" json:"agentPort"`
+	// ProxyIDCipher stores the AES-GCM encrypted Proxy-Id for agent / agent-tunnel nodes.
+	ProxyIDCipher string `gorm:"type:text" json:"-"`
 }
 
 func (ClusterNode) TableName() string { return "cluster_nodes" }
@@ -52,4 +63,22 @@ const (
 	ClusterNodeStatusOnline  = "online"
 	ClusterNodeStatusOffline = "offline"
 	ClusterNodeStatusUnknown = "unknown"
+
+	ClusterNodeModePanel       = "panel"
+	ClusterNodeModeAgent       = "agent"
+	ClusterNodeModeAgentTunnel = "agent-tunnel"
 )
+
+func (n ClusterNode) EffectiveMode() string {
+	switch n.Mode {
+	case ClusterNodeModeAgent, ClusterNodeModeAgentTunnel:
+		return n.Mode
+	default:
+		return ClusterNodeModePanel
+	}
+}
+
+func (n ClusterNode) IsAgentOnly() bool {
+	m := n.EffectiveMode()
+	return m == ClusterNodeModeAgent || m == ClusterNodeModeAgentTunnel
+}

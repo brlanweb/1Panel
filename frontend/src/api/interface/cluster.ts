@@ -25,6 +25,10 @@ export namespace Cluster {
         lastSyncAt: string;
         loginLocked: boolean | null;
         loginUnlockUntil: number;
+        mode?: string;
+        hostId?: number;
+        agentPort?: number;
+        tunnelConnected?: boolean;
         createdAt: string;
         updatedAt: string;
     }
@@ -50,6 +54,7 @@ export namespace Cluster {
         entryUrl: string;
         remark: string;
         groupId: number;
+        hostId?: number;
         apiKey: string;
     }
 
@@ -75,7 +80,7 @@ export namespace Cluster {
         unknown: number;
     }
 
-    // One entry of the bottom node switcher. The master ("local") entry is
+    // One entry of the node switcher. The master ("local") entry is
     // added by the frontend; the rest are registered panel nodes.
     export interface NodeOption {
         id: number;
@@ -84,6 +89,17 @@ export namespace Cluster {
         status: string;
         isBound: boolean;
         version: string;
+        mode?: string;
+    }
+
+    export interface HostLink {
+        hostId: number;
+        nodeId: number;
+        nodeName: string;
+        mode: string;
+        status: string;
+        addr: string;
+        tunnelConnected?: boolean;
     }
 
     export interface NodeSnapshot {

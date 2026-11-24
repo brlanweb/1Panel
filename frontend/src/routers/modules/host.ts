@@ -12,6 +12,16 @@ const hostRouter = {
     },
     children: [
         {
+            path: '/hosts/servers',
+            name: 'SystemHosts',
+            component: () => import('@/views/terminal/host/index.vue'),
+            meta: {
+                icon: 'p-host',
+                title: 'terminal.host',
+                permission: 'host_ssh_view',
+            },
+        },
+        {
             path: '/hosts/files',
             name: 'File',
             props: true,

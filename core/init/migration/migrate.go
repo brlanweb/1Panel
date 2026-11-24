@@ -96,5 +96,7 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.RenamePanelToXPanel,
 		migrations.MergeClusterPanelsMenu,
 		migrations.AddClusterNodeHardwareColumns,
+		migrations.AddClusterNodeAgentColumns,
+		migrations.AddSystemHostsMenu,
 	}
 }

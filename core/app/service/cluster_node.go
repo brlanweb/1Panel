@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -41,6 +40,7 @@ type IClusterNodeService interface {
 	Overview() (dto.ClusterNodeOverview, error)
 	Aggregate() (dto.ClusterAggregateOverview, error)
 	ListOptions() ([]dto.ClusterNodeOption, error)
+	ListHostLinks() ([]dto.ClusterHostLink, error)
 	UpgradeNode(req dto.ClusterNodeUpgradeReq) error
 	NodeUpgradeStatus(id uint) (dto.ClusterNodeUpgradeStatus, error)
 	SetNodesLoginLock(req dto.ClusterNodeLoginLockReq) ([]dto.ClusterNodeLoginLockResult, error)
@@ -205,6 +205,28 @@ func (u *ClusterNodeService) Overview() (dto.ClusterNodeOverview, error) {
 	return overview, nil
 }
 
+// ListHostLinks returns cluster nodes linked to SSH hosts (matched either by
+// explicit HostID or by endpoint host IP/domain) so the Host list can show
+// enrollment status and one-click node switching.
+func (u *ClusterNodeService) ListHostLinks() ([]dto.ClusterHostLink, error) {
+	nodes, err := clusterNodeRepo.GetList()
+	if err != nil {
+		return nil, err
+	}
+	links := make([]dto.ClusterHostLink, 0, len(nodes))
+	for _, node := range nodes {
+		links = append(links, dto.ClusterHostLink{
+			HostID:   node.HostID,
+			NodeID:   node.ID,
+			NodeName: node.Name,
+			Mode:     node.EffectiveMode(),
+			Status:   node.Status,
+			Addr:     nodeEndpointHost(node),
+		})
+	}
+	return links, nil
+}
+
 // remoteEnvelope is the response envelope every 1Panel core API returns
 // ({code, message, data}). Remote calls are only trusted when the HTTP
 // status is 200 AND code is 200.
@@ -234,9 +256,10 @@ func (u *ClusterNodeService) callRemote(node model.ClusterNode, method, path str
 		return 0, nil, err
 	}
 	targetURL := apiBase + path
-	client := resty.New().
-		SetTimeout(timeout).
-		SetTLSClientConfig(&tls.Config{InsecureSkipVerify: true})
+	client := resty.NewWithClient(&http.Client{
+		Timeout:   timeout,
+		Transport: sharedClusterTransports.TransportFor(node, false),
+	})
 	// Remote panels usually use self-signed certificates; TLS verification is
 	// skipped (same as the existing multi-node transport). Only add nodes you trust.
 	doRequest := func(token string) (*resty.Response, error) {

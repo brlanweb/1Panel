@@ -182,6 +182,21 @@ func (b *BaseApi) ListClusterNodeOptions(c *gin.Context) {
 }
 
 // @Tags Cluster Node
+// @Summary List cluster nodes linked to SSH hosts
+// @Success 200 {array} dto.ClusterHostLink
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/host-links [get]
+func (b *BaseApi) ListClusterHostLinks(c *gin.Context) {
+	links, err := clusterNodeService.ListHostLinks()
+	if err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.SuccessWithData(c, links)
+}
+
+// @Tags Cluster Node
 // @Summary Upgrade the panel of a cluster node
 // @Accept json
 // @Param request body dto.ClusterNodeUpgradeReq true "request"

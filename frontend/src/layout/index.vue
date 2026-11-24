@@ -36,14 +36,24 @@
         >
             <div class="main-container">
                 <mobile-header v-if="classObj.mobile" />
-                <Tabs v-if="classObj.openMenuTabs" />
+                <div class="top-bar" :class="{ 'top-bar--minimal': !classObj.openMenuTabs }" v-if="!isFullScreen">
+                    <div class="top-bar-tabs" v-if="classObj.openMenuTabs">
+                        <Tabs />
+                    </div>
+                    <TopNodeSwitcher class="top-bar-switcher" />
+                </div>
                 <app-main :keep-alive="classObj.openMenuTabs ? tabsStore.keepAliveTabs : null" class="app-main" />
                 <Footer class="app-footer" v-if="!isFullScreen" />
             </div>
         </el-watermark>
         <div class="main-container" v-else>
             <mobile-header v-if="classObj.mobile" />
-            <Tabs v-if="classObj.openMenuTabs" />
+            <div class="top-bar" :class="{ 'top-bar--minimal': !classObj.openMenuTabs }" v-if="!isFullScreen">
+                <div class="top-bar-tabs" v-if="classObj.openMenuTabs">
+                    <Tabs />
+                </div>
+                <TopNodeSwitcher class="top-bar-switcher" />
+            </div>
             <app-main :keep-alive="classObj.openMenuTabs ? tabsStore.keepAliveTabs : null" class="app-main" />
             <Footer class="app-footer" v-if="!isFullScreen" />
         </div>
@@ -56,7 +66,7 @@
 <script setup lang="ts">
 import { prunePanelCache } from '@/utils/panel-cache';
 import { onMounted, computed, ref, watch, onBeforeUnmount } from 'vue';
-import { Sidebar, Footer, AppMain, MobileHeader, Tabs } from './components';
+import { Sidebar, Footer, AppMain, MobileHeader, Tabs, TopNodeSwitcher } from './components';
 import TerminalHost from '@/components/terminal/host.vue';
 import TerminalDock from '@/components/terminal/dock/index.vue';
 import useResize from './hooks/useResize';
@@ -241,6 +251,26 @@ onMounted(() => {
     margin-left: var(--panel-menu-width);
     background-color: var(--panel-main-bg-color-9);
     overflow-x: hidden;
+}
+.top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-right: 16px;
+    min-height: 40px;
+    flex-shrink: 0;
+    .top-bar-tabs {
+        flex: 1;
+        min-width: 0;
+    }
+    .top-bar-switcher {
+        margin-left: auto;
+    }
+    &.top-bar--minimal {
+        padding: 6px 20px 0;
+        min-height: 36px;
+    }
 }
 .app-main {
     padding: 7px 20px;

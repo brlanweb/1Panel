@@ -35,6 +35,10 @@ export const listClusterNodeOptions = () => {
     return http.get<Cluster.NodeOption[]>(`/core/cluster/nodes/options`);
 };
 
+export const listClusterHostLinks = () => {
+    return http.get<Cluster.HostLink[]>(`/core/cluster/nodes/host-links`);
+};
+
 export const getClusterAggregateOverview = () => {
     // Probes every node (status, counts, version, disks): allow more time.
     return http.get<Cluster.AggregateOverview>(`/core/cluster/nodes/overview/aggregate`, undefined, { timeout: 60000 });

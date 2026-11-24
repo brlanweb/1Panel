@@ -7,76 +7,36 @@
             :offset="0"
             :width="200"
             trigger="click"
-            @before-enter="showPopover"
             popper-class="custom-popover-dropdown"
         >
             <template #reference>
                 <div class="el-dropdown-link" v-if="!menuStore.isCollapse">
                     <el-badge is-dot :value="taskCount" :show-zero="false" :offset="[5, 5]">
                         <el-button link>
-                            <SvgIcon class="icon" iconName="p-pcm" />
-                            <span class="ellipsis-text">{{ loadCurrentName() }}</span>
+                            <SvgIcon class="icon" iconName="p-renwuzhongxin1" />
+                            <span class="ellipsis-text">{{ $t('menu.msgCenter') }}</span>
                         </el-button>
                     </el-badge>
                 </div>
                 <div v-else class="el-dropdown-link">
                     <el-badge is-dot :value="taskCount" :show-zero="false" :offset="[-5, 5]">
-                        <SvgIcon class="icon" iconName="p-pcm" />
+                        <SvgIcon class="icon" iconName="p-renwuzhongxin1" />
                     </el-badge>
                 </div>
             </template>
-            <div class="dropdown-menu" v-loading="loading || switchingNode">
+            <div class="dropdown-menu">
                 <div class="dropdown-item" @click="openTask">
                     <SvgIcon class="icon" iconName="p-renwuzhongxin1" />
                     {{ $t('menu.msgCenter') }}
                     <el-tag class="msg-tag" v-if="taskCount !== 0" size="small" round>{{ taskCount }}</el-tag>
                 </div>
-                <el-divider v-if="showNodes()" class="divider" />
-                <div class="dropdown-item" @click="openNodeDashboard" v-if="showClusterOverview">
+                <el-divider class="divider" />
+                <div class="dropdown-item" @click="openNodeDashboard">
                     <SvgIcon class="icon" iconName="p-gailan1" />
                     {{ isXpackOrEE ? $t('xpack.node.multiOverview') : $t('menu.clusterOverview') }}
                 </div>
-                <el-divider v-if="showClusterOverview" class="divider" />
-
-                <div v-if="showNodes()">
-                    <el-scrollbar max-height="288px" :noresize="true">
-                        <div
-                            class="dropdown-item"
-                            @click="changeNode(item.name)"
-                            :disabled="item.source === 'cluster' ? false : item.status !== 'Healthy'"
-                            v-for="item in visibleNodeOptions"
-                            :key="item.name"
-                        >
-                            <SvgIcon class="icon" iconName="p-zhuji" />
-                            <span class="node-name">{{ displayNodeName(item) }}</span>
-                            <el-tooltip
-                                v-if="item.status !== 'Healthy' || !item.isBound"
-                                :content="item.isBound ? $t('xpack.node.nodeUnhealthy') : $t('xpack.node.nodeUnbind')"
-                                placement="right"
-                            >
-                                <el-icon class="icon-status" type="danger">
-                                    <Warning />
-                                </el-icon>
-                            </el-tooltip>
-                        </div>
-                    </el-scrollbar>
-                    <div v-if="showMoreNodes" class="dropdown-item more-node-button" @click.stop="openNodeDrawer">
-                        <span class="more-node-label">{{ $t('tabs.more') }}</span>
-                        <span class="more-node-count">+{{ nodeOptions.length - defaultNodeLimit }}</span>
-                        <el-icon class="more-node-arrow">
-                            <ArrowRight />
-                        </el-icon>
-                    </div>
-                </div>
             </div>
         </el-popover>
-        <NodeDrawer
-            v-model="nodeDrawerVisible"
-            :nodes="nodeOptions"
-            :master-alias="globalStore.getMasterAlias()"
-            @change="changeNode"
-            @favorite-change="handleFavoriteChange"
-        />
         <UserInfo ref="userInfoRef" :currentUser="currentUser" @search="loadCurrentUser()" />
     </div>
 </template>
@@ -84,255 +44,32 @@
 <script setup lang="ts">
 import { MenuStore } from '@/store';
 import { countExecutingTask } from '@/api/modules/log';
-import { MsgError, MsgSuccess } from '@/utils/message';
+import { MsgSuccess } from '@/utils/message';
 import i18n from '@/lang';
-import { getAgentSettingInfo } from '@/api/modules/setting';
-import { computed, onMounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import bus from '@/global/bus';
 import { logOutApi } from '@/api/modules/auth';
 import { submitSAML2Navigation } from '@/utils/saml2';
 import router from '@/routers';
-import { loadProductProFromDB } from '@/utils/xpack';
 import { routerToNameWithQuery } from '@/utils/router';
-import { changeToLocal, listNodes, setDefaultNodeInfo } from '@/utils/node';
-import { listClusterNodeOptions, testClusterNode } from '@/api/modules/cluster';
 import { Login } from '@/api/interface/auth';
 import { syncAuthInfo } from '@/utils/rbac';
 import UserInfo from './user-info/index.vue';
-import NodeDrawer from './node-drawer/index.vue';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 
 const currentUser = ref<Login.AuthInfo>();
-const { globalStore, currentNode, currentNodeAddr, defaultNetwork, entrance, isAdmin, isEnterprise, isXpackOrEE } =
-    useGlobalStore();
+const { globalStore, entrance, isXpackOrEE } = useGlobalStore();
 const menuStore = MenuStore();
-const nodes = ref([]);
-const nodeOptions = ref([]);
-const loading = ref();
-const switchingNode = ref(false);
 const popoverVisible = ref(false);
-const nodeDrawerVisible = ref(false);
 const userInfoRef = ref();
-const props = defineProps({
+defineProps({
     version: String,
 });
-
-const defaultNodeLimit = 8;
 
 const emit = defineEmits(['openTask', 'nodeSwitching', 'userChange']);
 bus.on('refreshTask', () => {
     checkTask();
 });
-
-const loadCurrentName = () => {
-    if (currentNode.value) {
-        if (currentNode.value === 'local') {
-            return globalStore.getMasterAlias();
-        }
-        return currentNode.value;
-    }
-    return globalStore.getMasterAlias();
-};
-
-const visibleNodeOptions = computed(() => {
-    return nodeOptions.value.slice(0, defaultNodeLimit);
-});
-const showMoreNodes = computed(() => {
-    return nodeOptions.value.length > defaultNodeLimit;
-});
-
-const showPopover = async () => {
-    await loadNodes();
-};
-
-const displayNodeName = (item) => {
-    return item.name === 'local' ? globalStore.getMasterAlias() : item.name;
-};
-
-const openNodeDrawer = () => {
-    nodeDrawerVisible.value = true;
-    popoverVisible.value = false;
-};
-
-const handleFavoriteChange = async () => {
-    await loadNodes();
-};
-
-const loadNodes = async () => {
-    loading.value = true;
-    nodes.value = [];
-    if (isXpackOrEE.value) {
-        await listNodes('all')
-            .then((res) => {
-                nodes.value = res || [];
-                if (nodes.value.length === 0) {
-                    setDefaultNodeInfo();
-                }
-                nodeOptions.value = nodes.value || [];
-                loading.value = false;
-            })
-            .catch(() => {
-                setDefaultNodeInfo();
-                loading.value = false;
-            });
-        return;
-    }
-    // No commercial multi-node: the switcher lists the master panel plus
-    // the panel nodes registered under Cluster (URL + API Key). These are
-    // panel nodes, not SSH-installed nodes.
-    try {
-        const res = await listClusterNodeOptions();
-        const clusterNodes = (res.data || []).map((item) => ({ ...item, source: 'cluster' }));
-        nodeOptions.value = [
-            {
-                id: 0,
-                name: 'local',
-                addr: '127.0.0.1',
-                status: 'Healthy',
-                isBound: true,
-                version: props.version,
-                source: 'local',
-            },
-            ...clusterNodes,
-        ];
-        nodes.value = nodeOptions.value;
-        if (currentNode.value !== 'local' && !nodeOptions.value.some((item) => item.name === currentNode.value)) {
-            // The node this browser was switched to no longer exists.
-            changeToLocal();
-        }
-    } catch {
-        setDefaultNodeInfo();
-    } finally {
-        loading.value = false;
-    }
-};
-const changeNode = async (command: string) => {
-    if (currentNode.value === command || switchingNode.value) {
-        return;
-    }
-    switchingNode.value = true;
-    emit('nodeSwitching', true);
-    try {
-        for (const item of nodes.value) {
-            if (item.name == command) {
-                if (item.source === 'cluster') {
-                    await changeToClusterNode(item);
-                    return;
-                }
-                if (command == 'local') {
-                    if (isEnterprise.value) {
-                        await loadCurrentUser('local');
-                    }
-                    await loadGlobalSetting('local');
-                    if (!isEnterprise.value && !item.isXpack) {
-                        globalStore.isProductPro = false;
-                        globalStore.productProExpires = 0;
-                    }
-                    currentNode.value = 'local';
-                    currentNodeAddr.value = item.addr;
-                    localStorage.removeItem('dashboardCache');
-                    localStorage.removeItem('upgradeChecked');
-                    loadProductProFromDB();
-                    routerToNameWithQuery('home', { t: Date.now() });
-                    return;
-                }
-                if (!item.isBound) {
-                    MsgError(i18n.global.t('xpack.node.nodeUnbindHelper'));
-                    return;
-                }
-                if (item.status !== 'Healthy') {
-                    MsgError(i18n.global.t('xpack.node.nodeUnhealthyHelper'));
-                    return;
-                }
-                if (props.version != item.version) {
-                    MsgError(i18n.global.t('setting.versionNotSame'));
-                    return;
-                }
-                await loadGlobalSetting(command);
-                localStorage.removeItem('dashboardCache');
-                localStorage.removeItem('upgradeChecked');
-                if (!isEnterprise.value && !item.isXpack) {
-                    globalStore.isProductPro = false;
-                    globalStore.productProExpires = 0;
-                }
-                currentNode.value = command;
-                currentNodeAddr.value = item.addr;
-                if (isEnterprise.value) {
-                    await loadCurrentUser(command);
-                }
-                loadProductProFromDB();
-                routerToNameWithQuery('home', { t: Date.now() });
-                return;
-            }
-        }
-    } finally {
-        switchingNode.value = false;
-        emit('nodeSwitching', false);
-    }
-};
-
-const loadGlobalSetting = async (currentNode?: string, skipAuthRedirect = false) => {
-    await getAgentSettingInfo(currentNode, skipAuthRedirect ? { skipAuthRedirect: true } : undefined).then((res) => {
-        defaultNetwork.value = res.data.defaultNetwork;
-    });
-};
-
-const changeToClusterNode = async (item) => {
-    // The stored remote API key is equivalent to super admin on the target
-    // panel, so only master admins may switch the whole site to a node.
-    if (!isAdmin.value) {
-        MsgError(i18n.global.t('cluster.switchAdminOnly'));
-        return;
-    }
-    if (item.status !== 'Healthy') {
-        // An unchecked node may simply never have been probed: test it live
-        // before switching instead of refusing outright.
-        try {
-            const res = await testClusterNode(item.id);
-            if (res?.data?.status !== 'online') {
-                MsgError(res?.data?.lastError || i18n.global.t('cluster.switchTestFailed'));
-                return;
-            }
-            item.status = 'Healthy';
-        } catch {
-            MsgError(i18n.global.t('cluster.switchTestFailed'));
-            return;
-        }
-    }
-    // The remote default network is a pre-switch probe, not best-effort:
-    // if the remote panel rejects the API auth here, the switch must stop
-    // with the remote's own error message (e.g. API interface disabled)
-    // instead of switching and then bouncing to the login page. The probe
-    // runs with skipAuthRedirect so a remote 401/403 can never redirect
-    // the master UI to login.
-    try {
-        await loadGlobalSetting(item.name, true);
-    } catch (e: any) {
-        MsgError(
-            e?.response?.data?.message || e?.message || i18n.global.t('cluster.switchTestFailed'),
-        );
-        return;
-    }
-    localStorage.removeItem('dashboardCache');
-    localStorage.removeItem('upgradeChecked');
-    currentNode.value = item.name;
-    currentNodeAddr.value = item.addr;
-    loadProductProFromDB();
-    routerToNameWithQuery('home', { t: Date.now() });
-};
-
-const showClusterOverview = computed(() => {
-    return isXpackOrEE.value || nodeOptions.value.length > 1;
-});
-
-const showNodes = () => {
-    if (isXpackOrEE.value) {
-        return nodes.value.length > 0;
-    }
-    // Cluster mode: only show the switcher when at least one panel node is
-    // registered (the list always contains the local master entry).
-    return nodeOptions.value.length > 1;
-};
 
 const taskCount = ref(0);
 const checkTask = async () => {
@@ -343,10 +80,12 @@ const checkTask = async () => {
 };
 
 const openTask = () => {
+    popoverVisible.value = false;
     emit('openTask');
 };
 
 const openNodeDashboard = () => {
+    popoverVisible.value = false;
     if (isXpackOrEE.value) {
         routerToNameWithQuery('NodeDashboard', { uncached: 'true' });
         return;
@@ -393,7 +132,6 @@ const changeUserInfo = () => {
 defineExpose({ openUserInfo: changeUserInfo, logout });
 
 onMounted(() => {
-    loadNodes();
     checkTask();
     loadCurrentUser();
 });

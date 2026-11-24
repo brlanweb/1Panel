@@ -342,6 +342,14 @@ ComposeRecoverCleanup: 'ທຳຄວາມສະອາດພື້ນທີ່�
 #runtime
 ErrFileNotExist: 'ບໍ່ພົບໄຟລ໌ຕົ້ນທາງ: {{ .detail }}'
 ErrImageBuildErr: 'ການສ້າງຮູບພາບ (Image build) ລົ້ມເຫຼວ'
+PHPBuildImage: "ກຳລັງສ້າງອິມເມຈ PHP"
+PHPBuildBaseImage: "ກຳລັງດຶງອິມເມຈພື້ນຖານ {{ .name }}"
+PHPBuildStep: "ກຳລັງສ້າງອິມເມຈ PHP (ຂັ້ນຕອນ {{ .name }})"
+PHPBuildStartContainer: "ກຳລັງເລີ່ມຄອນເທນເນີ PHP"
+PHPBuildInstallExtensions: "ກຳລັງຕິດຕັ້ງສ່ວນຂະຫຍາຍ PHP"
+PHPBuildCommitImage: "ກຳລັງບັນທຶກອິມເມຈພ້ອມສ່ວນຂະຫຍາຍ PHP"
+PHPBuildApplyConfig: "ກຳລັງນຳໃຊ້ການຕັ້ງຄ່າ ແລະເລີ່ມສະພາບແວດລ້ອມ PHP"
+PHPBuildSeeLog: "ເບິ່ງລາຍລະອຽດໃນ build.log"
 ErrImageExist: "ຮູບພາບມີຢູ່ໃນລະບົບແລ້ວ. ກະລຸນາໃຊ້ຊື່ຮູບພາບອື່ນ."
 ErrDelWithWebsite: 'Runtime ຖືກເຊື່ອມໂຍງກັບເວັບໄຊ ແລະ ບໍ່ສາມາດລຶບໄດ້'
 ErrRuntimeStart: 'ການເລີ່ມຕົ້ນລົ້ມເຫຼວ'
@@ -640,6 +648,8 @@ ErrWebhookTestFailed: 'ກະລຸນາກວດສອບການຕັ້ງ
 
 #task - runtime
 ErrInstallExtension: 'ມີວຽກຕິດຕັ້ງສ່ວນເສີມອື່ນກຳລັງເຮັດວຽກຢູ່'
+PHPExtensionsInstallWarning: "ຕິດຕັ້ງສ່ວນເສີມ PHP ບາງລາຍການບໍ່ສຳເລັດ: {{ .name }}"
+PHPExtensionsInstallManually: "ລອງໃໝ່ຈາກໜ້າຈັດການສ່ວນເສີມເພື່ອບັນທຶກສ່ວນເສີມທີ່ຕິດຕັ້ງສຳເລັດໄວ້ໃນອິມເມຈ. ເພື່ອກວດສອບເອງ ໃຫ້ຮັນຄຳສັ່ງຕໍ່ໄປນີ້ຢູ່ໂຮສ Docker:"
 
 # alert mail template
 PanelAlertTitle: "ການແຈ້ງເຕືອນຈາກແຜງຄວບຄຸມ"
@@ -830,3 +840,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "ຕິດຕັ້ງ ແລະ ອັບເກຣດແອັບນີ້ໃນສ່ວນຄວາມພ້ອມໃຊ້ງານສູງຂອງແອັບ."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "ການເລືອກເວັບໄຊບໍ່ຖືກຕ້ອງ: {{ .value }}"
+ErrCronjobWebsiteGroup: "ບໍ່ສາມາດເຂົ້າເຖິງກຸ່ມເວັບໄຊ {{ .id }}"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: ບໍ່ມີເວັບໄຊທີ່ເລືອກເຫຼືອຢູ່"
+ErrCronjobWebsiteVersion: "ບໍ່ຮອງຮັບເວີຊັນການເລືອກເວັບໄຊ: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "ບໍ່ສາມາດເລືອກເວັບໄຊທັງໝົດພ້ອມກັບເວັບໄຊ ຫຼື ກຸ່ມສະເພາະ"
+ErrCronjobWebsiteGroupName: "ຊື່ກຸ່ມເວັບໄຊບໍ່ສາມາດວ່າງເປົ່າ"
+ErrCronjobWebsiteGroupMissing: "ບໍ່ມີກຸ່ມເວັບໄຊ “{{ .group }}” ແລະ ບໍ່ພົບເວັບໄຊທີ່ກົງກັບລາຍຊື່ທີ່ບັນທຶກໄວ້"
+CronjobWebsiteGroupFallback: "{{ .name }}: ບໍ່ມີກຸ່ມເວັບໄຊ “{{ .group }}”; ໄດ້ນຳເຂົ້າເປັນລາຍຊື່ເວັບໄຊຄົງທີ່ ແລະ ຈະບໍ່ຕິດຕາມການປ່ຽນແປງຂອງກຸ່ມອີກ"
+CronjobWebsiteMissing: "{{ .name }}: ບໍ່ພົບເວັບໄຊ: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "ບໍ່ພົບກຸ່ມເວັບໄຊ ຫຼື ເວັບໄຊທີ່ກົງກັບລາຍການທີ່ເລືອກ"

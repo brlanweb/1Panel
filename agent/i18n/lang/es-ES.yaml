@@ -352,6 +352,14 @@ ComposeRecoverCleanup: 'Limpiar espacio de restauracion de compose'
 # entorno de ejecución
 ErrFileNotExist: 'El archivo {{ .detail }} no existe, verifique la integridad'
 ErrImageBuildErr: 'Fallo al construir la imagen'
+PHPBuildImage: "Construyendo la imagen de PHP"
+PHPBuildBaseImage: "Obteniendo la imagen base {{ .name }}"
+PHPBuildStep: "Construyendo la imagen de PHP (paso {{ .name }})"
+PHPBuildStartContainer: "Iniciando el contenedor PHP"
+PHPBuildInstallExtensions: "Instalando extensiones de PHP"
+PHPBuildCommitImage: "Guardando la imagen con las extensiones de PHP"
+PHPBuildApplyConfig: "Aplicando la configuración e iniciando el entorno PHP"
+PHPBuildSeeLog: "Consulte build.log para más detalles"
 ErrImageExist: 'La imagen ya existe Modifique el nombre de la imagen.'
 ErrDelWithWebsite: 'El entorno de ejecución ya está asociado a un sitio web y no puede eliminarse'
 ErrRuntimeStart: 'Fallo al iniciar'
@@ -650,6 +658,8 @@ ErrWebhookTestFailed: 'Revisa la configuración del Webhook. Consulta los regist
 
 # tarea - entorno de ejecución
 ErrInstallExtension: 'Ya hay una tarea de instalación en curso, espere a que termine'
+PHPExtensionsInstallWarning: "No se pudieron instalar algunas extensiones de PHP: {{ .name }}"
+PHPExtensionsInstallManually: "Vuelve a intentarlo desde la página de extensiones para guardar en la imagen las instalaciones correctas. Para hacer una comprobación manual, ejecuta estos comandos en el host de Docker:"
 
 # plantilla de correo de alerta
 PanelAlertTitle: 'Notificación de alerta del panel'
@@ -839,3 +849,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "Instale y actualice esta aplicación en Alta disponibilidad de aplicaciones."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "Selección de sitios web no válida: {{ .value }}"
+ErrCronjobWebsiteGroup: "No se puede acceder al grupo de sitios web {{ .id }}"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: ninguno de los sitios web seleccionados existe"
+ErrCronjobWebsiteVersion: "Versión de selección de sitios web no compatible: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "No se pueden seleccionar todos los sitios web junto con sitios o grupos específicos"
+ErrCronjobWebsiteGroupName: "El nombre del grupo de sitios web no puede estar vacío"
+ErrCronjobWebsiteGroupMissing: "El grupo de sitios web «{{ .group }}» no existe y no se encontró ningún sitio coincidente en la lista guardada"
+CronjobWebsiteGroupFallback: "{{ .name }}: el grupo de sitios web «{{ .group }}» no existe; se importó como una lista fija de sitios que ya no sigue los cambios del grupo"
+CronjobWebsiteMissing: "{{ .name }}: sitios web no encontrados: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "No se encontró ningún grupo ni sitio web que coincida con la selección"

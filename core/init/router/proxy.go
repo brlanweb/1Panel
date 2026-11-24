@@ -20,6 +20,7 @@ import (
 	"github.com/1Panel-dev/1Panel/core/init/proxy"
 	psessionUtils "github.com/1Panel-dev/1Panel/core/init/session/psession"
 	"github.com/1Panel-dev/1Panel/core/middleware"
+	"github.com/1Panel-dev/1Panel/core/utils/clusteraccess"
 	"github.com/1Panel-dev/1Panel/core/utils/mcpapi"
 	"github.com/1Panel-dev/1Panel/core/utils/req_helper/proxy_local"
 	terminalsession "github.com/1Panel-dev/1Panel/core/utils/terminal_session"
@@ -138,6 +139,13 @@ func Proxy(policies ...agentProxyPolicy) gin.HandlerFunc {
 			}
 		}
 
+		if authorizer, ok := xpack.AuthProvider.(clusteraccess.Authorizer); ok {
+			if err := clusteraccess.PrepareParameterResponse(c, currentNode, authorizer); err != nil {
+				helper.BadRequest(c, err)
+				return
+			}
+		}
+
 		if reqPath == "/api/v2/vms" || strings.HasPrefix(reqPath, "/api/v2/vms/") {
 			c.Request.Header.Set("X-1Panel-VM-Limit", strconv.Itoa(xpack.VMCountLimit(c)))
 		}
@@ -196,6 +204,7 @@ func isInternalOnlyAgentEndpoint(reqPath string) bool {
 		normalizedPath == "/api/v2/alert/cluster/rules" ||
 		normalizedPath == "/api/v2/alert/cluster/report" ||
 		strings.HasPrefix(normalizedPath, "/api/v2/internal/ops-report/") ||
+		strings.HasPrefix(normalizedPath, "/api/v2/internal/cluster/") ||
 		normalizedPath == "/api/v2/xpack/alert/offline/webhook" ||
 		normalizedPath == "/api/v2/hosts/firewall/port" ||
 		normalizedPath == "/api/v2/internal/terminal/sessions/revoke" ||

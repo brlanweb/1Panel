@@ -352,6 +352,14 @@ ComposeRecoverCleanup: 'Bersihkan ruang kerja pemulihan compose'
 # runtime
 ErrFileNotExist: 'Fail {{ .detail }} tidak wujud Sila semak integriti fail sumber'
 ErrImageBuildErr: 'Pembinaan imej gagal'
+PHPBuildImage: "Membina imej PHP"
+PHPBuildBaseImage: "Mendapatkan imej asas {{ .name }}"
+PHPBuildStep: "Membina imej PHP (langkah {{ .name }})"
+PHPBuildStartContainer: "Memulakan kontena PHP"
+PHPBuildInstallExtensions: "Memasang sambungan PHP"
+PHPBuildCommitImage: "Menyimpan imej dengan sambungan PHP"
+PHPBuildApplyConfig: "Menggunakan konfigurasi dan memulakan persekitaran PHP"
+PHPBuildSeeLog: "Lihat build.log untuk butiran"
 ErrImageExist: 'Imej sudah wujud Sila ubah nama imej.'
 ErrDelWithWebsite: 'Persekitaran pengendalian sudah dikaitkan dengan tapak web dan tidak boleh dipadamkan'
 ErrRuntimeStart: 'Permulaan gagal'
@@ -650,6 +658,8 @@ ErrWebhookTestFailed: 'Sila semak konfigurasi Webhook. Lihat log sistem untuk bu
 
 # tugas - runtime
 ErrInstallExtension: 'Tugas pemasangan sudah sedang berjalan, silakan tunggu tugas selesai'
+PHPExtensionsInstallWarning: "Sesetengah sambungan PHP gagal dipasang: {{ .name }}"
+PHPExtensionsInstallManually: "Cuba lagi dari halaman Sambungan supaya pemasangan yang berjaya disimpan dalam imej. Untuk menyelesaikan masalah secara manual, jalankan arahan berikut pada hos Docker:"
 
 # templat mel amaran
 PanelAlertTitle: 'Notifikasi Amaran Panel'
@@ -839,3 +849,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "Pasang dan naik taraf aplikasi ini di Ketersediaan Tinggi Aplikasi."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "Pilihan laman web tidak sah: {{ .value }}"
+ErrCronjobWebsiteGroup: "Tidak dapat mengakses kumpulan laman web {{ .id }}"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: tiada laman web yang dipilih wujud"
+ErrCronjobWebsiteVersion: "Versi pilihan laman web tidak disokong: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "Semua laman web tidak boleh dipilih bersama laman web atau kumpulan tertentu"
+ErrCronjobWebsiteGroupName: "Nama kumpulan laman web tidak boleh kosong"
+ErrCronjobWebsiteGroupMissing: "Kumpulan laman web “{{ .group }}” tidak wujud dan tiada laman web yang sepadan ditemui dalam senarai tersimpan"
+CronjobWebsiteGroupFallback: "{{ .name }}: kumpulan laman web “{{ .group }}” tidak wujud; diimport sebagai senarai laman web tetap yang tidak lagi mengikuti perubahan kumpulan"
+CronjobWebsiteMissing: "{{ .name }}: laman web tidak ditemui: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "Tiada kumpulan laman web atau laman web yang sepadan dengan pilihan ditemui"

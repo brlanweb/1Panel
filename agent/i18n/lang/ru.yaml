@@ -352,6 +352,14 @@ ComposeRecoverCleanup: 'Очистить рабочую область восс�
 # среда выполнения
 ErrFileNotExist: 'Файл {{ .detail }} не существует Проверьте целостность исходного файла'
 ErrImageBuildErr: 'Сборка образа не удалась'
+PHPBuildImage: "Сборка образа PHP"
+PHPBuildBaseImage: "Получение базового образа {{ .name }}"
+PHPBuildStep: "Сборка образа PHP (шаг {{ .name }})"
+PHPBuildStartContainer: "Запуск контейнера PHP"
+PHPBuildInstallExtensions: "Установка расширений PHP"
+PHPBuildCommitImage: "Сохранение образа с расширениями PHP"
+PHPBuildApplyConfig: "Применение настроек и запуск среды PHP"
+PHPBuildSeeLog: "Подробности см. в build.log"
 ErrImageExist: 'Изображение уже существует Пожалуйста, измените имя изображения.'
 ErrDelWithWebsite: 'Операционная среда уже связана с веб-сайтом и не может быть удалена'
 ErrRuntimeStart: 'Запуск не удался'
@@ -650,6 +658,8 @@ ErrWebhookTestFailed: 'Проверьте конфигурацию Webhook. По
 
 # задача - среда выполнения
 ErrInstallExtension: 'Уже выполняется задача установки, подождите, пока задача завершится'
+PHPExtensionsInstallWarning: "Не удалось установить некоторые расширения PHP: {{ .name }}"
+PHPExtensionsInstallManually: "Повторите установку на странице расширений, чтобы сохранить успешно установленные расширения в образе. Для ручной диагностики выполните следующие команды на хосте Docker:"
 
 # шаблон письма оповещения
 PanelAlertTitle: 'Уведомление панели'
@@ -839,3 +849,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "Устанавливайте и обновляйте это приложение в разделе высокой доступности приложений."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "Недопустимый выбор сайтов: {{ .value }}"
+ErrCronjobWebsiteGroup: "Нет доступа к группе сайтов {{ .id }}"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: ни один из выбранных сайтов не существует"
+ErrCronjobWebsiteVersion: "Неподдерживаемая версия выбора сайтов: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "Нельзя одновременно выбрать все сайты и отдельные сайты или группы"
+ErrCronjobWebsiteGroupName: "Название группы сайтов не может быть пустым"
+ErrCronjobWebsiteGroupMissing: "Группа сайтов «{{ .group }}» не существует, и ни один сайт из сохранённого списка не найден"
+CronjobWebsiteGroupFallback: "{{ .name }}: группа сайтов «{{ .group }}» не существует; импортирован фиксированный список сайтов, который больше не учитывает изменения состава группы"
+CronjobWebsiteMissing: "{{ .name }}: не найдены сайты: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "Не найдены группы сайтов или сайты, соответствующие выбору"

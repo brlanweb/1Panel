@@ -352,6 +352,14 @@ ComposeRecoverCleanup: 'پاک‌سازی فضای کاری بازیابی Compo
 # محیط اجرا
 ErrFileNotExist: 'فایل منبع یافت نشد: {{ .detail }}'
 ErrImageBuildErr: 'ساخت تصویر ناموفق بود'
+PHPBuildImage: "در حال ساخت ایمیج PHP"
+PHPBuildBaseImage: "در حال دریافت ایمیج پایه {{ .name }}"
+PHPBuildStep: "در حال ساخت ایمیج PHP (مرحله {{ .name }})"
+PHPBuildStartContainer: "در حال راه‌اندازی کانتینر PHP"
+PHPBuildInstallExtensions: "در حال نصب افزونه‌های PHP"
+PHPBuildCommitImage: "در حال ذخیره ایمیج با افزونه‌های PHP"
+PHPBuildApplyConfig: "در حال اعمال تنظیمات و راه‌اندازی محیط اجرای PHP"
+PHPBuildSeeLog: "برای جزئیات به build.log مراجعه کنید"
 ErrImageExist: "تصویر از قبل وجود دارد. از نام تصویر دیگری استفاده کنید."
 ErrDelWithWebsite: 'محیط اجرا به یک وب‌سایت متصل است و قابل حذف نیست'
 ErrRuntimeStart: 'شروع ناموفق بود'
@@ -650,6 +658,8 @@ ErrWebhookTestFailed: 'لطفاً پیکربندی وب‌هوک را بررسی
 
 # وظیفه - محیط اجرا
 ErrInstallExtension: 'وظیفه نصب پسوند دیگری در حال اجراست'
+PHPExtensionsInstallWarning: "نصب برخی از افزونه‌های PHP ناموفق بود: {{ .name }}"
+PHPExtensionsInstallManually: "برای ذخیره نصب موفق در ایمیج، دوباره از صفحه افزونه‌ها اقدام کنید. برای عیب‌یابی دستی، فرمان‌های زیر را در میزبان Docker اجرا کنید:"
 
 # قالب ایمیل هشدار
 PanelAlertTitle: "اعلان هشدار پنل"
@@ -840,3 +850,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "این برنامه را در بخش دسترس‌پذیری بالای برنامه‌ها نصب و به‌روزرسانی کنید."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "انتخاب وب‌سایت نامعتبر است: {{ .value }}"
+ErrCronjobWebsiteGroup: "دسترسی به گروه وب‌سایت {{ .id }} امکان‌پذیر نیست"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: هیچ‌یک از وب‌سایت‌های انتخاب‌شده وجود ندارد"
+ErrCronjobWebsiteVersion: "نسخهٔ انتخاب وب‌سایت پشتیبانی نمی‌شود: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "«همهٔ وب‌سایت‌ها» را نمی‌توان هم‌زمان با وب‌سایت‌ها یا گروه‌های مشخص انتخاب کرد"
+ErrCronjobWebsiteGroupName: "نام گروه وب‌سایت نمی‌تواند خالی باشد"
+ErrCronjobWebsiteGroupMissing: "گروه وب‌سایت «{{ .group }}» وجود ندارد و هیچ وب‌سایتی از فهرست ذخیره‌شده یافت نشد"
+CronjobWebsiteGroupFallback: "{{ .name }}: گروه وب‌سایت «{{ .group }}» وجود ندارد؛ به‌صورت فهرست ثابت وب‌سایت‌ها وارد شد و دیگر تغییرات گروه را دنبال نمی‌کند"
+CronjobWebsiteMissing: "{{ .name }}: وب‌سایت‌های زیر یافت نشدند: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "هیچ‌یک از گروه‌ها یا وب‌سایت‌های انتخاب‌شده یافت نشد"

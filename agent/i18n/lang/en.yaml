@@ -352,6 +352,14 @@ ComposeRecoverCleanup: 'Cleanup compose restore workspace'
 # runtime
 ErrFileNotExist: 'Source file not found: {{ .detail }}'
 ErrImageBuildErr: 'Image build failed'
+PHPBuildImage: "Building the PHP image"
+PHPBuildBaseImage: "Resolving base image {{ .name }}"
+PHPBuildStep: "Building the PHP image (step {{ .name }})"
+PHPBuildStartContainer: "Starting the PHP container"
+PHPBuildInstallExtensions: "Installing PHP extensions"
+PHPBuildCommitImage: "Saving the image with PHP extensions"
+PHPBuildApplyConfig: "Applying configuration and starting the PHP runtime"
+PHPBuildSeeLog: "See build.log for details"
 ErrImageExist: "Image already exists. Use a different image name."
 ErrDelWithWebsite: 'Runtime is linked to a website and cannot be deleted'
 ErrRuntimeStart: 'Startup failed'
@@ -650,6 +658,8 @@ ErrWebhookTestFailed: 'Please check the Webhook configuration. See the system lo
 
 # task - runtime
 ErrInstallExtension: 'Another extension install task is running'
+PHPExtensionsInstallWarning: "Some PHP extensions could not be installed: {{ .name }}"
+PHPExtensionsInstallManually: "Retry from the Extensions page to save successful installs to the image. To troubleshoot manually, run the following commands on the Docker host:"
 
 # alert mail template
 PanelAlertTitle: "Panel Alert Notification"
@@ -839,3 +849,17 @@ ErrProxySubscription: "Subscription download failed: {{ .detail }}"
 ErrProxySubscription403: "The subscription server refused the request (HTTP 403). Check that the link is correct and not expired or reset; some providers block cloud server IPs (open the link in a local browser to check; if it works locally but not on the server, ask the provider to allow it or use another subscription URL)"
 ErrProxySubscription401: "The subscription token was rejected (HTTP 401); the link may be expired or reset, copy it again from your provider"
 ErrProxySubscription429: "The subscription server is rate limiting (HTTP 429), try again later"
+
+ErrClusterAppOnly: "Install and upgrade this application in Application High Availability."
+
+# Scheduled task website selection
+ErrCronjobWebsiteSelection: "Invalid website selection: {{ .value }}"
+ErrCronjobWebsiteGroup: "Unable to access website group {{ .id }}"
+ErrCronjobWebsiteExportEmpty: "{{ .name }}: none of the selected websites exist"
+ErrCronjobWebsiteVersion: "Unsupported website selection version: {{ .version }}"
+ErrCronjobWebsiteAllConflict: "All websites cannot be combined with individual websites or groups"
+ErrCronjobWebsiteGroupName: "Website group name cannot be empty"
+ErrCronjobWebsiteGroupMissing: "Website group \"{{ .group }}\" does not exist and no snapshot websites could be matched"
+CronjobWebsiteGroupFallback: "{{ .name }}: website group \"{{ .group }}\" does not exist; imported as a fixed website list that no longer follows group changes"
+CronjobWebsiteMissing: "{{ .name }}: websites not found: {{ .website }}"
+ErrCronjobWebsiteImportEmpty: "No selected website groups or websites could be matched"

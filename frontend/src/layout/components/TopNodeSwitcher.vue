@@ -123,8 +123,7 @@ const filteredNodes = computed(() => {
     const q = keyword.value.trim().toLowerCase();
     if (!q) return nodeOptions.value;
     return nodeOptions.value.filter(
-        (item) =>
-            displayNodeName(item).toLowerCase().includes(q) || (item.addr || '').toLowerCase().includes(q),
+        (item) => displayNodeName(item).toLowerCase().includes(q) || (item.addr || '').toLowerCase().includes(q),
     );
 });
 
@@ -311,7 +310,9 @@ onMounted(() => {
     color: var(--el-text-color-primary);
     font-size: 13px;
     cursor: pointer;
-    transition: border-color 0.2s, color 0.2s;
+    transition:
+        border-color 0.2s,
+        color 0.2s;
     &:hover {
         border-color: var(--el-color-primary);
         color: var(--el-color-primary);

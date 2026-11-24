@@ -156,7 +156,9 @@ const acceptParams = () => {
 };
 
 const findHostLink = (row: Host.Host): Cluster.HostLink | undefined => {
-    return hostLinks.value.find((item) => (item.hostId && item.hostId === row.id) || (item.addr && item.addr === row.addr));
+    return hostLinks.value.find(
+        (item) => (item.hostId && item.hostId === row.id) || (item.addr && item.addr === row.addr),
+    );
 };
 
 const loadHostLinks = async () => {

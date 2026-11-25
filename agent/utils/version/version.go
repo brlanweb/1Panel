@@ -120,10 +120,24 @@ func compareForkVersion(a, b string) int {
 			}
 		}
 	}
+	// Pre-release suffixes come before the release they lead to.
+	pre := func(s string) bool {
+		switch s {
+		case "alpha", "beta", "rc", "pre", "preview", "dev":
+			return true
+		}
+		return strings.HasPrefix(s, "rc") || strings.HasPrefix(s, "beta") || strings.HasPrefix(s, "alpha")
+	}
 	switch {
 	case len(pa) > len(pb):
+		if pre(pa[len(pb)]) {
+			return -1
+		}
 		return 1
 	case len(pa) < len(pb):
+		if pre(pb[len(pa)]) {
+			return 1
+		}
 		return -1
 	}
 	return 0

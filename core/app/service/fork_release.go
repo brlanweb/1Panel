@@ -219,13 +219,30 @@ func compareForkVersion(a, b string) int {
 			}
 		}
 	}
+	// One is a prefix of the other: the longer one is newer ("-cluster.1"
+	// fork builds), except for pre-release suffixes, which come before
+	// the release they lead to ("v2.X.3-beta.1" < "v2.X.3").
 	switch {
 	case len(pa) > len(pb):
+		if isPreReleaseWord(pa[len(pb)]) {
+			return -1
+		}
 		return 1
 	case len(pa) < len(pb):
+		if isPreReleaseWord(pb[len(pa)]) {
+			return 1
+		}
 		return -1
 	}
 	return 0
+}
+
+func isPreReleaseWord(s string) bool {
+	switch s {
+	case "alpha", "beta", "rc", "pre", "preview", "dev":
+		return true
+	}
+	return strings.HasPrefix(s, "rc") || strings.HasPrefix(s, "beta") || strings.HasPrefix(s, "alpha")
 }
 
 // forkUpgradeInfo: LatestVersion is the newest stable fork release newer

@@ -300,6 +300,21 @@ func (r *computeRouterSrv) serve(w http.ResponseWriter, req *http.Request) {
 	computeWriteErr(w, http.StatusBadGateway, "upstream_error", lastErr)
 }
 
+// computeLoadScore: queue dominates, then running + our own in-flight,
+// then the recent time to first token (every 500 ms counts like one
+// running request, so a slow replica — e.g. one whose prefill competes
+// with long prompts — gets less new traffic), then KV pressure.
+func computeLoadScore(m dto.ComputeEngineMetrics, inflight int64) float64 {
+	score := m.Waiting*4 + m.Running + float64(inflight)*1.5
+	if m.TTFTMs > 0 {
+		score += math.Min(m.TTFTMs/500, 20)
+	}
+	if m.KVUsage > 0.9 {
+		score += (m.KVUsage - 0.9) * 100
+	}
+	return score
+}
+
 // pick chooses an instance with the lowest load score among the healthy,
 // routable ones; ties are broken randomly weighted by Weight.
 func (r *computeRouterSrv) pick(modelName string, tried map[uint]bool) (model.ComputeInstance, bool) {
@@ -327,13 +342,7 @@ func (r *computeRouterSrv) pick(modelName string, tried map[uint]bool) (model.Co
 		if m.SampledAt > 0 && !m.Healthy {
 			continue
 		}
-		// Load score: queue dominates, then running + our own in-flight,
-		// then KV pressure; divided by weight.
-		score := m.Waiting*4 + m.Running + float64(st.inflight.Load())*1.5
-		if m.KVUsage > 0.9 {
-			score += (m.KVUsage - 0.9) * 100
-		}
-		score = (score + 1) * 100 / float64(in.Weight)
+		score := (computeLoadScore(m, st.inflight.Load()) + 1) * 100 / float64(in.Weight)
 		cands = append(cands, cand{in, score})
 	}
 	if len(cands) == 0 {

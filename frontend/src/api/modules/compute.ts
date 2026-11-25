@@ -59,6 +59,13 @@ export const updateComputeSetting = (req: Compute.RouterSetting) => post<any>(`/
 export const listComputePolicies = () => get<Compute.Policy[]>(`/core/compute/policies`);
 export const saveComputePolicy = (req: Partial<Compute.Policy>) => post<any>(`/core/compute/policies`, req);
 export const deleteComputePolicy = (id: number) => post<any>(`/core/compute/policies/del`, { id });
+export const listComputePools = () => get<Compute.Pool[]>(`/core/compute/pools`);
+export const createComputePool = (req: Partial<Compute.Pool>) =>
+    post<Compute.PoolRes>(`/core/compute/pools`, req, 90000);
+export const updateComputePool = (req: Partial<Compute.Pool>) => post<any>(`/core/compute/pools/update`, req);
+export const deleteComputePool = (id: number, removeService: boolean) =>
+    post<any>(`/core/compute/pools/del`, { id, removeService });
+export const bindComputePool = (id: number) => post<Compute.PoolRes>(`/core/compute/pools/bind`, { id }, 90000);
 export const listComputeSuggestions = () => get<Compute.Suggestion[]>(`/core/compute/suggestions`);
 export const operateComputeSuggestion = (id: string, operation: 'apply' | 'dismiss') =>
     post<{ jobId: number }>(`/core/compute/suggestions/operate`, { id, operation });

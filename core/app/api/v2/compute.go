@@ -625,3 +625,84 @@ func (b *BaseApi) ComputeOperateSuggestion(c *gin.Context) {
 	id, err := computeService.OperateSuggestion(req)
 	computeReply(c, map[string]uint{"jobId": id}, err)
 }
+
+// @Tags Compute
+// @Summary List compute pools
+// @Success 200 {array} dto.ComputePoolView
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/pools [get]
+func (b *BaseApi) ComputeListPools(c *gin.Context) {
+	data, err := computeService.ListPools()
+	computeReply(c, data, err)
+}
+
+// @Tags Compute
+// @Summary Create a compute pool (policy + router key + model service)
+// @Accept json
+// @Param request body dto.ComputePoolReq true "request"
+// @Success 200 {object} dto.ComputePoolRes
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/pools [post]
+// @x-panel-log {"bodyKeys":["name","servedName"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"创建算力池 [name] 模型 [servedName]","formatEN":"create compute pool [name] model [servedName]"}
+func (b *BaseApi) ComputeCreatePool(c *gin.Context) {
+	req, ok := computeBind[dto.ComputePoolReq](c)
+	if !ok {
+		return
+	}
+	data, err := computeService.CreatePool(req)
+	computeReply(c, data, err)
+}
+
+// @Tags Compute
+// @Summary Update the scheduling strategy of a compute pool
+// @Accept json
+// @Param request body dto.ComputePoolReq true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/pools/update [post]
+// @x-panel-log {"bodyKeys":["name","mode"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"更新算力池 [name] 调度模式 [mode]","formatEN":"update compute pool [name] mode [mode]"}
+func (b *BaseApi) ComputeUpdatePool(c *gin.Context) {
+	req, ok := computeBind[dto.ComputePoolReq](c)
+	if !ok {
+		return
+	}
+	computeReply(c, nil, computeService.UpdatePool(req))
+}
+
+// @Tags Compute
+// @Summary Delete a compute pool
+// @Accept json
+// @Param request body dto.ComputePoolDeleteReq true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/pools/del [post]
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFunctions":[{"input_column":"id","input_value":"id","isList":false,"db":"compute_policies","output_column":"served_name","output_value":"name"}],"formatZH":"删除算力池 [name]","formatEN":"delete compute pool [name]"}
+func (b *BaseApi) ComputeDeletePool(c *gin.Context) {
+	req, ok := computeBind[dto.ComputePoolDeleteReq](c)
+	if !ok {
+		return
+	}
+	computeReply(c, nil, computeService.DeletePool(req))
+}
+
+// @Tags Compute
+// @Summary (Re)create the model service and router key of a compute pool
+// @Accept json
+// @Param request body dto.OperateByID true "request"
+// @Success 200 {object} dto.ComputePoolRes
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/pools/bind [post]
+// @x-panel-log {"bodyKeys":["id"],"paramKeys":[],"BeforeFunctions":[{"input_column":"id","input_value":"id","isList":false,"db":"compute_policies","output_column":"served_name","output_value":"name"}],"formatZH":"重建算力池 [name] 的模型服务与密钥","formatEN":"rebind model service and key of compute pool [name]"}
+func (b *BaseApi) ComputeBindPool(c *gin.Context) {
+	req, ok := computeBind[dto.OperateByID](c)
+	if !ok {
+		return
+	}
+	data, err := computeService.BindPoolService(req.ID)
+	computeReply(c, data, err)
+}

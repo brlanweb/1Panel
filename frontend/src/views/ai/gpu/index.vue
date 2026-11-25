@@ -10,6 +10,9 @@
 <script lang="ts" setup>
 import i18n from '@/lang';
 import { computed } from 'vue';
+import { useGlobalStore } from '@/composables/useGlobalStore';
+
+const { isMaster } = useGlobalStore();
 
 const props = defineProps({
     historyDisabled: {
@@ -29,5 +32,7 @@ const buttons = computed(() => [
         disabled: props.historyDisabled,
     },
     { label: i18n.global.t('website.groupSetting'), path: '/ai/gpu/groups' },
+    // Fleet-wide scheduling hosts are managed on the master panel only.
+    ...(isMaster.value ? [{ label: i18n.global.t('compute.host.pageTitle'), path: '/ai/gpu/scheduling' }] : []),
 ]);
 </script>

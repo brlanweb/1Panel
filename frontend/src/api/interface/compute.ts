@@ -258,7 +258,24 @@ export namespace Compute {
         error: string;
         schedulerPaused: boolean;
     }
+    export interface Pool extends Policy {
+        name: string;
+        accountId: number;
+        consumerId: number;
+        profileName: string;
+        nodeCount: number;
+        instances: number;
+        healthy: number;
+        serviceMissing: boolean;
+        baseUrl: string;
+    }
+    export interface PoolRes {
+        id: number;
+        accountId: number;
+        key: string;
+    }
     export interface Policy {
+        ttftHigh: number;
         id: number;
         servedName: string;
         profileId: number;

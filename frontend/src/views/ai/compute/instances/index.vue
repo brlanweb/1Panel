@@ -1,10 +1,18 @@
 <template>
     <div v-loading="loading">
         <div class="toolbar">
-            <el-button type="primary" @click="deployRef.open('deploy')">{{ $t('compute.inst.deploy') }}</el-button>
-            <el-button @click="registerRef.open()">{{ $t('compute.inst.register') }}</el-button>
+            <el-button type="primary" @click="deployRef.open('deploy', undefined, servedName)">
+                {{ servedName ? $t('compute.pool.addReplica') : $t('compute.inst.deploy') }}
+            </el-button>
+            <el-button @click="registerRef.open(undefined, servedName)">{{ $t('compute.inst.register') }}</el-button>
             <span class="spacer" />
-            <el-select v-model="modelFilter" clearable class="p-w-200" :placeholder="$t('compute.servedName')">
+            <el-select
+                v-if="!servedName"
+                v-model="modelFilter"
+                clearable
+                class="p-w-200"
+                :placeholder="$t('compute.servedName')"
+            >
                 <el-option v-for="m in models" :key="m" :label="m" :value="m" />
             </el-select>
         </div>
@@ -149,9 +157,11 @@ import { barColor, instStatusType, ms, num, pct, t } from '../helper';
 import DeployDrawer from './deploy.vue';
 import RegisterDrawer from './register.vue';
 
+// servedName scopes the list to one model (the instances of a pool).
+const props = defineProps({ servedName: { type: String, default: '' } });
 const loading = ref(false);
 const list = ref<Compute.Instance[]>([]);
-const modelFilter = ref('');
+const modelFilter = ref(props.servedName);
 const deployRef = ref();
 const registerRef = ref();
 // Edits in the weight box must not be overwritten by the poll.

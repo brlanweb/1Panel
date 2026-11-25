@@ -171,9 +171,12 @@ function syncActiveName() {
         return;
     }
     const route = props.activePath ? router.resolve(props.activePath) : router.currentRoute.value;
-    const button = buttonArray.value.find((item) =>
-        item.path ? route.path.startsWith(item.path) : item.name && route.name === item.name,
-    );
+    // Longest matching path wins, so /a/b/c is not shown as its parent /a/b.
+    let button: RouterButton | undefined;
+    for (const item of buttonArray.value) {
+        const hit = item.path ? route.path.startsWith(item.path) : item.name && route.name === item.name;
+        if (hit && (!button || (item.path?.length || 0) > (button.path?.length || 0))) button = item;
+    }
     activeName.value = button?.label ?? buttonArray.value[0].label;
 }
 

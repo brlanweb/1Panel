@@ -83,19 +83,38 @@ const aiRouter = {
                 permission: 'ai_model_view',
             },
         },
+        // Compute scheduling is folded into the AI pages (master panel only):
+        // pools under Model Services, scheduling hosts under GPU, cluster
+        // deployments and plans under vLLM. Old paths redirect there.
+        {
+            path: '/ai/model-services/pools',
+            name: 'ComputePools',
+            component: () => import('@/views/ai/compute/pool/index.vue'),
+            hidden: true,
+            meta: { title: 'compute.pool.title', activeMenu: '/ai/model-services', permission: 'ai_model_view' },
+        },
+        {
+            path: '/ai/gpu/scheduling',
+            name: 'ComputeHosts',
+            component: () => import('@/views/ai/compute/hosts/page.vue'),
+            hidden: true,
+            meta: { title: 'compute.host.pageTitle', activeMenu: '/ai/gpu/current', permission: 'ai_gpu_view' },
+        },
+        {
+            path: '/ai/vllm/cluster',
+            name: 'ComputeCluster',
+            component: () => import('@/views/ai/compute/instances/page.vue'),
+            hidden: true,
+            meta: { title: 'compute.inst.pageTitle', activeMenu: '/ai/vllm', permission: 'ai_model_view' },
+        },
         {
             path: '/ai/compute',
-            name: 'ComputeScheduling',
-            component: () => import('@/views/ai/compute/index.vue'),
-            meta: {
-                icon: 'p-gpu-menu',
-                title: 'menu.computeScheduling',
-                permission: 'ai_model_view',
-            },
+            redirect: '/ai/model-services/pools',
+            hidden: true,
         },
         {
             path: '/cluster/compute',
-            redirect: '/ai/compute',
+            redirect: '/ai/model-services/pools',
             hidden: true,
         },
         {

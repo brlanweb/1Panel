@@ -93,8 +93,8 @@ const empty = () => ({
 });
 const form = reactive(empty());
 
-const open = async (row?: Compute.Instance) => {
-    Object.assign(form, empty());
+const open = async (row?: Compute.Instance, servedName = '') => {
+    Object.assign(form, empty(), { servedName });
     if (row) {
         const ids = (row.hostIds || '').split(',').filter(Boolean).map(Number);
         Object.assign(form, {

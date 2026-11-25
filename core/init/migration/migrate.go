@@ -101,5 +101,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddComputeAcceleratorKind,
 		migrations.ComputeHostsReuseSources,
 		migrations.MoveComputeMenuToAI,
+		migrations.ComputeIntoModelServices,
 	}
 }

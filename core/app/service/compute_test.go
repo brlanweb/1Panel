@@ -1,6 +1,7 @@
 package service
 
 import (
+	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
 	"os"
 	"regexp"
@@ -279,5 +280,46 @@ func TestComputeSampleScriptsInSync(t *testing.T) {
 		if !strings.Contains(string(agent), script) {
 			t.Fatalf("agent %s sampling script differs from core; keep them byte-identical", name)
 		}
+	}
+}
+
+func TestComputePressuredTTFT(t *testing.T) {
+	p := model.ComputePolicy{QueueHigh: 4, KVHigh: 0.92}
+	if computePressured(p, 1, 0.5, 9000) {
+		t.Fatal("TTFT must be ignored when TTFTHigh is 0")
+	}
+	p.TTFTHigh = 3000
+	if !computePressured(p, 1, 0.5, 3200) {
+		t.Fatal("TTFT above the threshold must count as pressure")
+	}
+	if computePressured(p, 1, 0.5, 800) {
+		t.Fatal("no threshold exceeded")
+	}
+	if !computePressured(p, 4, 0, 0) || !computePressured(p, 0, 0.95, 0) {
+		t.Fatal("queue / KV thresholds")
+	}
+}
+
+func TestComputeLoadScoreTTFT(t *testing.T) {
+	fast := computeLoadScore(dto.ComputeEngineMetrics{Running: 2, TTFTMs: 300}, 0)
+	slow := computeLoadScore(dto.ComputeEngineMetrics{Running: 2, TTFTMs: 4000}, 0)
+	if slow <= fast {
+		t.Fatalf("slow replica must score higher: fast %.2f slow %.2f", fast, slow)
+	}
+	queued := computeLoadScore(dto.ComputeEngineMetrics{Running: 2, Waiting: 3, TTFTMs: 300}, 0)
+	if queued <= slow {
+		t.Fatalf("queue must still dominate: queued %.2f slow %.2f", queued, slow)
+	}
+	if capped := computeLoadScore(dto.ComputeEngineMetrics{TTFTMs: 1e7}, 0); capped > 21 {
+		t.Fatalf("TTFT term must be capped, got %.2f", capped)
+	}
+}
+
+func TestComputeRouterURLs(t *testing.T) {
+	if u := computeRouterLocalURL(computeRouterConf{Listen: "0.0.0.0:18080"}); u != "http://127.0.0.1:18080/v1" {
+		t.Fatal(u)
+	}
+	if u := computeRouterLocalURL(computeRouterConf{Listen: "10.0.0.5:9000"}); u != "http://10.0.0.5:9000/v1" {
+		t.Fatal(u)
 	}
 }

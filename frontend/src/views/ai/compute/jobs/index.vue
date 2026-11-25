@@ -1,6 +1,6 @@
 <template>
     <div v-loading="loading">
-        <div class="toolbar">
+        <div v-if="!servedName" class="toolbar">
             <el-input
                 v-model="info"
                 class="p-w-250"
@@ -111,12 +111,14 @@ import { Compute } from '@/api/interface/compute';
 import { getComputeJob, searchComputeJobs } from '@/api/modules/compute';
 import { jobStatusType, parseSteps } from '../helper';
 
+// servedName shows the operation records of one model (pool detail).
+const props = defineProps({ servedName: { type: String, default: '' } });
 const loading = ref(false);
 const items = ref<Compute.Job[]>([]);
 const total = ref(0);
 const page = ref(1);
 const pageSize = 20;
-const info = ref('');
+const info = ref(props.servedName);
 const detailVisible = ref(false);
 const detail = ref<Compute.Job>();
 

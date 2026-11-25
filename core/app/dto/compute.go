@@ -324,9 +324,39 @@ type ComputePolicyReq struct {
 	Preemptible   bool    `json:"preemptible"`
 	QueueHigh     float64 `json:"queueHigh"`
 	KVHigh        float64 `json:"kvHigh"`
+	TTFTHigh      float64 `json:"ttftHigh" validate:"min=0"`
 	SustainRounds int     `json:"sustainRounds"`
 	IdleMinutes   int     `json:"idleMinutes"`
 	CooldownSec   int     `json:"cooldownSec"`
+}
+
+// ComputePoolReq creates / updates a compute pool: a policy plus (on
+// create) a router key and an AI → Model Services entry named Name.
+type ComputePoolReq struct {
+	ComputePolicyReq
+	Name string `json:"name" validate:"required,max=64"`
+}
+
+type ComputePoolDeleteReq struct {
+	ID            uint `json:"id" validate:"required"`
+	RemoveService bool `json:"removeService"`
+}
+
+type ComputePoolRes struct {
+	ID        uint   `json:"id"`
+	AccountID uint   `json:"accountId"`
+	Key       string `json:"key"` // router key, only returned when created
+}
+
+type ComputePoolView struct {
+	model.ComputePolicy
+	ProfileName string `json:"profileName"`
+	NodeCount   int    `json:"nodeCount"`
+	Instances   int    `json:"instances"`
+	Healthy     int    `json:"healthy"`
+	// ServiceMissing: AccountID is set but the model service was deleted.
+	ServiceMissing bool   `json:"serviceMissing"`
+	BaseURL        string `json:"baseUrl"`
 }
 
 type ComputeSuggestion struct {

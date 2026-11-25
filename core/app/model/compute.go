@@ -231,10 +231,17 @@ type ComputeConsumer struct {
 
 func (ComputeConsumer) TableName() string { return "compute_consumers" }
 
-// ComputePolicy is the slow-scheduling policy of one served model.
+// ComputePolicy is the slow-scheduling policy of one served model. With
+// AccountID set it is a "compute pool": an AI → Model Services entry (on
+// the local agent) that points at the model router, so the pool is used
+// like any other model service.
 type ComputePolicy struct {
 	BaseModel
-	ServedName   string `gorm:"not null;uniqueIndex" json:"servedName"`
+	// Name is the model service name of the pool (empty for plain policies).
+	Name       string `gorm:"not null;default:''" json:"name"`
+	AccountID  uint   `gorm:"not null;default:0" json:"accountId"`  // agent_provider_accounts.id (local agent)
+	ConsumerID uint   `gorm:"not null;default:0" json:"consumerId"` // router key used by that service
+	ServedName string `gorm:"not null;uniqueIndex" json:"servedName"`
 	ProfileID    uint   `json:"profileId"`                            // profile used when scaling up
 	Mode         string `gorm:"not null;default:suggest" json:"mode"` // off / suggest / auto
 	MinInstances int    `json:"minInstances"`
@@ -244,8 +251,11 @@ type ComputePolicy struct {
 	Preemptible  bool   `json:"preemptible"`
 	// Scale up when the average waiting queue per instance stays above
 	// QueueHigh (or KV cache usage above KVHigh) for SustainRounds rounds.
-	QueueHigh     float64 `gorm:"not null;default:4" json:"queueHigh"`
-	KVHigh        float64 `gorm:"not null;default:0.92" json:"kvHigh"`
+	QueueHigh float64 `gorm:"not null;default:4" json:"queueHigh"`
+	KVHigh    float64 `gorm:"not null;default:0.92" json:"kvHigh"`
+	// TTFTHigh (ms, 0 = ignored): scale up when the request-weighted mean
+	// time to first token of the model stays above it as well.
+	TTFTHigh      float64 `gorm:"not null;default:0" json:"ttftHigh"`
 	SustainRounds int     `gorm:"not null;default:3" json:"sustainRounds"`
 	// Scale down when no request ran for IdleMinutes.
 	IdleMinutes int `gorm:"not null;default:30" json:"idleMinutes"`

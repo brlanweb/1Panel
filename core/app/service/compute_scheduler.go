@@ -89,6 +89,19 @@ type computeModelState struct {
 	waiting float64
 	kvMax   float64
 	running float64
+	// ttft is the request-weighted mean TTFT (ms) of the healthy instances.
+	ttft  float64
+	ttftW float64
+}
+
+// computePressured reports whether a model is above its scale-up
+// thresholds: average queue per instance, peak KV cache usage or (when
+// set) the mean time to first token.
+func computePressured(p model.ComputePolicy, avgWait, kvMax, ttftMs float64) bool {
+	if avgWait >= p.QueueHigh || kvMax >= p.KVHigh {
+		return true
+	}
+	return p.TTFTHigh > 0 && ttftMs >= p.TTFTHigh
 }
 
 func computeSchedRound() {
@@ -140,6 +153,16 @@ func computeSchedRound() {
 			if m.KVUsage > st.kvMax {
 				st.kvMax = m.KVUsage
 			}
+			if m.TTFTMs > 0 {
+				w := m.Running + m.Waiting + 1
+				st.ttft += m.TTFTMs * w
+				st.ttftW += w
+			}
+		}
+	}
+	for _, st := range states {
+		if st.ttftW > 0 {
+			st.ttft /= st.ttftW
 		}
 	}
 
@@ -167,7 +190,7 @@ func computeSchedRound() {
 		pressured := false
 		if n > 0 {
 			avgWait := st.waiting / float64(n)
-			pressured = avgWait >= p.QueueHigh || st.kvMax >= p.KVHigh
+			pressured = computePressured(p, avgWait, st.kvMax, st.ttft)
 			lead := computeState.inst(st.healthy[0].ID)
 			computeState.mu.Lock()
 			if pressured {
@@ -178,7 +201,11 @@ func computeSchedRound() {
 			rounds := lead.pressure
 			computeState.mu.Unlock()
 			if pressured && rounds >= max(p.SustainRounds, 1) && len(st.insts) < p.MaxInstances {
-				reason := fmt.Sprintf("avg waiting %.1f (≥%.1f) / max KV %.0f%% (≥%.0f%%) for %d rounds", avgWait, p.QueueHigh, st.kvMax*100, p.KVHigh*100, rounds)
+				reason := fmt.Sprintf("avg waiting %.1f (≥%.1f) / max KV %.0f%% (≥%.0f%%)", avgWait, p.QueueHigh, st.kvMax*100, p.KVHigh*100)
+				if p.TTFTHigh > 0 {
+					reason += fmt.Sprintf(" / TTFT %.0f ms (≥%.0f ms)", st.ttft, p.TTFTHigh)
+				}
+				reason += fmt.Sprintf(" for %d rounds", rounds)
 				if hasProfile && freeHosts >= need {
 					add(dto.ComputeSuggestion{ID: "up:" + name, Kind: "scaleUp", ServedName: name, ProfileID: p.ProfileID,
 						Severity: "warning", Actionable: true, Reason: reason})
@@ -405,17 +432,27 @@ func (u *ComputeService) ListPolicies() ([]model.ComputePolicy, error) {
 }
 
 func (u *ComputeService) SavePolicy(req dto.ComputePolicyReq) error {
+	_, err := computeSavePolicy(req, nil)
+	return err
+}
+
+// computeSavePolicy validates and stores a policy; extra columns (pool
+// fields) are only applied on create.
+func computeSavePolicy(req dto.ComputePolicyReq, extra *model.ComputePolicy) (uint, error) {
 	if req.MaxInstances < req.MinInstances {
-		return buserr.WithDetail("ErrInvalidParams", "maxInstances < minInstances", nil)
+		return 0, buserr.WithDetail("ErrInvalidParams", "maxInstances < minInstances", nil)
 	}
 	if req.Mode == "auto" && req.ProfileID == 0 {
-		return buserr.WithDetail("ErrInvalidParams", "auto mode requires a profile", nil)
+		return 0, buserr.WithDetail("ErrInvalidParams", "auto mode requires a profile", nil)
 	}
 	if req.QueueHigh <= 0 {
 		req.QueueHigh = 4
 	}
 	if req.KVHigh <= 0 || req.KVHigh > 1 {
 		req.KVHigh = 0.92
+	}
+	if req.TTFTHigh < 0 {
+		req.TTFTHigh = 0
 	}
 	if req.SustainRounds <= 0 {
 		req.SustainRounds = 3
@@ -424,19 +461,24 @@ func (u *ComputeService) SavePolicy(req dto.ComputePolicyReq) error {
 		req.CooldownSec = 600
 	}
 	if dup, err := repo.ComputePolicyRepo.Get(repo.WithComputeField("served_name", req.ServedName)); err == nil && dup.ID != req.ID {
-		return buserr.New("ErrRecordExist")
+		return 0, buserr.New("ErrRecordExist")
 	}
 	vars := map[string]interface{}{"served_name": req.ServedName, "profile_id": req.ProfileID, "mode": req.Mode,
 		"min_instances": req.MinInstances, "max_instances": req.MaxInstances, "hot_spare": req.HotSpare, "priority": req.Priority,
-		"preemptible": req.Preemptible, "queue_high": req.QueueHigh, "kv_high": req.KVHigh, "sustain_rounds": req.SustainRounds,
-		"idle_minutes": req.IdleMinutes, "cooldown_sec": req.CooldownSec}
+		"preemptible": req.Preemptible, "queue_high": req.QueueHigh, "kv_high": req.KVHigh, "ttft_high": req.TTFTHigh,
+		"sustain_rounds": req.SustainRounds, "idle_minutes": req.IdleMinutes, "cooldown_sec": req.CooldownSec}
 	if req.ID > 0 {
-		return repo.ComputePolicyRepo.Update(req.ID, vars)
+		return req.ID, repo.ComputePolicyRepo.Update(req.ID, vars)
 	}
 	p := model.ComputePolicy{ServedName: req.ServedName, ProfileID: req.ProfileID, Mode: req.Mode, MinInstances: req.MinInstances,
 		MaxInstances: req.MaxInstances, HotSpare: req.HotSpare, Priority: req.Priority, Preemptible: req.Preemptible,
-		QueueHigh: req.QueueHigh, KVHigh: req.KVHigh, SustainRounds: req.SustainRounds, IdleMinutes: req.IdleMinutes, CooldownSec: req.CooldownSec}
-	return repo.ComputePolicyRepo.Create(&p)
+		QueueHigh: req.QueueHigh, KVHigh: req.KVHigh, TTFTHigh: req.TTFTHigh, SustainRounds: req.SustainRounds,
+		IdleMinutes: req.IdleMinutes, CooldownSec: req.CooldownSec}
+	if extra != nil {
+		p.Name, p.AccountID, p.ConsumerID = extra.Name, extra.AccountID, extra.ConsumerID
+	}
+	err := repo.ComputePolicyRepo.Create(&p)
+	return p.ID, err
 }
 
 func (u *ComputeService) DeletePolicy(id uint) error {

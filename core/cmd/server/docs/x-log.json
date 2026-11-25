@@ -1329,6 +1329,62 @@
 		"formatZH": "删除调度策略 [name]",
 		"formatEN": "delete scheduling policy [name]"
 	},
+	"/core/compute/pools": {
+		"bodyKeys": [
+			"name",
+			"servedName"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "创建算力池 [name] 模型 [servedName]",
+		"formatEN": "create compute pool [name] model [servedName]"
+	},
+	"/core/compute/pools/bind": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_policies",
+				"output_column": "served_name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "重建算力池 [name] 的模型服务与密钥",
+		"formatEN": "rebind model service and key of compute pool [name]"
+	},
+	"/core/compute/pools/del": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_policies",
+				"output_column": "served_name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "删除算力池 [name]",
+		"formatEN": "delete compute pool [name]"
+	},
+	"/core/compute/pools/update": {
+		"bodyKeys": [
+			"name",
+			"mode"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "更新算力池 [name] 调度模式 [mode]",
+		"formatEN": "update compute pool [name] mode [mode]"
+	},
 	"/core/compute/profiles": {
 		"bodyKeys": [
 			"name",

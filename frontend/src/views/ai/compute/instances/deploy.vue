@@ -112,16 +112,20 @@ const hostIds = ref<number[]>([]);
 const name = ref('');
 const pre = ref<Compute.PrecheckRes>();
 
+// servedName restricts the plans to one model (adding a replica to a pool).
+const servedName = ref('');
 const profile = computed(() => profiles.value.find((p) => p.id === profileId.value));
 const profileOptions = computed(() => {
-    if (mode.value !== 'switch' || !instance.value) return profiles.value;
+    if (mode.value !== 'switch' || !instance.value)
+        return servedName.value ? profiles.value.filter((p) => p.servedName === servedName.value) : profiles.value;
     const n = (instance.value.hostIds || '').split(',').filter(Boolean).length;
     return profiles.value.filter((p) => p.nodeCount === n && p.id !== instance.value!.profileId);
 });
 
-const open = async (m: 'deploy' | 'switch', inst?: Compute.Instance) => {
+const open = async (m: 'deploy' | 'switch', inst?: Compute.Instance, model = '') => {
     mode.value = m;
     instance.value = inst;
+    servedName.value = model;
     profileId.value = undefined;
     hostIds.value = [];
     auto.value = true;
@@ -133,6 +137,7 @@ const open = async (m: 'deploy' | 'switch', inst?: Compute.Instance) => {
         const [p, h] = await Promise.all([listComputeProfiles(), listComputeHosts()]);
         profiles.value = p.data || [];
         hosts.value = h.data || [];
+        if (profileOptions.value.length === 1) profileId.value = profileOptions.value[0].id;
     } finally {
         loading.value = false;
     }

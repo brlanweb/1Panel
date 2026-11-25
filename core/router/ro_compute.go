@@ -58,6 +58,11 @@ func (a *ComputeRouter) InitRouter(Router *gin.RouterGroup) {
 		r.GET("/policies", b.ComputeListPolicies)
 		r.POST("/policies", b.ComputeSavePolicy)
 		r.POST("/policies/del", b.ComputeDeletePolicy)
+		r.GET("/pools", b.ComputeListPools)
+		r.POST("/pools", b.ComputeCreatePool)
+		r.POST("/pools/update", b.ComputeUpdatePool)
+		r.POST("/pools/del", b.ComputeDeletePool)
+		r.POST("/pools/bind", b.ComputeBindPool)
 		r.GET("/suggestions", b.ComputeSuggestions)
 		r.POST("/suggestions/operate", b.ComputeOperateSuggestion)
 	}

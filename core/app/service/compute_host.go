@@ -68,6 +68,13 @@ type IComputeService interface {
 	Suggestions() []dto.ComputeSuggestion
 	OperateSuggestion(req dto.ComputeSuggestionOpReq) (uint, error)
 
+	// pools (policy + router key + AI → Model Services entry)
+	ListPools() ([]dto.ComputePoolView, error)
+	CreatePool(req dto.ComputePoolReq) (dto.ComputePoolRes, error)
+	UpdatePool(req dto.ComputePoolReq) error
+	DeletePool(req dto.ComputePoolDeleteReq) error
+	BindPoolService(id uint) (dto.ComputePoolRes, error)
+
 	Overview() (dto.ComputeOverview, error)
 }
 

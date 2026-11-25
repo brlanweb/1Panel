@@ -1,6 +1,6 @@
 <template>
     <div class="model-page">
-        <RouterButton :buttons="[{ label: $t('aiTools.model.services'), path: '/ai/model-services' }]" />
+        <RouterButton :buttons="routerButtons" />
         <LayoutContent v-loading="loading">
             <template #leftToolBar>
                 <el-button v-permission type="primary" @click="createRef.open()">
@@ -291,7 +291,12 @@ import ProviderLabel from '@/components/agent-provider-label/index.vue';
 const route = useRoute();
 const pagePath = route.path;
 const isCurrentPage = computed(() => route.path === pagePath);
-const { isIntl, isMobile, currentNode } = useGlobalStore();
+const { isIntl, isMobile, currentNode, isMaster } = useGlobalStore();
+// Compute pools are built on the master panel only.
+const routerButtons = computed(() => [
+    { label: i18n.global.t('aiTools.model.services'), path: '/ai/model-services' },
+    ...(isMaster.value ? [{ label: i18n.global.t('compute.pool.title'), path: '/ai/model-services/pools' }] : []),
+]);
 const createRef = ref();
 const poolRef = ref();
 const chatRef = ref<InstanceType<typeof ModelChat>>();

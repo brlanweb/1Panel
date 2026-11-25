@@ -18,9 +18,11 @@ import (
 //
 // Every fork build exposes the same upgrade API as the master
 // (/api/v2/core/settings/upgrade and .../upgrade/status), reachable with the
-// node's API key, so the master only has to forward the request: the node
-// downloads the package from the fork release itself, verifies it and
-// restarts. Nothing is pushed from the master.
+// node's API key. Two download modes (cluster_node_upgrade_push.go):
+//   - direct: the master only forwards the request; the node downloads
+//     the package from the fork release itself, verifies it and restarts.
+//   - master: the master downloads the package once (cached per version /
+//     arch), pushes it to the node and asks it to install that file.
 
 // remoteNodeVersion reads the panel version of a node (SystemVersion of its
 // agent settings, the same field the node's own footer shows).
@@ -160,6 +162,12 @@ func (u *ClusterNodeService) UpgradeNode(req dto.ClusterNodeUpgradeReq) error {
 	if current != "" && compareForkVersion(target, current) <= 0 {
 		return fmt.Errorf("节点已是最新版本 %s", current)
 	}
+	if req.Mode == clusterUpgradeModeMaster {
+		return u.startPushUpgrade(node, target)
+	}
+	if err := clearPushState(node.ID); err != nil {
+		return err
+	}
 	if err := u.callRemoteJSON(node, http.MethodPost, "/api/v2/core/settings/upgrade", map[string]string{"version": target}, nil, 30*time.Second); err != nil {
 		return fmt.Errorf("节点启动更新失败: %v", err)
 	}
@@ -175,6 +183,22 @@ func (u *ClusterNodeService) NodeUpgradeStatus(id uint) (dto.ClusterNodeUpgradeS
 		return dto.ClusterNodeUpgradeStatus{}, err
 	}
 	result := dto.ClusterNodeUpgradeStatus{ID: id}
+	// While the master prepares / pushes the package the node itself has
+	// nothing to report yet.
+	if push, ok := loadPushState(id); ok {
+		if push.Stage != pushStageDone {
+			result.Reachable = true
+			result.Stage = push.Stage
+			result.Version = push.Version
+			result.CurrentVersion = node.Version
+			result.Done, result.Total = push.Done, push.Total
+			result.Error = push.Error
+			if push.Stage == pushStageFailed {
+				result.Stage = upgradeStageFailed
+			}
+			return result, nil
+		}
+	}
 	var status dto.UpgradeStatus
 	if err := u.callRemoteJSON(node, http.MethodGet, "/api/v2/core/settings/upgrade/status", nil, &status, 10*time.Second); err != nil {
 		result.Error = truncateErr(err.Error())

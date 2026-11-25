@@ -157,16 +157,31 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 	if compareForkVersion(req.Version, global.CONF.Base.Version) <= 0 {
 		return fmt.Errorf("version %s is not newer than the running %s", req.Version, global.CONF.Base.Version)
 	}
-	// Resolve the download route before claiming the upgrade slot so a
-	// stopped subscription proxy is reported right away.
-	transport, err := upgradeTransport(req.Proxy)
-	if err != nil {
-		return err
-	}
-	resetForkReleaseCache() // the release may have just been published
-	downloadURL, fileName, err := forkPackageURL(req.Version, itemArch)
-	if err != nil {
-		return err
+	var (
+		transport   *http.Transport
+		downloadURL string
+		fileName    string
+		pushedPkg   string
+	)
+	if strings.TrimSpace(req.PackagePath) != "" {
+		// Package pushed by the cluster master: no release lookup, no
+		// download (the node may have no internet access at all).
+		pushedPkg, fileName, err = checkPushedPackage(req, itemArch)
+		if err != nil {
+			return err
+		}
+	} else {
+		// Resolve the download route before claiming the upgrade slot so a
+		// stopped subscription proxy is reported right away.
+		transport, err = upgradeTransport(req.Proxy)
+		if err != nil {
+			return err
+		}
+		resetForkReleaseCache() // the release may have just been published
+		downloadURL, fileName, err = forkPackageURL(req.Version, itemArch)
+		if err != nil {
+			return err
+		}
 	}
 	if err := beginUpgrade(req.Version); err != nil {
 		return err
@@ -176,17 +191,27 @@ func (u *UpgradeService) Upgrade(req dto.Upgrade) error {
 		oldLang := ctl_conf.Load("LANGUAGE")
 		// Phase 1 (panel stays usable): download, verify, unpack, check.
 		pkgPath := downloadDir + "/" + fileName
-		if err := downloadForkPackage(downloadURL, pkgPath, transport, reportDownload); err != nil {
-			failUpgrade(req.Version, err)
-			_ = os.RemoveAll(baseDir)
-			return
-		}
-		global.LOG.Info("download all file successful!")
-		setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageVerifying })
-		if err := verifyForkPackageChecksum(req.Version, fileName, pkgPath, transport); err != nil {
-			failUpgrade(req.Version, err)
-			_ = os.RemoveAll(baseDir)
-			return
+		if pushedPkg != "" {
+			setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageVerifying })
+			if err := takePushedPackage(pushedPkg, pkgPath, req.PackageSha256); err != nil {
+				failUpgrade(req.Version, err)
+				_ = os.RemoveAll(baseDir)
+				return
+			}
+			global.LOG.Infof("using the upgrade package pushed by the cluster master: %s", fileName)
+		} else {
+			if err := downloadForkPackage(downloadURL, pkgPath, transport, reportDownload); err != nil {
+				failUpgrade(req.Version, err)
+				_ = os.RemoveAll(baseDir)
+				return
+			}
+			global.LOG.Info("download all file successful!")
+			setUpgradeState(func(s *dto.UpgradeStatus) { s.Stage = upgradeStageVerifying })
+			if err := verifyForkPackageChecksum(req.Version, fileName, pkgPath, transport); err != nil {
+				failUpgrade(req.Version, err)
+				_ = os.RemoveAll(baseDir)
+				return
+			}
 		}
 		defer func() {
 			_ = os.Remove(downloadDir)

@@ -545,7 +545,15 @@ const message = {
         upgradeTo: 'Update to {0}',
         upgradeAll: 'Update all',
         upgradeAllConfirm:
-            'Update the panels of {0} outdated nodes to {1}? Each node downloads and installs on its own, and its panel restarts for about 1-3 minutes.',
+            'Update the panels of {0} outdated nodes to {1}? Each node panel restarts and is unavailable for about 1-3 minutes.',
+        upgradeMode: 'Package source',
+        upgradeModeMaster: 'Distribute from the master (recommended)',
+        upgradeModeMasterHint:
+            'The master downloads the package once (cached per version and arch, sha256 verified) and pushes it to the nodes over the internal network. For nodes without (fast) internet access; the node panel must be a version that supports it',
+        upgradeModeDirect: 'Nodes download directly',
+        upgradeModeDirectHint: 'Each node downloads the package from the release itself and needs access to GitHub',
+        upgradePreparing: 'Master downloading {0}%',
+        upgradePushing: 'Pushing to node {0}%',
         upgradeAllStarted: 'Started updating {0} nodes',
         upgradeConfirm:
             'Update the panel of node "{0}" from {1} to {2}? The node panel restarts and is unavailable for about 1-3 minutes.',

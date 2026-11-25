@@ -40,8 +40,10 @@ export const getClusterAggregateOverview = () => {
     return http.get<Cluster.AggregateOverview>(`/core/cluster/nodes/overview/aggregate`, undefined, { timeout: 60000 });
 };
 
-export const upgradeClusterNode = (id: number, version = '') => {
-    return http.postLocalNode<any>(`/core/cluster/nodes/upgrade`, { id, version }, 60000);
+// mode: 'master' = the master downloads once and pushes the package;
+// 'direct' = the node downloads it from the release itself.
+export const upgradeClusterNode = (id: number, version = '', mode: 'master' | 'direct' = 'direct') => {
+    return http.postLocalNode<any>(`/core/cluster/nodes/upgrade`, { id, version, mode }, 60000);
 };
 
 export const setClusterNodeLoginLock = (req: Cluster.NodeLoginLockReq) => {

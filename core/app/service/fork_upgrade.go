@@ -108,6 +108,8 @@ func (u *UpgradeService) LoadUpgradeStatus() dto.UpgradeStatus {
 	state := forkUpgrade.state
 	forkUpgrade.Unlock()
 	state.CurrentVersion = global.CONF.Base.Version
+	pkgDir := pushedPackageDir()
+	state.PackageDir = pkgDir
 	if state.Stage != "" && state.Stage != upgradeStageIdle {
 		return state
 	}
@@ -115,10 +117,77 @@ func (u *UpgradeService) LoadUpgradeStatus() dto.UpgradeStatus {
 		var last dto.UpgradeStatus
 		if json.Unmarshal([]byte(raw), &last) == nil && compareForkVersion(last.Version, state.CurrentVersion) > 0 {
 			last.CurrentVersion = state.CurrentVersion
+			last.PackageDir = pkgDir
 			return last
 		}
 	}
-	return dto.UpgradeStatus{Stage: upgradeStageIdle, CurrentVersion: state.CurrentVersion}
+	return dto.UpgradeStatus{Stage: upgradeStageIdle, CurrentVersion: state.CurrentVersion, PackageDir: pkgDir}
+}
+
+// ---- Packages pushed by the cluster master -----------------------------
+//
+// With "master distribution" the cluster master downloads a release package
+// once and uploads it into pushedPackageDir() of the node (agent chunk
+// upload API), then calls the node's /core/settings/upgrade with
+// PackagePath + PackageSha256. The node only accepts a file inside that
+// directory, named like a release package for its own arch and the
+// requested version, whose sha256 matches.
+
+func pushedPackageDir() string {
+	return path.Join(global.CONF.Base.InstallDir, "1panel/tmp/upgrade/pushed")
+}
+
+func forkPackageFileName(tag, arch string) string {
+	return fmt.Sprintf("1panel-%s-linux-%s.tar.gz", tag, arch)
+}
+
+func checkPushedPackage(req dto.Upgrade, arch string) (string, string, error) {
+	want := strings.ToLower(strings.TrimSpace(req.PackageSha256))
+	if len(want) != 64 {
+		return "", "", fmt.Errorf("packageSha256 is required with packagePath")
+	}
+	fileName := forkPackageFileName(req.Version, arch)
+	pkg := path.Clean(strings.TrimSpace(req.PackagePath))
+	if path.Dir(pkg) != pushedPackageDir() || path.Base(pkg) != fileName {
+		return "", "", fmt.Errorf("package %s is not %s in %s", pkg, fileName, pushedPackageDir())
+	}
+	info, err := os.Lstat(pkg)
+	if err != nil {
+		return "", "", fmt.Errorf("pushed package not found: %v", err)
+	}
+	if !info.Mode().IsRegular() {
+		return "", "", fmt.Errorf("pushed package %s is not a regular file", pkg)
+	}
+	return pkg, fileName, nil
+}
+
+// takePushedPackage verifies the pushed package and moves it to dst.
+func takePushedPackage(src, dst, wantSum string) error {
+	got, err := fileSha256(src)
+	if err != nil {
+		return err
+	}
+	if got != strings.ToLower(strings.TrimSpace(wantSum)) {
+		_ = os.Remove(src)
+		return fmt.Errorf("checksum mismatch for %s: expected %s, got %s", path.Base(src), wantSum, got)
+	}
+	if err := os.Rename(src, dst); err != nil {
+		return err
+	}
+	return nil
+}
+
+func fileSha256(p string) (string, error) {
+	f, err := os.Open(p)
+	if err != nil {
+		return "", err
+	}
+	defer f.Close()
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
 // downloadForkPackage downloads url to dst with progress, stall detection

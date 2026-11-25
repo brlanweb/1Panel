@@ -522,8 +522,15 @@ const message = {
         latestVersion: '已是最新',
         upgradeTo: '更新到 {0}',
         upgradeAll: '一键更新',
-        upgradeAllConfirm:
-            '确认将 {0} 个未更新节点的面板更新到 {1}？各节点自行下载安装，更新期间对应面板会重启，约 1-3 分钟不可用。',
+        upgradeAllConfirm: '确认将 {0} 个未更新节点的面板更新到 {1}？更新期间对应面板会重启，约 1-3 分钟不可用。',
+        upgradeMode: '安装包获取方式',
+        upgradeModeMaster: '主节点下发（推荐）',
+        upgradeModeMasterHint:
+            '主节点下载一次（按版本和架构缓存并校验 sha256），再经内网推送到各节点安装。适合节点无法访问外网或外网慢的情况；需要节点面板为支持该功能的版本',
+        upgradeModeDirect: '节点直连下载',
+        upgradeModeDirectHint: '各节点自行从发布地址下载安装包，需要节点能访问 GitHub',
+        upgradePreparing: '主节点下载中 {0}%',
+        upgradePushing: '下发到节点 {0}%',
         upgradeAllStarted: '已开始更新 {0} 个节点',
         upgradeConfirm: '确认将节点「{0}」的面板从 {1} 更新到 {2}？更新期间该节点面板会重启，约 1-3 分钟不可用。',
         upgradeStarted: '节点「{0}」已开始更新',

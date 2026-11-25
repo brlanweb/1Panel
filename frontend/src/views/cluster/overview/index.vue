@@ -41,7 +41,7 @@
                                     @click="onUpgradeAll"
                                 >
                                     {{ $t('cluster.upgradeAll') }}
-                                    <span v-if="upgradeableNodes.length"> ({{ upgradeableNodes.length }})</span>
+                                    <span v-if="upgradeableNodes.length">({{ upgradeableNodes.length }})</span>
                                 </el-button>
                                 <el-input
                                     v-model="searchKeyword"
@@ -378,6 +378,36 @@
             </template>
         </DrawerPro>
 
+        <!-- Node panel update: confirm + download mode -->
+        <el-dialog
+            v-model="upgradeDialog.visible"
+            :title="upgradeDialog.nodes.length > 1 ? $t('cluster.upgradeAll') : $t('commons.button.upgrade')"
+            width="560px"
+            :close-on-click-modal="false"
+        >
+            <div class="mb-3">{{ upgradeDialogText }}</div>
+            <el-form label-position="top">
+                <el-form-item :label="$t('cluster.upgradeMode')">
+                    <el-radio-group v-model="upgradeDialog.mode" class="upgrade-mode-group">
+                        <el-radio value="master">
+                            {{ $t('cluster.upgradeModeMaster') }}
+                        </el-radio>
+                        <div class="upgrade-mode-hint">{{ $t('cluster.upgradeModeMasterHint') }}</div>
+                        <el-radio value="direct">
+                            {{ $t('cluster.upgradeModeDirect') }}
+                        </el-radio>
+                        <div class="upgrade-mode-hint">{{ $t('cluster.upgradeModeDirectHint') }}</div>
+                    </el-radio-group>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <el-button @click="upgradeDialog.visible = false">{{ $t('commons.button.cancel') }}</el-button>
+                <el-button type="primary" :loading="upgradeDialog.submitting" @click="submitUpgrade">
+                    {{ $t('commons.button.confirm') }}
+                </el-button>
+            </template>
+        </el-dialog>
+
         <Backups ref="backupRef" />
         <GroupDialog ref="groupRef" @search="loadGroups" />
     </div>
@@ -387,7 +417,6 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { FolderAdd, Setting } from '@element-plus/icons-vue';
-import { ElMessageBox } from 'element-plus';
 import i18n from '@/lang';
 import {
     getClusterAggregateOverview,
@@ -604,10 +633,13 @@ const isLatest = (node: OverviewNode) =>
 const upgradeStageText = (state: Cluster.NodeUpgradeStatus) => {
     const t = (key: string, args?: any[]) => i18n.global.t(key, args || []);
     if (!state.reachable) return t('cluster.upgradeRestarting');
+    const pct = state.total ? Math.floor((state.done * 100) / state.total) : 0;
     if (state.stage === 'downloading') {
-        const pct = state.total ? Math.floor((state.done * 100) / state.total) : 0;
         return t('cluster.upgradeDownloading', [pct]);
     }
+    // Master distribution: the master downloads, then pushes to the node.
+    if (state.stage === 'preparing') return t('cluster.upgradePreparing', [pct]);
+    if (state.stage === 'pushing') return t('cluster.upgradePushing', [pct]);
     if (state.stage === 'verifying') return t('setting.upgradeVerifying');
     if (state.stage === 'installing') return t('cluster.upgradeRestarting');
     return t('cluster.upgradeStarting');
@@ -655,30 +687,67 @@ const pollUpgrade = (node: OverviewNode, target: string, deadline: number) => {
         pollUpgrade(node, target, deadline);
     }, 3000);
 };
-const onUpgradeNode = async (node: OverviewNode) => {
+// Download mode of the last update, remembered per browser.
+type UpgradeMode = 'master' | 'direct';
+const UPGRADE_MODE_KEY = 'cluster-node-upgrade-mode';
+const loadUpgradeMode = (): UpgradeMode => (localStorage.getItem(UPGRADE_MODE_KEY) === 'direct' ? 'direct' : 'master');
+const upgradeDialog = ref({
+    visible: false,
+    submitting: false,
+    mode: 'master' as UpgradeMode,
+    target: '',
+    nodes: [] as OverviewNode[],
+});
+const upgradeDialogText = computed(() => {
+    const d = upgradeDialog.value;
+    if (d.nodes.length === 1) {
+        const node = d.nodes[0];
+        return i18n.global.t('cluster.upgradeConfirm', [node.displayName, node.version, d.target]);
+    }
+    return i18n.global.t('cluster.upgradeAllConfirm', [d.nodes.length, d.target]);
+});
+const openUpgradeDialog = (list: OverviewNode[]) => {
     const target = latestVersion.value;
-    try {
-        await ElMessageBox.confirm(
-            i18n.global.t('cluster.upgradeConfirm', [node.displayName, node.version, target]),
-            i18n.global.t('commons.button.upgrade'),
-            { type: 'warning' },
-        );
-    } catch {
-        return;
-    }
-    try {
-        await startNodeUpgrade(node, target);
-    } catch {
-        return; // error shown by the http layer
-    }
-    MsgSuccess(i18n.global.t('cluster.upgradeStarted', [node.displayName]));
+    if (!list.length || !target) return;
+    upgradeDialog.value = { visible: true, submitting: false, mode: loadUpgradeMode(), target, nodes: list };
 };
 
-const startNodeUpgrade = async (node: OverviewNode, target: string) => {
-    await upgradeClusterNode(node.nodeId, target);
+const onUpgradeNode = (node: OverviewNode) => openUpgradeDialog([node]);
+const onUpgradeAll = () => openUpgradeDialog(upgradeableNodes.value.slice());
+
+const submitUpgrade = async () => {
+    const d = upgradeDialog.value;
+    localStorage.setItem(UPGRADE_MODE_KEY, d.mode);
+    d.submitting = true;
+    upgradingAll.value = d.nodes.length > 1;
+    let started = 0;
+    try {
+        for (const node of d.nodes) {
+            try {
+                await startNodeUpgrade(node, d.target, d.mode);
+                started++;
+            } catch {
+                // The request layer already shows the error for this node.
+            }
+        }
+    } finally {
+        d.submitting = false;
+        upgradingAll.value = false;
+        d.visible = false;
+    }
+    if (!started) return;
+    if (d.nodes.length === 1) {
+        MsgSuccess(i18n.global.t('cluster.upgradeStarted', [d.nodes[0].displayName]));
+    } else {
+        MsgSuccess(i18n.global.t('cluster.upgradeAllStarted', [started]));
+    }
+};
+
+const startNodeUpgrade = async (node: OverviewNode, target: string, mode: UpgradeMode) => {
+    await upgradeClusterNode(node.nodeId, target, mode);
     upgradeStates.value[node.key] = {
         id: node.nodeId,
-        stage: 'downloading',
+        stage: mode === 'master' ? 'preparing' : 'downloading',
         version: target,
         currentVersion: node.version,
         done: 0,
@@ -686,39 +755,9 @@ const startNodeUpgrade = async (node: OverviewNode, target: string) => {
         error: '',
         reachable: true,
     };
-    pollUpgrade(node, target, Date.now() + 20 * 60 * 1000);
-};
-
-const onUpgradeAll = async () => {
-    const target = latestVersion.value;
-    const pending = upgradeableNodes.value.slice();
-    if (!pending.length || !target) return;
-    try {
-        await ElMessageBox.confirm(
-            i18n.global.t('cluster.upgradeAllConfirm', [pending.length, target]),
-            i18n.global.t('cluster.upgradeAll'),
-            { type: 'warning' },
-        );
-    } catch {
-        return;
-    }
-    upgradingAll.value = true;
-    let started = 0;
-    try {
-        for (const node of pending) {
-            try {
-                await startNodeUpgrade(node, target);
-                started++;
-            } catch {
-                // The request layer already shows the error for this node.
-            }
-        }
-    } finally {
-        upgradingAll.value = false;
-    }
-    if (started) {
-        MsgSuccess(i18n.global.t('cluster.upgradeAllStarted', [started]));
-    }
+    // Master distribution of many nodes queues behind the master's uplink.
+    const budget = mode === 'master' ? 60 * 60 * 1000 : 20 * 60 * 1000;
+    pollUpgrade(node, target, Date.now() + budget);
 };
 
 const loadGroups = async () => {
@@ -1173,6 +1212,17 @@ onBeforeUnmount(() => {
     white-space: nowrap;
 }
 
+.upgrade-mode-group {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.upgrade-mode-hint {
+    margin: -4px 0 8px 24px;
+    font-size: 12px;
+    line-height: 18px;
+    color: var(--el-text-color-secondary);
+}
 .node-card-version {
     display: flex;
     align-items: center;

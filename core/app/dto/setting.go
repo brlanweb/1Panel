@@ -192,6 +192,11 @@ type Upgrade struct {
 	// Proxy for the package download: "" / auto (panel proxy if set,
 	// else direct), direct, panel (global proxy), node (subscription proxy).
 	Proxy string `json:"proxy" validate:"omitempty,oneof=auto direct panel node"`
+	// PackagePath installs a package already pushed to this panel by the
+	// cluster master (it must sit in UpgradeStatus.PackageDir); no release
+	// lookup or download happens then. PackageSha256 is required with it.
+	PackagePath   string `json:"packagePath"`
+	PackageSha256 string `json:"packageSha256"`
 }
 
 // UpgradeProxyOptions tells the upgrade drawer which download routes exist.
@@ -214,6 +219,9 @@ type UpgradeStatus struct {
 	Rate           int64     `json:"rate"`
 	Error          string    `json:"error"`
 	UpdatedAt      time.Time `json:"updatedAt"`
+	// PackageDir is where a cluster master may push an upgrade package
+	// (see Upgrade.PackagePath). Empty on panels without that support.
+	PackageDir string `json:"packageDir"`
 }
 
 type ReleasesNotes struct {

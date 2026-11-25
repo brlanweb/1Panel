@@ -116,6 +116,10 @@ type ClusterNodeUpgradeReq struct {
 	ID uint `json:"id" validate:"required"`
 	// Version to upgrade to; empty means the newest fork release.
 	Version string `json:"version"`
+	// Mode: "direct" (default) = the node downloads the package itself;
+	// "master" = this panel downloads it once (cached per version / arch)
+	// and pushes it to the node, for nodes without (fast) internet access.
+	Mode string `json:"mode" validate:"omitempty,oneof=direct master"`
 }
 
 type ClusterNodeUpgradeStatus struct {

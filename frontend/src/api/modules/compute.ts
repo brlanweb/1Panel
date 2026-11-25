@@ -11,13 +11,12 @@ export const getComputeOverview = () => get<Compute.Overview>(`/core/compute/ove
 export const computeWatch = (fast: boolean) => post<any>(`/core/compute/watch`, { fast });
 
 export const listComputeHosts = (info = '') => post<Compute.Host[]>(`/core/compute/hosts/search`, { info });
-export const createComputeHost = (req: Compute.HostReq) => post<any>(`/core/compute/hosts`, req);
-export const batchComputeHosts = (req: Compute.HostBatchReq) =>
-    post<{ created: number; error: string }>(`/core/compute/hosts/batch`, req, 120000);
+export const listComputeHostCandidates = (source: string) =>
+    post<Compute.HostCandidate[]>(`/core/compute/hosts/candidates`, { source });
+export const importComputeHosts = (req: Compute.HostImportReq) =>
+    post<{ imported: number; error: string }>(`/core/compute/hosts/import`, req);
 export const updateComputeHost = (req: Compute.HostReq) => post<any>(`/core/compute/hosts/update`, req);
 export const deleteComputeHost = (id: number) => post<any>(`/core/compute/hosts/del`, { id });
-export const testComputeHost = (req: Compute.HostReq) =>
-    post<Compute.HostTestRes>(`/core/compute/hosts/test`, req, 60000);
 export const setComputeSchedulable = (id: number, schedulable: boolean) =>
     post<any>(`/core/compute/hosts/schedulable`, { id, schedulable });
 export const refreshComputeHost = (id: number) => post<any>(`/core/compute/hosts/refresh`, { id });
@@ -41,7 +40,7 @@ export const setComputeRoute = (id: number, routeEnabled: boolean, weight: numbe
 export const operateComputeInstance = (id: number, operation: string, force = false) =>
     post<{ jobId: number }>(`/core/compute/instances/operate`, { id, operation, force });
 
-// Precheck runs SSH checks on every target host: allow more time.
+// Precheck checks every target host (SSH / panel API): allow more time.
 export const computeDeploy = (req: { profileId: number; hostIds: number[]; name: string; dryRun: boolean }) =>
     post<Compute.PrecheckRes>(`/core/compute/deploy`, req, 120000);
 export const computeSwitch = (req: { instanceId: number; profileId: number; dryRun: boolean }) =>

@@ -4,28 +4,35 @@ import "time"
 
 // Compute scheduling ("算力调度") models.
 //
-// The master core manages GPU hosts without installing anything on them
-// (L0: agentless over a pooled SSH connection). Hosts that already run a
-// full panel agent can be linked to their ClusterNode (L2). Realtime
-// metrics are kept in memory only; the tables below hold inventory,
-// topology, templates, instances, jobs and policies, so the write rate
-// stays tiny even with dozens of hosts.
+// The compute module owns no host credentials. Every compute host refers to
+// a host that is already managed elsewhere in the panel:
+//
+//   - source "terminal": a host of Terminal → Hosts (agent.db `hosts`),
+//     collected and operated agentless over a pooled SSH connection that
+//     uses the credentials stored there;
+//   - source "node": a registered cluster node (panel installed), reached
+//     through its signed API;
+//   - source "local": this (master) panel, reached over the agent socket.
+//
+// Realtime metrics are kept in memory only; the tables below hold
+// inventory, topology, templates, instances, jobs and policies, so the
+// write rate stays tiny even with dozens of hosts.
 
 // ComputeHost is one GPU machine (e.g. a DGX GB10).
 type ComputeHost struct {
 	BaseModel
-	Name             string `gorm:"not null;uniqueIndex" json:"name"`
-	Addr             string `gorm:"not null" json:"addr"`
-	SSHPort          int    `gorm:"not null;default:22" json:"sshPort"`
-	SSHUser          string `gorm:"not null;default:root" json:"sshUser"`
-	AuthMode         string `gorm:"not null;default:password" json:"authMode"` // password / key
-	CredCipher       string `gorm:"type:text" json:"-"`
-	PassPhraseCipher string `gorm:"type:text" json:"-"`
-	// Mode: agentless (L0) / probe (L1, reserved) / agent (L2, linked node).
-	Mode          string `gorm:"not null;default:agentless" json:"mode"`
-	ClusterNodeID uint   `json:"clusterNodeId"`
-	Labels        string `json:"labels"`
-	Remark        string `json:"remark"`
+	Name string `gorm:"not null;uniqueIndex" json:"name"`
+	// Addr is the management address: used for service endpoints and to
+	// recognise the management NIC during topology discovery. Empty means
+	// "auto" (filled from the host's default-route address).
+	Addr   string `gorm:"not null;default:''" json:"addr"`
+	Source string `gorm:"not null;default:terminal;index" json:"source"` // terminal / node / local
+	// RefID is agent.db hosts.id (terminal) or cluster_nodes.id (node).
+	RefID uint `gorm:"not null;default:0;index" json:"refId"`
+	// Mode is derived from Source: agentless (terminal) / agent (node, local).
+	Mode   string `gorm:"not null;default:agentless" json:"mode"`
+	Labels string `json:"labels"`
+	Remark string `json:"remark"`
 	// Schedulable=false cordons the host: the scheduler never places new
 	// instances on it (existing ones keep running).
 	Schedulable bool `gorm:"not null;default:true" json:"schedulable"`
@@ -54,7 +61,22 @@ const (
 
 	ComputeModeAgentless = "agentless"
 	ComputeModeAgent     = "agent"
+
+	ComputeSourceTerminal = "terminal"
+	ComputeSourceNode     = "node"
+	ComputeSourceLocal    = "local"
+
+	// Runtime backends: "script" renders the launch/stop templates and runs
+	// them on every host; "vllm" creates a deployment in AI → vLLM of the
+	// (single, panel-managed) host, so it is managed there as well.
+	ComputeBackendScript = "script"
+	ComputeBackendVllm   = "vllm"
 )
+
+// IsPanel reports whether the host runs a panel (node or local).
+func (h ComputeHost) IsPanel() bool {
+	return h.Source == ComputeSourceNode || h.Source == ComputeSourceLocal
+}
 
 // ComputeFabricLink is one high-speed point-to-point link (optical / RoCE)
 // discovered from the neighbour table or entered by hand. Links that touch
@@ -88,7 +110,10 @@ type ComputeRuntime struct {
 	Engine string `gorm:"not null;default:vllm" json:"engine"`
 	// Device is the accelerator family the image is built for (gpu / npu);
 	// placement only considers hosts with that kind of accelerator.
-	Device         string `gorm:"not null;default:gpu" json:"device"`
+	Device string `gorm:"not null;default:gpu" json:"device"`
+	// Backend: script (templates over SSH / panel API) or vllm (AI → vLLM
+	// deployment on a panel host, single host only).
+	Backend        string `gorm:"not null;default:script" json:"backend"`
 	Image          string `json:"image"`
 	MultiNode      bool   `json:"multiNode"`
 	LaunchTemplate string `gorm:"type:text" json:"launchTemplate"`
@@ -136,6 +161,9 @@ type ComputeInstance struct {
 	Endpoint      string `gorm:"not null" json:"endpoint"`
 	APIKeyCipher  string `gorm:"type:text" json:"-"`
 	ContainerName string `json:"containerName"`
+	// VllmDeploymentID is the AI → vLLM deployment on the head host that
+	// backs this instance (runtime backend "vllm"); 0 otherwise.
+	VllmDeploymentID uint `json:"vllmDeploymentId"`
 	// Adopted instances were found running and are only observed: the panel
 	// never restarts them unless the operator takes them over explicitly.
 	Adopted bool   `json:"adopted"`

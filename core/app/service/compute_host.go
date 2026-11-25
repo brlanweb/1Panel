@@ -1,8 +1,6 @@
 package service
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"sort"
 	"strconv"
@@ -14,8 +12,6 @@ import (
 	"github.com/1Panel-dev/1Panel/core/app/repo"
 	"github.com/1Panel-dev/1Panel/core/buserr"
 	"github.com/1Panel-dev/1Panel/core/global"
-	"github.com/1Panel-dev/1Panel/core/utils/encrypt"
-	"github.com/1Panel-dev/1Panel/core/utils/ssh"
 )
 
 type ComputeService struct{}
@@ -23,11 +19,10 @@ type ComputeService struct{}
 type IComputeService interface {
 	// hosts
 	ListHosts(info string) ([]dto.ComputeHostView, error)
-	CreateHost(req dto.ComputeHostReq) error
-	BatchCreateHosts(req dto.ComputeHostBatchReq) (int, error)
+	HostCandidates(source string) ([]dto.ComputeHostCandidate, error)
+	ImportHosts(req dto.ComputeHostImportReq) (dto.ComputeHostImportRes, error)
 	UpdateHost(req dto.ComputeHostReq) error
 	DeleteHost(id uint) error
-	TestHost(req dto.ComputeHostReq) (dto.ComputeHostTestRes, error)
 	SetSchedulable(req dto.ComputeSchedulableReq) error
 	RefreshHost(id uint) error
 	Watch(fast bool)
@@ -98,19 +93,44 @@ func (u *ComputeService) ListHosts(info string) ([]dto.ComputeHostView, error) {
 			instOf[hid] = append(instOf[hid], in.Name)
 		}
 	}
+	terms := map[uint]computeTerminalHost{}
+	if list, err := computeTerminalHosts(); err == nil {
+		for _, t := range list {
+			terms[t.ID] = t
+		}
+	}
+	nodes := map[uint]model.ClusterNode{}
+	if list, err := clusterNodeRepo.GetList(); err == nil {
+		for _, n := range list {
+			nodes[n.ID] = n
+		}
+	}
 	res := make([]dto.ComputeHostView, 0, len(hosts))
 	for _, h := range hosts {
 		rt := computeState.hostRealtime(h.ID)
 		if slow := computeState.hostSlow(h.ID); slow != nil {
 			rt.Processes = computeProcessesView(h.ID, slow, insts)
 		}
-		res = append(res, dto.ComputeHostView{
-			ComputeHost:   h,
-			HasCredential: h.CredCipher != "",
-			Realtime:      rt,
-			Domain:        domainOf[h.ID],
-			InstanceNames: instOf[h.ID],
-		})
+		view := dto.ComputeHostView{ComputeHost: h, Realtime: rt, Domain: domainOf[h.ID], InstanceNames: instOf[h.ID]}
+		switch h.Source {
+		case model.ComputeSourceTerminal:
+			if t, ok := terms[h.RefID]; ok {
+				view.SourceName = t.Name
+				view.SourceDetail = fmt.Sprintf("%s@%s:%d", t.User, t.Addr, t.Port)
+			} else {
+				view.SourceMissing = true
+			}
+		case model.ComputeSourceNode:
+			if n, ok := nodes[h.RefID]; ok {
+				view.SourceName = n.Name
+				view.SourceDetail = n.EntryURL
+			} else {
+				view.SourceMissing = true
+			}
+		case model.ComputeSourceLocal:
+			view.SourceName = "local"
+		}
+		res = append(res, view)
 	}
 	return res, nil
 }
@@ -129,138 +149,121 @@ func computeProcessesView(hostID uint, slow *computeSlowRaw, insts []model.Compu
 	return res
 }
 
-func computeHostFromReq(req dto.ComputeHostReq, old *model.ComputeHost) (model.ComputeHost, error) {
-	var h model.ComputeHost
-	if old != nil {
-		h = *old
-	} else {
-		h.Mode = model.ComputeModeAgentless
-		h.Status = model.ComputeHostUnknown
-		h.Schedulable = true
+// HostCandidates lists the hosts of a source that can be brought under
+// compute scheduling, marking the ones already imported.
+func (u *ComputeService) HostCandidates(source string) ([]dto.ComputeHostCandidate, error) {
+	existing, _ := repo.ComputeHostRepo.List()
+	imported := map[string]uint{}
+	for _, h := range existing {
+		imported[fmt.Sprintf("%s/%d", h.Source, h.RefID)] = h.ID
 	}
-	h.Name = strings.TrimSpace(req.Name)
-	h.Addr = strings.TrimSpace(req.Addr)
-	h.SSHPort = req.SSHPort
-	if h.SSHPort == 0 {
-		h.SSHPort = 22
+	mark := func(c dto.ComputeHostCandidate) dto.ComputeHostCandidate {
+		if id, ok := imported[fmt.Sprintf("%s/%d", c.Source, c.RefID)]; ok {
+			c.Imported, c.HostID = true, id
+		}
+		return c
 	}
-	h.SSHUser = strings.TrimSpace(req.SSHUser)
-	if h.SSHUser == "" {
-		h.SSHUser = "root"
-	}
-	h.AuthMode = req.AuthMode
-	if h.AuthMode == "" {
-		h.AuthMode = "password"
-	}
-	h.Labels = strings.TrimSpace(req.Labels)
-	h.Remark = req.Remark
-	h.ClusterNodeID = req.ClusterNodeID
-	if req.ClusterNodeID > 0 {
-		h.Mode = model.ComputeModeAgent
-	} else {
-		h.Mode = model.ComputeModeAgentless
-	}
-	if req.Schedulable != nil {
-		h.Schedulable = *req.Schedulable
-	}
-	if req.Credential != "" {
-		c, err := encrypt.StringEncrypt(req.Credential)
+	var res []dto.ComputeHostCandidate
+	switch source {
+	case model.ComputeSourceTerminal:
+		list, err := computeTerminalHosts()
 		if err != nil {
-			return h, err
+			return nil, err
 		}
-		h.CredCipher = c
-		h.PassPhraseCipher = ""
-		if req.AuthMode == "key" && req.PassPhrase != "" {
-			p, err := encrypt.StringEncrypt(req.PassPhrase)
-			if err != nil {
-				return h, err
-			}
-			h.PassPhraseCipher = p
+		for _, t := range list {
+			res = append(res, mark(dto.ComputeHostCandidate{Source: source, RefID: t.ID, Name: t.Name, Addr: t.Addr,
+				Detail: fmt.Sprintf("%s@%s:%d · %s", t.User, t.Addr, t.Port, t.AuthMode)}))
 		}
+	case model.ComputeSourceNode:
+		list, err := clusterNodeRepo.GetList()
+		if err != nil {
+			return nil, err
+		}
+		for _, n := range list {
+			res = append(res, mark(dto.ComputeHostCandidate{Source: source, RefID: n.ID, Name: n.Name, Addr: entryHost(n.EntryURL),
+				Detail: n.EntryURL, Status: n.Status}))
+		}
+	case model.ComputeSourceLocal:
+		ip, _ := settingRepo.GetValueByKey("SystemIP")
+		res = append(res, mark(dto.ComputeHostCandidate{Source: source, Name: "local", Addr: strings.TrimSpace(ip), Status: model.ClusterNodeStatusOnline}))
+	default:
+		return nil, buserr.WithDetail("ErrInvalidParams", "source", nil)
 	}
-	if h.CredCipher == "" {
-		return h, buserr.WithDetail("ErrInvalidParams", "credential", nil)
-	}
-	return h, nil
+	return res, nil
 }
 
-func (u *ComputeService) CreateHost(req dto.ComputeHostReq) error {
-	if _, err := repo.ComputeHostRepo.Get(repo.WithByName(strings.TrimSpace(req.Name))); err == nil {
-		return buserr.New("ErrRecordExist")
-	}
-	h, err := computeHostFromReq(req, nil)
+func (u *ComputeService) ImportHosts(req dto.ComputeHostImportReq) (dto.ComputeHostImportRes, error) {
+	var res dto.ComputeHostImportRes
+	cands, err := u.HostCandidates(req.Source)
 	if err != nil {
-		return err
+		return res, err
 	}
-	if err := repo.ComputeHostRepo.Create(&h); err != nil {
-		return err
+	want := map[uint]bool{}
+	for _, id := range req.RefIDs {
+		want[id] = true
 	}
-	computeKick(h.ID)
-	return nil
-}
-
-func (u *ComputeService) BatchCreateHosts(req dto.ComputeHostBatchReq) (int, error) {
-	created := 0
 	var errs []string
-	for _, raw := range strings.Split(req.Lines, "\n") {
-		line := strings.TrimSpace(raw)
-		if line == "" || strings.HasPrefix(line, "#") {
+	for _, c := range cands {
+		if req.Source != model.ComputeSourceLocal && !want[c.RefID] {
 			continue
 		}
-		f := strings.Split(line, ",")
-		for i := range f {
-			f[i] = strings.TrimSpace(f[i])
-		}
-		if len(f) < 2 || f[0] == "" || f[1] == "" {
-			errs = append(errs, line+": format")
+		if c.Imported {
 			continue
 		}
-		item := dto.ComputeHostReq{Name: f[0], Addr: f[1], SSHPort: req.SSHPort, SSHUser: req.SSHUser,
-			AuthMode: req.AuthMode, Credential: req.Credential, PassPhrase: req.PassPhrase, Labels: req.Labels}
-		if len(f) > 2 && f[2] != "" {
-			p, err := strconv.Atoi(f[2])
-			if err != nil {
-				errs = append(errs, line+": port")
-				continue
-			}
-			item.SSHPort = p
+		mode := model.ComputeModeAgentless
+		if req.Source != model.ComputeSourceTerminal {
+			mode = model.ComputeModeAgent
 		}
-		if len(f) > 3 && f[3] != "" {
-			item.SSHUser = f[3]
-		}
-		if err := u.CreateHost(item); err != nil {
-			errs = append(errs, f[0]+": "+err.Error())
+		name := computeUniqueHostName(c.Name)
+		h := model.ComputeHost{Name: name, Addr: c.Addr, Source: req.Source, RefID: c.RefID, Mode: mode,
+			Labels: strings.TrimSpace(req.Labels), Schedulable: true, Status: model.ComputeHostUnknown}
+		if err := repo.ComputeHostRepo.Create(&h); err != nil {
+			errs = append(errs, c.Name+": "+err.Error())
 			continue
 		}
-		created++
+		res.Imported++
+		computeKick(h.ID)
 	}
 	if len(errs) > 0 {
-		return created, buserr.WithDetail("ErrInvalidParams", strings.Join(errs, "; "), nil)
+		res.Error = strings.Join(errs, "; ")
 	}
-	return created, nil
+	return res, nil
 }
 
+func computeUniqueHostName(name string) string {
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = "host"
+	}
+	candidate := name
+	for i := 2; ; i++ {
+		if _, err := repo.ComputeHostRepo.Get(repo.WithByName(candidate)); err != nil {
+			return candidate
+		}
+		candidate = fmt.Sprintf("%s-%d", name, i)
+	}
+}
+
+// UpdateHost edits scheduling attributes only; access is edited where the
+// host is managed (Terminal → Hosts / Cluster → Nodes).
 func (u *ComputeService) UpdateHost(req dto.ComputeHostReq) error {
 	old, err := repo.ComputeHostRepo.Get(repo.WithByID(req.ID))
 	if err != nil {
 		return buserr.New("ErrRecordNotFound")
 	}
-	if dup, err := repo.ComputeHostRepo.Get(repo.WithByName(strings.TrimSpace(req.Name))); err == nil && dup.ID != req.ID {
+	name := strings.TrimSpace(req.Name)
+	if dup, err := repo.ComputeHostRepo.Get(repo.WithByName(name)); err == nil && dup.ID != req.ID {
 		return buserr.New("ErrRecordExist")
 	}
-	h, err := computeHostFromReq(req, &old)
-	if err != nil {
+	vars := map[string]interface{}{"name": name, "addr": strings.TrimSpace(req.Addr),
+		"labels": strings.TrimSpace(req.Labels), "remark": req.Remark}
+	if req.Schedulable != nil {
+		vars["schedulable"] = *req.Schedulable
+	}
+	if err := repo.ComputeHostRepo.Update(old.ID, vars); err != nil {
 		return err
 	}
-	if err := repo.ComputeHostRepo.Update(h.ID, map[string]interface{}{
-		"name": h.Name, "addr": h.Addr, "ssh_port": h.SSHPort, "ssh_user": h.SSHUser, "auth_mode": h.AuthMode,
-		"cred_cipher": h.CredCipher, "pass_phrase_cipher": h.PassPhraseCipher, "mode": h.Mode,
-		"cluster_node_id": h.ClusterNodeID, "labels": h.Labels, "remark": h.Remark, "schedulable": h.Schedulable,
-	}); err != nil {
-		return err
-	}
-	computeSSH.Drop(h.ID)
-	computeKick(h.ID)
+	computeKick(old.ID)
 	return nil
 }
 
@@ -290,6 +293,7 @@ func (u *ComputeService) RefreshHost(id uint) error {
 	if _, err := repo.ComputeHostRepo.Get(repo.WithByID(id)); err != nil {
 		return buserr.New("ErrRecordNotFound")
 	}
+	computeSSH.Drop(id)
 	computeKick(id)
 	return nil
 }
@@ -299,75 +303,6 @@ func (u *ComputeService) Watch(fast bool) {
 		computeState.watchUntil.Store(time.Now().Add(30 * time.Second).Unix())
 	} else {
 		computeState.watchUntil.Store(0)
-	}
-}
-
-// TestHost dials the host with the submitted (or stored) credentials using a
-// throw-away connection and reads its identity. Nothing is persisted.
-func (u *ComputeService) TestHost(req dto.ComputeHostReq) (dto.ComputeHostTestRes, error) {
-	var res dto.ComputeHostTestRes
-	var old *model.ComputeHost
-	if req.ID > 0 {
-		h, err := repo.ComputeHostRepo.Get(repo.WithByID(req.ID))
-		if err == nil {
-			old = &h
-		}
-	}
-	h, err := computeHostFromReq(req, old)
-	if err != nil {
-		return res, err
-	}
-	info, err := computeConnInfo(h)
-	if err != nil {
-		return res, err
-	}
-	start := time.Now()
-	client, err := ssh.NewClient(info)
-	if err != nil {
-		res.Message = err.Error()
-		return res, nil
-	}
-	defer client.Close()
-	res.LatencyMs = time.Since(start).Milliseconds()
-	res.Sudo = h.SSHUser == "root" || client.SudoItem != ""
-	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
-	defer cancel()
-	out, err := computeRunOnClient(ctx, client, computeSlowScript+"\n"+computeFastScript)
-	if err != nil && out == "" {
-		res.Message = err.Error()
-		return res, nil
-	}
-	slow := parseComputeSlow(out)
-	fast := parseComputeFast(out)
-	res.OK = true
-	res.Hostname, res.Arch, res.OS, res.Driver = slow.Hostname, slow.Arch, slow.OS, slow.Driver
-	if len(fast.GPUs) > 0 {
-		name := fast.GPUs[0].Name
-		if fast.GPUs[0].Kind == computeKindNPU {
-			name = "Ascend " + name + " (NPU)"
-		}
-		res.GpuModel = fmt.Sprintf("%s x%d", name, len(fast.GPUs))
-	}
-	return res, nil
-}
-
-func computeRunOnClient(ctx context.Context, client *ssh.SSHClient, script string) (string, error) {
-	session, err := client.Client.NewSession()
-	if err != nil {
-		return "", err
-	}
-	defer session.Close()
-	out := &computeLimitedBuffer{max: computeSSHMaxOutput}
-	session.Stdout, session.Stderr = out, out
-	session.Stdin = strings.NewReader(script)
-	done := make(chan error, 1)
-	go func() { done <- session.Run("sh -s") }()
-	select {
-	case err = <-done:
-		return out.buf.String(), err
-	case <-ctx.Done():
-		_ = session.Close()
-		return out.buf.String(), errors.New("ssh command timeout")
 	}
 }
 

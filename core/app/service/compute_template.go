@@ -206,13 +206,16 @@ docker run -d --name {{q .ContainerName}} --restart unless-stopped \
 
 func computeBuiltinRuntimes() []model.ComputeRuntime {
 	return []model.ComputeRuntime{
-		{Name: "vllm-ascend", Engine: "vllm", Device: computeKindNPU, Image: "quay.io/ascend/vllm-ascend:v0.32.0rc1", MultiNode: false,
+		{Name: "vllm-ascend", Engine: "vllm", Device: computeKindNPU, Backend: model.ComputeBackendScript, Image: "quay.io/ascend/vllm-ascend:v0.32.0rc1", MultiNode: false,
 			LaunchTemplate: computeVllmAscend, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
 			Builtin: true, Remark: "vLLM Ascend single host (Ascend Docker Runtime; set ASCEND_VISIBLE_DEVICES in env)"},
-		{Name: "vllm-single", Engine: "vllm", Device: computeKindGPU, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: false,
+		{Name: "vllm-panel", Engine: "vllm", Device: computeKindGPU, Backend: model.ComputeBackendVllm, Image: "nvcr.io/nvidia/vllm:25.09-py3",
+			HealthPath: "/health", MetricsPath: "/metrics", Builtin: true,
+			Remark: "Single host through AI → vLLM of the host (panel hosts only; the deployment is visible and managed there too)"},
+		{Name: "vllm-single", Engine: "vllm", Device: computeKindGPU, Backend: model.ComputeBackendScript, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: false,
 			LaunchTemplate: computeVllmSingle, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
 			Builtin: true, Remark: "vLLM single host (docker)"},
-		{Name: "vllm-ray-multinode", Engine: "vllm", Device: computeKindGPU, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: true,
+		{Name: "vllm-ray-multinode", Engine: "vllm", Device: computeKindGPU, Backend: model.ComputeBackendScript, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: true,
 			LaunchTemplate: computeVllmRay, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
 			Builtin: true, Remark: "vLLM over Ray across a fabric domain (NCCL over RoCE)"},
 	}

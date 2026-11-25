@@ -75,46 +75,38 @@ func (b *BaseApi) ComputeListHosts(c *gin.Context) {
 }
 
 // @Tags Compute
-// @Summary Create compute host
+// @Summary Hosts of a source (terminal / node / local) that can be imported
 // @Accept json
-// @Param request body dto.ComputeHostReq true "request"
-// @Success 200
+// @Param request body object true "request"
+// @Success 200 {array} dto.ComputeHostCandidate
 // @Security ApiKeyAuth
 // @Security Timestamp
-// @Router /core/compute/hosts [post]
-// @x-panel-log {"bodyKeys":["name","addr"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"添加算力主机 [name] [addr]","formatEN":"add compute host [name] [addr]"}
-func (b *BaseApi) ComputeCreateHost(c *gin.Context) {
-	req, ok := computeBind[dto.ComputeHostReq](c)
-	if !ok {
-		return
+// @Router /core/compute/hosts/candidates [post]
+func (b *BaseApi) ComputeHostCandidates(c *gin.Context) {
+	var req struct {
+		Source string `json:"source"`
 	}
-	computeReply(c, nil, computeService.CreateHost(req))
+	_ = c.ShouldBindJSON(&req)
+	data, err := computeService.HostCandidates(req.Source)
+	computeReply(c, data, err)
 }
 
 // @Tags Compute
-// @Summary Batch create compute hosts
+// @Summary Bring existing terminal hosts / cluster nodes under compute scheduling
 // @Accept json
-// @Param request body dto.ComputeHostBatchReq true "request"
-// @Success 200
+// @Param request body dto.ComputeHostImportReq true "request"
+// @Success 200 {object} dto.ComputeHostImportRes
 // @Security ApiKeyAuth
 // @Security Timestamp
-// @Router /core/compute/hosts/batch [post]
-// @x-panel-log {"bodyKeys":[],"paramKeys":[],"BeforeFunctions":[],"formatZH":"批量添加算力主机","formatEN":"batch add compute hosts"}
-func (b *BaseApi) ComputeBatchHosts(c *gin.Context) {
-	req, ok := computeBind[dto.ComputeHostBatchReq](c)
+// @Router /core/compute/hosts/import [post]
+// @x-panel-log {"bodyKeys":["source"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"导入算力主机 [source]","formatEN":"import compute hosts [source]"}
+func (b *BaseApi) ComputeImportHosts(c *gin.Context) {
+	req, ok := computeBind[dto.ComputeHostImportReq](c)
 	if !ok {
 		return
 	}
-	n, err := computeService.BatchCreateHosts(req)
-	if err != nil && n == 0 {
-		helper.InternalServer(c, err)
-		return
-	}
-	msg := ""
-	if err != nil {
-		msg = err.Error()
-	}
-	helper.SuccessWithData(c, map[string]interface{}{"created": n, "error": msg})
+	data, err := computeService.ImportHosts(req)
+	computeReply(c, data, err)
 }
 
 // @Tags Compute
@@ -125,7 +117,7 @@ func (b *BaseApi) ComputeBatchHosts(c *gin.Context) {
 // @Security ApiKeyAuth
 // @Security Timestamp
 // @Router /core/compute/hosts/update [post]
-// @x-panel-log {"bodyKeys":["name","addr"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"修改算力主机 [name] [addr]","formatEN":"update compute host [name] [addr]"}
+// @x-panel-log {"bodyKeys":["name"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"修改算力主机 [name]","formatEN":"update compute host [name]"}
 func (b *BaseApi) ComputeUpdateHost(c *gin.Context) {
 	req, ok := computeBind[dto.ComputeHostReq](c)
 	if !ok {
@@ -135,7 +127,7 @@ func (b *BaseApi) ComputeUpdateHost(c *gin.Context) {
 }
 
 // @Tags Compute
-// @Summary Delete compute host
+// @Summary Remove a host from compute scheduling (the host itself is untouched)
 // @Accept json
 // @Param request body dto.OperateByID true "request"
 // @Success 200
@@ -149,23 +141,6 @@ func (b *BaseApi) ComputeDeleteHost(c *gin.Context) {
 		return
 	}
 	computeReply(c, nil, computeService.DeleteHost(req.ID))
-}
-
-// @Tags Compute
-// @Summary Test SSH access to a compute host (nothing is saved)
-// @Accept json
-// @Param request body dto.ComputeHostReq true "request"
-// @Success 200 {object} dto.ComputeHostTestRes
-// @Security ApiKeyAuth
-// @Security Timestamp
-// @Router /core/compute/hosts/test [post]
-func (b *BaseApi) ComputeTestHost(c *gin.Context) {
-	req, ok := computeBind[dto.ComputeHostReq](c)
-	if !ok {
-		return
-	}
-	data, err := computeService.TestHost(req)
-	computeReply(c, data, err)
 }
 
 // @Tags Compute

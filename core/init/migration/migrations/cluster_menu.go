@@ -15,7 +15,6 @@ import (
 var clusterMenuChildren = []dto.ShowMenu{
 	{ID: "1241", Disabled: false, Title: "menu.clusterOverview", IsShow: true, Label: "ClusterOverview", Path: "/cluster/overview", Sort: 10},
 	{ID: "1248", Disabled: false, Title: "menu.clusterResource", IsShow: true, Label: "ClusterResource", Path: "/cluster/resource", Sort: 15},
-	{ID: "1243", Disabled: false, Title: "menu.clusterCompute", IsShow: true, Label: "ClusterCompute", Path: "/cluster/compute", Sort: 16},
 	{ID: "1242", Disabled: false, Title: "menu.clusterNodes", IsShow: true, Label: "ClusterNodes", Path: "/cluster/nodes", Sort: 20},
 	{ID: "1245", Disabled: false, Title: "menu.clusterSync", IsShow: true, Label: "ClusterSync", Path: "/cluster/sync", Sort: 50},
 	{ID: "1246", Disabled: false, Title: "menu.clusterMonitor", IsShow: true, Label: "ClusterMonitor", Path: "/cluster/monitor", Sort: 60},

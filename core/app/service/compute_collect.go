@@ -42,6 +42,7 @@ echo '@@DISK'; df -P / 2>/dev/null | tail -1
 const computeSlowScript = `export LC_ALL=C
 echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}"); (head -1 /proc/driver/nvidia/version 2>/dev/null || grep -m1 '^Version=' /usr/local/Ascend/driver/version.info 2>/dev/null || echo -); nproc 2>/dev/null || echo 0
 echo '@@ADDR'; ip -o -4 addr show 2>/dev/null | awk '{print $2, $4}'
+echo '@@ROUTE'; ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}'
 echo '@@ARP'; tail -n +2 /proc/net/arp 2>/dev/null | awk '$3=="0x2"{print $1, $4, $6}'
 echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null
 echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang' | grep -v -E 'grep|sh -s' | cut -c1-800
@@ -259,6 +260,7 @@ type computeSlowRaw struct {
 	OS         string
 	Driver     string
 	Cores      int
+	DefaultIP  string            // source address of the default route
 	Addrs      map[string]string // iface -> ipv4
 	Neighbours []computeNeighbour
 	Containers []computeContainer
@@ -294,6 +296,11 @@ func parseComputeSlow(out string) computeSlowRaw {
 		ip := strings.SplitN(f[1], "/", 2)[0]
 		if _, ok := r.Addrs[f[0]]; !ok {
 			r.Addrs[f[0]] = ip
+		}
+	}
+	for _, line := range sec["ROUTE"] {
+		if ip := strings.TrimSpace(line); ip != "" && r.DefaultIP == "" {
+			r.DefaultIP = ip
 		}
 	}
 	for _, line := range sec["ARP"] {

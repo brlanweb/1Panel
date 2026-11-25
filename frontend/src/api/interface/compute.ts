@@ -69,11 +69,12 @@ export namespace Compute {
         id: number;
         name: string;
         addr: string;
-        sshPort: number;
-        sshUser: string;
-        authMode: string;
+        source: 'terminal' | 'node' | 'local';
+        refId: number;
+        sourceName: string;
+        sourceDetail: string;
+        sourceMissing: boolean;
         mode: string;
-        clusterNodeId: number;
         labels: string;
         remark: string;
         schedulable: boolean;
@@ -88,44 +89,32 @@ export namespace Compute {
         cpuCores: number;
         memTotal: number;
         unifiedMem: boolean;
-        hasCredential: boolean;
         realtime: HostRealtime;
         domain: string;
         instanceNames: string[] | null;
     }
     export interface HostReq {
-        id?: number;
+        id: number;
         name: string;
         addr: string;
-        sshPort: number;
-        sshUser: string;
-        authMode: string;
-        credential: string;
-        passPhrase: string;
-        clusterNodeId?: number;
         labels: string;
         remark: string;
         schedulable?: boolean;
     }
-    export interface HostBatchReq {
-        lines: string;
-        sshUser: string;
-        sshPort: number;
-        authMode: string;
-        credential: string;
-        passPhrase: string;
-        labels: string;
+    export interface HostCandidate {
+        source: string;
+        refId: number;
+        name: string;
+        addr: string;
+        detail: string;
+        status: string;
+        imported: boolean;
+        hostId: number;
     }
-    export interface HostTestRes {
-        ok: boolean;
-        message: string;
-        hostname: string;
-        arch: string;
-        os: string;
-        driver: string;
-        gpuModel: string;
-        latencyMs: number;
-        sudo: boolean;
+    export interface HostImportReq {
+        source: string;
+        refIds: number[];
+        labels: string;
     }
     export interface Link {
         id: number;
@@ -153,6 +142,7 @@ export namespace Compute {
         name: string;
         engine: string;
         device: string;
+        backend: 'script' | 'vllm';
         image: string;
         multiNode: boolean;
         launchTemplate: string;

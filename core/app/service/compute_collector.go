@@ -195,7 +195,17 @@ func computeCollectHost(h model.ComputeHost, doSlow bool) bool {
 		timeout = computeSlowTimeout
 	}
 	start := time.Now()
-	out, err := computeSSH.RunTimeout(h, script, false, timeout)
+	var out string
+	var err error
+	if h.IsPanel() {
+		tier := "fast"
+		if doSlow {
+			tier = "all"
+		}
+		out, err = computePanelSample(h, tier, timeout)
+	} else {
+		out, err = computeExec(h, script, false, timeout)
+	}
 	elapsed := time.Since(start)
 	st := computeState.host(h.ID)
 	now := time.Now()
@@ -259,6 +269,11 @@ func computeCollectHost(h model.ComputeHost, doSlow bool) bool {
 			unified = computeIsUnified(fast.GPUs[0])
 		}
 		vars["hostname"] = slow.Hostname
+		if strings.TrimSpace(h.Addr) == "" && slow.DefaultIP != "" {
+			// "auto": imported without an address (e.g. this panel with no
+			// SystemIP set) -> the default-route source address.
+			vars["addr"] = slow.DefaultIP
+		}
 		vars["arch"] = slow.Arch
 		vars["os"] = slow.OS
 		vars["driver"] = slow.Driver

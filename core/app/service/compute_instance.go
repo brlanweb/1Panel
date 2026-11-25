@@ -95,9 +95,23 @@ func (u *ComputeService) ListRuntimes() ([]model.ComputeRuntime, error) {
 }
 
 func (u *ComputeService) SaveRuntime(req dto.ComputeRuntimeReq) error {
-	for _, tpl := range []string{req.LaunchTemplate, req.StopTemplate} {
-		if _, err := computeRender("check", tpl, computeTplVars{Env: map[string]string{}}); err != nil {
-			return buserr.WithDetail("ErrInvalidParams", err.Error(), nil)
+	if req.Backend == "" {
+		req.Backend = model.ComputeBackendScript
+	}
+	if req.Backend == model.ComputeBackendVllm {
+		// Deployed through AI → vLLM of the host: single host, no scripts.
+		req.MultiNode, req.LaunchTemplate, req.StopTemplate = false, "", ""
+		if req.Engine != "vllm" {
+			return buserr.WithDetail("ErrInvalidParams", "backend vllm needs engine vllm", nil)
+		}
+	} else {
+		if strings.TrimSpace(req.LaunchTemplate) == "" || strings.TrimSpace(req.StopTemplate) == "" {
+			return buserr.WithDetail("ErrInvalidParams", "launchTemplate / stopTemplate", nil)
+		}
+		for _, tpl := range []string{req.LaunchTemplate, req.StopTemplate} {
+			if _, err := computeRender("check", tpl, computeTplVars{Env: map[string]string{}}); err != nil {
+				return buserr.WithDetail("ErrInvalidParams", err.Error(), nil)
+			}
 		}
 	}
 	if req.HealthPath == "" {
@@ -113,12 +127,12 @@ func (u *ComputeService) SaveRuntime(req dto.ComputeRuntimeReq) error {
 		return buserr.New("ErrRecordExist")
 	}
 	if req.ID == 0 {
-		rt := model.ComputeRuntime{Name: req.Name, Engine: req.Engine, Device: req.Device, Image: req.Image, MultiNode: req.MultiNode,
+		rt := model.ComputeRuntime{Name: req.Name, Engine: req.Engine, Device: req.Device, Backend: req.Backend, Image: req.Image, MultiNode: req.MultiNode,
 			LaunchTemplate: req.LaunchTemplate, StopTemplate: req.StopTemplate, HealthPath: req.HealthPath,
 			MetricsPath: req.MetricsPath, Remark: req.Remark}
 		return repo.ComputeRuntimeRepo.Create(&rt)
 	}
-	return repo.ComputeRuntimeRepo.Update(req.ID, map[string]interface{}{"name": req.Name, "engine": req.Engine, "device": req.Device, "image": req.Image,
+	return repo.ComputeRuntimeRepo.Update(req.ID, map[string]interface{}{"name": req.Name, "engine": req.Engine, "device": req.Device, "backend": req.Backend, "image": req.Image,
 		"multi_node": req.MultiNode, "launch_template": req.LaunchTemplate, "stop_template": req.StopTemplate,
 		"health_path": req.HealthPath, "metrics_path": req.MetricsPath, "remark": req.Remark})
 }

@@ -99,5 +99,7 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddComputeTables,
 		migrations.AddComputeMenu,
 		migrations.AddComputeAcceleratorKind,
+		migrations.ComputeHostsReuseSources,
+		migrations.MoveComputeMenuToAI,
 	}
 }

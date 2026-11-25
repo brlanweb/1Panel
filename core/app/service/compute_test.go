@@ -1,6 +1,9 @@
 package service
 
 import (
+	"github.com/1Panel-dev/1Panel/core/app/model"
+	"os"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
@@ -174,6 +177,13 @@ func TestComputeProcEdgeCases(t *testing.T) {
 
 func TestComputeTemplatesRender(t *testing.T) {
 	for _, rt := range computeBuiltinRuntimes() {
+		if rt.Backend == model.ComputeBackendVllm {
+			// Deployed through AI → vLLM, no scripts.
+			if rt.LaunchTemplate != "" || rt.MultiNode {
+				t.Fatalf("%s: vllm backend must be single host without templates", rt.Name)
+			}
+			continue
+		}
 		for _, rank := range []int{0, 1} {
 			v := computeTplVars{Name: "ds@a", ContainerName: "xpanel-ai-ds-a", ServedName: "deepseek-v4-flash-0731",
 				ModelPath: "/models/DeepSeek V4", ModelDir: "/models", Port: 8000, Image: rt.Image, APIKey: "sk-node-x",
@@ -223,5 +233,51 @@ func TestPromLabel(t *testing.T) {
 	l := `a="1",model_name="x\"y",b="2"`
 	if promLabel(l, "model_name") != `x"y` || promLabel(l, "b") != "2" || promLabel(l, "c") != "" {
 		t.Fatal("promLabel")
+	}
+}
+
+func TestComputeVllmName(t *testing.T) {
+	re := regexp.MustCompile(`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,62}$`)
+	for _, in := range []string{"deepseek-v4@dgx-a-121", "x", strings.Repeat("长名字", 40), "a b/c:d"} {
+		n := computeVllmName(in)
+		if !re.MatchString(n) {
+			t.Fatalf("%q -> %q does not match the vLLM deployment name rule", in, n)
+		}
+	}
+}
+
+func TestComputeAgentKeyCompat(t *testing.T) {
+	// Terminal credentials are encrypted by the agent, which pads / cuts its
+	// key to 16 bytes; core must decrypt them with the same normalisation.
+	key := "abc"
+	for len(key) < 16 {
+		key += "u"
+	}
+	c, err := computeAgentEncrypt("p@ss word", key)
+	if err != nil {
+		t.Fatal(err)
+	}
+	plain, err := computeAgentDecrypt(c, key)
+	if err != nil || plain != "p@ss word" {
+		t.Fatalf("round trip: %q %v", plain, err)
+	}
+}
+
+func TestComputeSlowDefaultRoute(t *testing.T) {
+	r := parseComputeSlow("@@ADDR\nenP7s7 10.0.0.21/24\n@@ROUTE\n10.0.0.21\n")
+	if r.DefaultIP != "10.0.0.21" || r.Addrs["enP7s7"] != "10.0.0.21" {
+		t.Fatalf("default route: %+v", r)
+	}
+}
+
+func TestComputeSampleScriptsInSync(t *testing.T) {
+	agent, err := os.ReadFile("../../../agent/app/api/v2/compute_sample.go")
+	if err != nil {
+		t.Skip(err)
+	}
+	for name, script := range map[string]string{"fast": computeFastScript, "slow": computeSlowScript} {
+		if !strings.Contains(string(agent), script) {
+			t.Fatalf("agent %s sampling script differs from core; keep them byte-identical", name)
+		}
 	}
 }

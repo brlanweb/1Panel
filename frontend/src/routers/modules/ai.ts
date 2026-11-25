@@ -84,6 +84,21 @@ const aiRouter = {
             },
         },
         {
+            path: '/ai/compute',
+            name: 'ComputeScheduling',
+            component: () => import('@/views/ai/compute/index.vue'),
+            meta: {
+                icon: 'p-gpu-menu',
+                title: 'menu.computeScheduling',
+                permission: 'ai_model_view',
+            },
+        },
+        {
+            path: '/cluster/compute',
+            redirect: '/ai/compute',
+            hidden: true,
+        },
+        {
             path: '/ai/agents/agent',
             name: 'Agents',
             component: () => import('@/views/ai/agents/agent/index.vue'),

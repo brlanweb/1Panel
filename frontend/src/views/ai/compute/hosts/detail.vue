@@ -17,8 +17,9 @@
                     <span v-else>—</span>
                     <span class="k">{{ $t('compute.host.access') }}</span>
                     <span>
-                        {{ host.sshUser }}@{{ host.addr }}:{{ host.sshPort }} ·
-                        {{ $t('compute.host.mode_' + host.mode) }}
+                        {{ $t('compute.host.source_' + host.source) }}
+                        <template v-if="host.sourceDetail">· {{ host.sourceDetail }}</template>
+                        · {{ $t('compute.host.mode_' + host.mode) }}
                     </span>
                     <span class="k">{{ $t('compute.host.collectCost') }}</span>
                     <span>{{ rt.collectMs ? rt.collectMs + ' ms' : '—' }}</span>

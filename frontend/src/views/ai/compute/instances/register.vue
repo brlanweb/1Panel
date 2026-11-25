@@ -51,7 +51,7 @@
                     v-model="form.apiKey"
                     type="password"
                     show-password
-                    :placeholder="form.id ? $t('compute.host.keepCredential') : ''"
+                    :placeholder="form.id ? $t('compute.inst.keepKey') : ''"
                 />
                 <span class="input-help">{{ $t('compute.inst.apiKeyHelper') }}</span>
             </el-form-item>

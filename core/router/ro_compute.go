@@ -19,11 +19,10 @@ func (a *ComputeRouter) InitRouter(Router *gin.RouterGroup) {
 		r.POST("/watch", b.ComputeWatch)
 
 		r.POST("/hosts/search", b.ComputeListHosts)
-		r.POST("/hosts", b.ComputeCreateHost)
-		r.POST("/hosts/batch", b.ComputeBatchHosts)
+		r.POST("/hosts/candidates", b.ComputeHostCandidates)
+		r.POST("/hosts/import", b.ComputeImportHosts)
 		r.POST("/hosts/update", b.ComputeUpdateHost)
 		r.POST("/hosts/del", b.ComputeDeleteHost)
-		r.POST("/hosts/test", b.ComputeTestHost)
 		r.POST("/hosts/schedulable", b.ComputeSetSchedulable)
 		r.POST("/hosts/refresh", b.ComputeRefreshHost)
 

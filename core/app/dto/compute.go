@@ -4,42 +4,42 @@ import "github.com/1Panel-dev/1Panel/core/app/model"
 
 // ---- hosts ---------------------------------------------------------------
 
+// ComputeHostImportReq brings existing hosts under compute scheduling.
+// Source terminal: RefIDs are Terminal → Hosts ids; node: cluster node ids;
+// local: this panel (RefIDs ignored).
+type ComputeHostImportReq struct {
+	Source string `json:"source" validate:"required,oneof=terminal node local"`
+	RefIDs []uint `json:"refIds"`
+	Labels string `json:"labels" validate:"max=255"`
+}
+
+type ComputeHostImportRes struct {
+	Imported int    `json:"imported"`
+	Error    string `json:"error"`
+}
+
+// ComputeHostReq edits the scheduling attributes of a compute host. The
+// access itself (address, port, credentials) is edited where the host is
+// managed (Terminal → Hosts / Cluster → Nodes).
 type ComputeHostReq struct {
-	ID            uint   `json:"id"`
-	Name          string `json:"name" validate:"required,max=64"`
-	Addr          string `json:"addr" validate:"required,max=255"`
-	SSHPort       int    `json:"sshPort" validate:"omitempty,min=1,max=65535"`
-	SSHUser       string `json:"sshUser" validate:"max=64"`
-	AuthMode      string `json:"authMode" validate:"omitempty,oneof=password key"`
-	Credential    string `json:"credential"`
-	PassPhrase    string `json:"passPhrase"`
-	ClusterNodeID uint   `json:"clusterNodeId"`
-	Labels        string `json:"labels" validate:"max=255"`
-	Remark        string `json:"remark" validate:"max=255"`
-	Schedulable   *bool  `json:"schedulable"`
+	ID          uint   `json:"id" validate:"required"`
+	Name        string `json:"name" validate:"required,max=64"`
+	Addr        string `json:"addr" validate:"max=255"`
+	Labels      string `json:"labels" validate:"max=255"`
+	Remark      string `json:"remark" validate:"max=255"`
+	Schedulable *bool  `json:"schedulable"`
 }
 
-type ComputeHostBatchReq struct {
-	// One host per line: name,addr[,port[,user]]; credentials are shared.
-	Lines      string `json:"lines" validate:"required"`
-	SSHUser    string `json:"sshUser"`
-	SSHPort    int    `json:"sshPort"`
-	AuthMode   string `json:"authMode" validate:"omitempty,oneof=password key"`
-	Credential string `json:"credential" validate:"required"`
-	PassPhrase string `json:"passPhrase"`
-	Labels     string `json:"labels"`
-}
-
-type ComputeHostTestRes struct {
-	OK        bool   `json:"ok"`
-	Message   string `json:"message"`
-	Hostname  string `json:"hostname"`
-	Arch      string `json:"arch"`
-	OS        string `json:"os"`
-	Driver    string `json:"driver"`
-	GpuModel  string `json:"gpuModel"`
-	LatencyMs int64  `json:"latencyMs"`
-	Sudo      bool   `json:"sudo"`
+// ComputeHostCandidate is a host that can be imported.
+type ComputeHostCandidate struct {
+	Source   string `json:"source"`
+	RefID    uint   `json:"refId"`
+	Name     string `json:"name"`
+	Addr     string `json:"addr"`
+	Detail   string `json:"detail"` // user@addr:port / entry URL / version
+	Status   string `json:"status"`
+	Imported bool   `json:"imported"`
+	HostID   uint   `json:"hostId"`
 }
 
 type ComputeSchedulableReq struct {
@@ -123,7 +123,11 @@ type ComputeHostRealtime struct {
 
 type ComputeHostView struct {
 	model.ComputeHost
-	HasCredential bool                `json:"hasCredential"`
+	// SourceName / SourceDetail describe where the host is managed
+	// (terminal host name + user@addr:port, or node name + entry URL).
+	SourceName    string              `json:"sourceName"`
+	SourceDetail  string              `json:"sourceDetail"`
+	SourceMissing bool                `json:"sourceMissing"`
 	Realtime      ComputeHostRealtime `json:"realtime"`
 	Domain        string              `json:"domain"`
 	InstanceNames []string            `json:"instanceNames"`
@@ -154,10 +158,11 @@ type ComputeRuntimeReq struct {
 	Name           string `json:"name" validate:"required,max=64"`
 	Engine         string `json:"engine" validate:"required,oneof=vllm sglang other"`
 	Device         string `json:"device" validate:"omitempty,oneof=gpu npu"`
+	Backend        string `json:"backend" validate:"omitempty,oneof=script vllm"`
 	Image          string `json:"image"`
 	MultiNode      bool   `json:"multiNode"`
-	LaunchTemplate string `json:"launchTemplate" validate:"required"`
-	StopTemplate   string `json:"stopTemplate" validate:"required"`
+	LaunchTemplate string `json:"launchTemplate"`
+	StopTemplate   string `json:"stopTemplate"`
 	HealthPath     string `json:"healthPath"`
 	MetricsPath    string `json:"metricsPath"`
 	Remark         string `json:"remark"`

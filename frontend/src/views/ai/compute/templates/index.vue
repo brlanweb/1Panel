@@ -66,6 +66,13 @@
                     </template>
                 </el-table-column>
                 <el-table-column :label="$t('compute.tpl.engine')" prop="engine" width="100" />
+                <el-table-column :label="$t('compute.tpl.backend')" width="130">
+                    <template #default="{ row }">
+                        <el-tag size="small" effect="plain" :type="row.backend === 'vllm' ? 'success' : 'info'">
+                            {{ $t('compute.tpl.backend_' + (row.backend || 'script')) }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
                 <el-table-column :label="$t('compute.tpl.device')" width="90">
                     <template #default="{ row }">
                         <el-tag size="small" effect="plain" :type="row.device === 'npu' ? 'warning' : 'primary'">
@@ -235,10 +242,19 @@
                     </el-col>
                     <el-col :span="6">
                         <el-form-item :label="$t('compute.tpl.multiNode')">
-                            <el-switch v-model="runtimeForm.multiNode" />
+                            <el-switch v-model="runtimeForm.multiNode" :disabled="isVllmBackend" />
                         </el-form-item>
                     </el-col>
                 </el-row>
+                <el-form-item :label="$t('compute.tpl.backend')">
+                    <el-radio-group v-model="runtimeForm.backend">
+                        <el-radio value="script">{{ $t('compute.tpl.backend_script') }}</el-radio>
+                        <el-radio value="vllm">{{ $t('compute.tpl.backend_vllm') }}</el-radio>
+                    </el-radio-group>
+                    <span class="input-help">
+                        {{ $t('compute.tpl.backendHelper_' + (runtimeForm.backend || 'script')) }}
+                    </span>
+                </el-form-item>
                 <el-form-item :label="$t('compute.tpl.image')">
                     <el-input v-model="runtimeForm.image" />
                 </el-form-item>
@@ -254,13 +270,15 @@
                         </el-form-item>
                     </el-col>
                 </el-row>
-                <el-form-item :label="$t('compute.tpl.launch')" required>
-                    <el-input v-model="runtimeForm.launchTemplate" type="textarea" :rows="14" class="code-area" />
-                    <span class="input-help">{{ $t('compute.tpl.varsHelper') }}</span>
-                </el-form-item>
-                <el-form-item :label="$t('compute.tpl.stop')" required>
-                    <el-input v-model="runtimeForm.stopTemplate" type="textarea" :rows="3" class="code-area" />
-                </el-form-item>
+                <template v-if="!isVllmBackend">
+                    <el-form-item :label="$t('compute.tpl.launch')" required>
+                        <el-input v-model="runtimeForm.launchTemplate" type="textarea" :rows="14" class="code-area" />
+                        <span class="input-help">{{ $t('compute.tpl.varsHelper') }}</span>
+                    </el-form-item>
+                    <el-form-item :label="$t('compute.tpl.stop')" required>
+                        <el-input v-model="runtimeForm.stopTemplate" type="textarea" :rows="3" class="code-area" />
+                    </el-form-item>
+                </template>
                 <el-form-item :label="$t('commons.table.description')">
                     <el-input v-model="runtimeForm.remark" />
                 </el-form-item>
@@ -274,7 +292,7 @@
 </template>
 
 <script lang="ts" setup>
-import { onMounted, reactive, ref } from 'vue';
+import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessageBox } from 'element-plus';
 import { Compute } from '@/api/interface/compute';
 import {
@@ -314,6 +332,7 @@ const emptyRuntime = (): Partial<Compute.Runtime> => ({
     name: '',
     engine: 'vllm',
     device: 'gpu',
+    backend: 'script',
     image: '',
     multiNode: false,
     launchTemplate: '',
@@ -325,6 +344,7 @@ const emptyRuntime = (): Partial<Compute.Runtime> => ({
 });
 const profileForm = reactive<Partial<Compute.Profile>>(emptyProfile());
 const runtimeForm = reactive<Partial<Compute.Runtime>>(emptyRuntime());
+const isVllmBackend = computed(() => runtimeForm.backend === 'vllm');
 
 const runtimeName = (id: number) => runtimes.value.find((r) => r.id === id)?.name || `#${id}`;
 

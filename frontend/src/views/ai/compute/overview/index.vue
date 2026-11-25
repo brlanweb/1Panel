@@ -11,7 +11,7 @@
             <template #default>
                 <div>{{ $t('compute.overview.emptyHelper') }}</div>
                 <el-button class="mt-2" type="primary" size="small" @click="emit('goto', 'hosts')">
-                    {{ $t('compute.host.add') }}
+                    {{ $t('compute.host.import') }}
                 </el-button>
             </template>
         </el-alert>

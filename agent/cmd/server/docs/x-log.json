@@ -1,4 +1,11 @@
 {
+	"/ai/compute/exec": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "算力调度执行脚本",
+		"formatEN": "compute scheduling runs a script"
+	},
 	"/ai/domain/update": {
 		"bodyKeys": [
 			"domain"
@@ -52,6 +59,88 @@
 		"beforeFunctions": [],
 		"formatZH": "添加 Ollama 模型重试 [name]",
 		"formatEN": "re-add Ollama model [name]"
+	},
+	"/ai/vllm/deployments": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "保存 vLLM 实例 [name]",
+		"formatEN": "save vLLM instance [name]"
+	},
+	"/ai/vllm/deployments/del": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "删除 vLLM 实例 [id]",
+		"formatEN": "delete vLLM instance [id]"
+	},
+	"/ai/vllm/deployments/operate": {
+		"bodyKeys": [
+			"id",
+			"operate"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "vLLM 实例 [id] 执行 [operate]",
+		"formatEN": "vLLM instance [id] [operate]"
+	},
+	"/ai/vllm/models/del": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "删除模型 [id]",
+		"formatEN": "delete model [id]"
+	},
+	"/ai/vllm/models/download": {
+		"bodyKeys": [
+			"repoId",
+			"source"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "下载模型 [repoId] ([source])",
+		"formatEN": "download model [repoId] ([source])"
+	},
+	"/ai/vllm/models/import": {
+		"bodyKeys": [
+			"repoId",
+			"dir"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "导入本地模型 [repoId] [dir]",
+		"formatEN": "import local model [repoId] [dir]"
+	},
+	"/ai/vllm/recipes": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "保存 vLLM Recipe [name]",
+		"formatEN": "save vLLM recipe [name]"
+	},
+	"/ai/vllm/recipes/del": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "删除 vLLM Recipe [id]",
+		"formatEN": "delete vLLM recipe [id]"
+	},
+	"/ai/vllm/settings/update": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "修改 vLLM 设置",
+		"formatEN": "update vLLM settings"
 	},
 	"/alert": {
 		"bodyKeys": [
@@ -833,6 +922,140 @@
 		"formatZH": "更新备份账号 [type]",
 		"formatEN": "update backup account [type]"
 	},
+	"/core/cluster/db-replications": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "添加数据库同步拓扑 [name]",
+		"formatEN": "add database replication topology [name]"
+	},
+	"/core/cluster/db-replications/promote": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "数据库故障转移提升从库 [id]",
+		"formatEN": "database failover promote replica [id]"
+	},
+	"/core/cluster/nodes": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "添加集群节点 [name]",
+		"formatEN": "add cluster node [name]"
+	},
+	"/core/cluster/nodes/check/all": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "重新检查全部集群节点",
+		"formatEN": "recheck all cluster nodes"
+	},
+	"/core/cluster/nodes/del": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "cluster_nodes",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "删除集群节点 [name]",
+		"formatEN": "delete cluster node [name]"
+	},
+	"/core/cluster/nodes/login-lock": {
+		"bodyKeys": [
+			"nodeIds",
+			"locked",
+			"unlockMinutes"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "设置集群节点面板登录锁定 [nodeIds] 锁定:[locked] 临时开放分钟:[unlockMinutes]",
+		"formatEN": "set cluster node login lock [nodeIds] locked:[locked] unlock minutes:[unlockMinutes]"
+	},
+	"/core/cluster/nodes/overview/aggregate": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "刷新集群聚合概览",
+		"formatEN": "refresh cluster aggregate overview"
+	},
+	"/core/cluster/nodes/test": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "cluster_nodes",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "测试集群节点连接 [name]",
+		"formatEN": "test cluster node connection [name]"
+	},
+	"/core/cluster/nodes/update": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "更新集群节点 [name]",
+		"formatEN": "update cluster node [name]"
+	},
+	"/core/cluster/nodes/upgrade": {
+		"bodyKeys": [
+			"id",
+			"version"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "cluster_nodes",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "更新集群节点面板 [name] [version]",
+		"formatEN": "upgrade cluster node panel [name] [version]"
+	},
+	"/core/cluster/sync/execute": {
+		"bodyKeys": [
+			"kind"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "执行集群资源同步 [kind]",
+		"formatEN": "execute cluster resource sync [kind]"
+	},
+	"/core/cluster/sync/tasks/cancel": {
+		"bodyKeys": [
+			"id"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "取消资源同步任务 [id]",
+		"formatEN": "cancel resource sync task [id]"
+	},
 	"/core/commands": {
 		"bodyKeys": [
 			"name",
@@ -891,179 +1114,16 @@
 		"formatZH": "上传快速命令文件",
 		"formatEN": "upload quick commands with csv"
 	},
-	"/core/enterprise/agents/batch-install": {
-		"bodyKeys": [
-			"nodeIDs",
-			"agentType",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "批量安装智能体 [agentType] 到节点 [nodeIDs]",
-		"formatEN": "batch install agent [agentType] to nodes [nodeIDs]"
-	},
-	"/core/enterprise/agents/batch-operate": {
-		"bodyKeys": [
-			"nodeIDs",
-			"agentType",
-			"operate"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "批量操作智能体 [agentType] [operate]",
-		"formatEN": "batch operate agent [agentType] [operate]"
-	},
-	"/core/enterprise/agents/batch-skill-install": {
-		"bodyKeys": [
-			"nodeIDs",
-			"agentType",
-			"skillID"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "批量安装智能体技能 [skillID] 到 [agentType]",
-		"formatEN": "batch install agent skill [skillID] to [agentType]"
-	},
-	"/core/enterprise/agents/batch-upgrade": {
-		"bodyKeys": [
-			"nodeIDs",
-			"agentType",
-			"targetVersion"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "批量升级智能体 [agentType] 到 [targetVersion]",
-		"formatEN": "batch upgrade agent [agentType] to [targetVersion]"
-	},
-	"/core/enterprise/ai-benchmark/tasks": {
-		"bodyKeys": [
-			"model"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 AI 基准测试 [model]",
-		"formatEN": "create AI benchmark [model]"
-	},
-	"/core/enterprise/ai-benchmark/tasks/:id/cancel": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "取消 AI 基准测试",
-		"formatEN": "cancel AI benchmark"
-	},
-	"/core/enterprise/ai-benchmark/tasks/delete": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 AI 基准测试 [id]",
-		"formatEN": "delete AI benchmark [id]"
-	},
-	"/core/enterprise/ai-proxy/api-keys/create": {
-		"bodyKeys": [
-			"groupId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "groupId",
-				"isList": false,
-				"db": "ai_proxy_user_groups",
-				"output_column": "name",
-				"output_value": "groupName"
-			}
-		],
-		"formatZH": "创建 AI 网关 API Key 分组 [groupName]",
-		"formatEN": "create AI proxy API key group [groupName]"
-	},
-	"/core/enterprise/ai-proxy/api-keys/delete": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 AI 网关 API Key",
-		"formatEN": "delete AI proxy API key"
-	},
-	"/core/enterprise/ai-proxy/api-keys/reactivate": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "重新激活 AI 网关 API Key",
-		"formatEN": "reactivate AI proxy API key"
-	},
-	"/core/enterprise/ai-proxy/api-keys/reveal": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "查看 AI 网关 API Key",
-		"formatEN": "reveal AI proxy API key"
-	},
-	"/core/enterprise/ai-proxy/api-keys/token/reset": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "重置 AI 网关 API Key Token",
-		"formatEN": "reset AI proxy API key token"
-	},
-	"/core/enterprise/ai-proxy/api-keys/update": {
-		"bodyKeys": [
-			"groupId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "groupId",
-				"isList": false,
-				"db": "ai_proxy_user_groups",
-				"output_column": "name",
-				"output_value": "groupName"
-			}
-		],
-		"formatZH": "更新 AI 网关 API Key 分组 [groupName]",
-		"formatEN": "update AI proxy API key group [groupName]"
-	},
-	"/core/enterprise/ai-proxy/backends/delete": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 AI 网关后端",
-		"formatEN": "delete AI proxy backend"
-	},
-	"/core/enterprise/ai-proxy/backends/import": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导入 AI 网关后端账号",
-		"formatEN": "import AI proxy backend account"
-	},
-	"/core/enterprise/ai-proxy/backends/status": {
-		"bodyKeys": [
-			"enabled"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关后端状态 [enabled]",
-		"formatEN": "update AI proxy backend status [enabled]"
-	},
-	"/core/enterprise/ai-proxy/backends/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关后端",
-		"formatEN": "update AI proxy backend"
-	},
-	"/core/enterprise/ai-proxy/content/groups/create": {
+	"/core/compute/consumers": {
 		"bodyKeys": [
 			"name"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "创建 AI 网关敏感词分组 [name]",
-		"formatEN": "create AI proxy sensitive group [name]"
+		"formatZH": "保存接入方 [name]",
+		"formatEN": "save consumer [name]"
 	},
-	"/core/enterprise/ai-proxy/content/groups/delete": {
+	"/core/compute/consumers/del": {
 		"bodyKeys": [
 			"id"
 		],
@@ -1073,51 +1133,15 @@
 				"input_column": "id",
 				"input_value": "id",
 				"isList": false,
-				"db": "ai_proxy_sensitive_groups",
+				"db": "compute_consumers",
 				"output_column": "name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "删除 AI 网关敏感词分组 [name]",
-		"formatEN": "delete AI proxy sensitive group [name]"
+		"formatZH": "删除接入方 [name]",
+		"formatEN": "delete consumer [name]"
 	},
-	"/core/enterprise/ai-proxy/content/groups/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关敏感词分组 [name]",
-		"formatEN": "update AI proxy sensitive group [name]"
-	},
-	"/core/enterprise/ai-proxy/content/settings/update": {
-		"bodyKeys": [
-			"enabled"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关内容审查设置 [enabled]",
-		"formatEN": "update AI proxy content audit settings [enabled]"
-	},
-	"/core/enterprise/ai-proxy/content/words/create": {
-		"bodyKeys": [
-			"groupId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "groupId",
-				"isList": false,
-				"db": "ai_proxy_sensitive_groups",
-				"output_column": "name",
-				"output_value": "groupName"
-			}
-		],
-		"formatZH": "创建 AI 网关敏感词，分组 [groupName]",
-		"formatEN": "create AI proxy sensitive word, group [groupName]"
-	},
-	"/core/enterprise/ai-proxy/content/words/delete": {
+	"/core/compute/consumers/reset": {
 		"bodyKeys": [
 			"id"
 		],
@@ -1127,340 +1151,167 @@
 				"input_column": "id",
 				"input_value": "id",
 				"isList": false,
-				"db": "ai_proxy_sensitive_words",
-				"output_column": "word",
-				"output_value": "word"
-			}
-		],
-		"formatZH": "删除 AI 网关敏感词 [word]",
-		"formatEN": "delete AI proxy sensitive word [word]"
-	},
-	"/core/enterprise/ai-proxy/content/words/import": {
-		"bodyKeys": [
-			"groupId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "groupId",
-				"isList": false,
-				"db": "ai_proxy_sensitive_groups",
-				"output_column": "name",
-				"output_value": "groupName"
-			}
-		],
-		"formatZH": "导入 AI 网关敏感词，分组 [groupName]",
-		"formatEN": "import AI proxy sensitive words, group [groupName]"
-	},
-	"/core/enterprise/ai-proxy/content/words/update": {
-		"bodyKeys": [
-			"id",
-			"groupId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "ai_proxy_sensitive_words",
-				"output_column": "word",
-				"output_value": "word"
-			},
-			{
-				"input_column": "id",
-				"input_value": "groupId",
-				"isList": false,
-				"db": "ai_proxy_sensitive_groups",
-				"output_column": "name",
-				"output_value": "groupName"
-			}
-		],
-		"formatZH": "更新 AI 网关敏感词 [word] 分组 [groupName]",
-		"formatEN": "update AI proxy sensitive word [word] group [groupName]"
-	},
-	"/core/enterprise/ai-proxy/groups/create": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 AI 网关分组 [name]",
-		"formatEN": "create AI proxy group [name]"
-	},
-	"/core/enterprise/ai-proxy/groups/delete": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "ai_proxy_user_groups",
+				"db": "compute_consumers",
 				"output_column": "name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "删除 AI 网关分组 [name]",
-		"formatEN": "delete AI proxy group [name]"
+		"formatZH": "重置接入方 [name] 密钥",
+		"formatEN": "reset key of consumer [name]"
 	},
-	"/core/enterprise/ai-proxy/groups/update": {
+	"/core/compute/deploy": {
 		"bodyKeys": [
-			"name"
+			"profileId",
+			"dryRun"
 		],
 		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关分组 [name]",
-		"formatEN": "update AI proxy group [name]"
-	},
-	"/core/enterprise/ai-proxy/model-groups/create": {
-		"bodyKeys": [
-			"name"
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "profileId",
+				"isList": false,
+				"db": "compute_profiles",
+				"output_column": "name",
+				"output_value": "name"
+			}
 		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 AI 网关模型组 [name]",
-		"formatEN": "create AI proxy model group [name]"
+		"formatZH": "部署模型 [name] (预检 [dryRun])",
+		"formatEN": "deploy model [name] (dry run [dryRun])"
 	},
-	"/core/enterprise/ai-proxy/model-groups/delete": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 AI 网关模型组 [id]",
-		"formatEN": "delete AI proxy model group [id]"
-	},
-	"/core/enterprise/ai-proxy/model-groups/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关模型组 [name]",
-		"formatEN": "update AI proxy model group [name]"
-	},
-	"/core/enterprise/ai-proxy/service/operate": {
-		"bodyKeys": [
-			"operate"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "操作 AI 网关服务 [operate]",
-		"formatEN": "operate AI proxy service [operate]"
-	},
-	"/core/enterprise/ai-proxy/settings/logs/clear": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "清空 AI 网关日志",
-		"formatEN": "clear AI proxy logs"
-	},
-	"/core/enterprise/ai-proxy/settings/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关设置",
-		"formatEN": "update AI proxy settings"
-	},
-	"/core/enterprise/ai-proxy/smart-route/policy/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关智能路由策略",
-		"formatEN": "update AI proxy smart route policy"
-	},
-	"/core/enterprise/ai-proxy/smart-route/samples/create": {
-		"bodyKeys": [
-			"type",
-			"label"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 AI 网关智能路由样本 [type] [label]",
-		"formatEN": "create AI proxy smart route sample [type] [label]"
-	},
-	"/core/enterprise/ai-proxy/smart-route/samples/delete": {
+	"/core/compute/hosts/del": {
 		"bodyKeys": [
 			"id"
 		],
 		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 AI 网关智能路由样本 [id]",
-		"formatEN": "delete AI proxy smart route sample [id]"
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_hosts",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "删除算力主机 [name]",
+		"formatEN": "delete compute host [name]"
 	},
-	"/core/enterprise/ai-proxy/smart-route/samples/rebuild": {
-		"bodyKeys": [],
+	"/core/compute/hosts/import": {
+		"bodyKeys": [
+			"source"
+		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "重建 AI 网关智能路由样本向量",
-		"formatEN": "rebuild AI proxy smart route sample vectors"
+		"formatZH": "导入算力主机 [source]",
+		"formatEN": "import compute hosts [source]"
 	},
-	"/core/enterprise/ai-proxy/smart-route/samples/update": {
+	"/core/compute/hosts/schedulable": {
 		"bodyKeys": [
 			"id",
-			"type",
-			"label"
+			"schedulable"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_hosts",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "设置算力主机 [name] 可调度 [schedulable]",
+		"formatEN": "set compute host [name] schedulable [schedulable]"
+	},
+	"/core/compute/hosts/update": {
+		"bodyKeys": [
+			"name"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "更新 AI 网关智能路由样本 [id] [type] [label]",
-		"formatEN": "update AI proxy smart route sample [id] [type] [label]"
+		"formatZH": "修改算力主机 [name]",
+		"formatEN": "update compute host [name]"
 	},
-	"/core/enterprise/auth-sources/ldap/setting": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 LDAP 认证设置",
-		"formatEN": "update LDAP authentication settings"
-	},
-	"/core/enterprise/auth-sources/ldap/sync/run": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "手动同步 LDAP 用户",
-		"formatEN": "manually synchronize LDAP users"
-	},
-	"/core/enterprise/auth-sources/ldap/sync/setting": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 LDAP 同步设置",
-		"formatEN": "update LDAP synchronization settings"
-	},
-	"/core/enterprise/auth-sources/ldap/test-connection": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "测试 LDAP 连接",
-		"formatEN": "test LDAP connection"
-	},
-	"/core/enterprise/auth-sources/ldap/test-login": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "测试 LDAP 用户登录",
-		"formatEN": "test LDAP user login"
-	},
-	"/core/enterprise/auth-sources/ldap/users/import": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导入 LDAP 用户",
-		"formatEN": "import LDAP users"
-	},
-	"/core/enterprise/auth-sources/oidc/setting": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 OIDC 认证设置",
-		"formatEN": "update OIDC authentication settings"
-	},
-	"/core/enterprise/auth-sources/oidc/test-configuration": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "测试 OIDC 连接",
-		"formatEN": "test OIDC connection"
-	},
-	"/core/enterprise/auth-sources/oidc/test-login/begin": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "发起 OIDC 测试登录",
-		"formatEN": "start OIDC test login"
-	},
-	"/core/enterprise/auth-sources/saml2/setting": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 SAML2 认证设置",
-		"formatEN": "update SAML2 authentication settings"
-	},
-	"/core/enterprise/auth-sources/saml2/test-configuration": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "测试 SAML2 连接",
-		"formatEN": "test SAML2 connection"
-	},
-	"/core/enterprise/auth-sources/saml2/test-login/begin": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "发起 SAML2 测试登录",
-		"formatEN": "start SAML2 test login"
-	},
-	"/core/enterprise/licenses/community-restore": {
+	"/core/compute/instances": {
 		"bodyKeys": [
+			"name",
+			"servedName"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "登记推理实例 [name] [servedName]",
+		"formatEN": "register instance [name] [servedName]"
+	},
+	"/core/compute/instances/adopt": {
+		"bodyKeys": [
+			"hostId",
+			"port"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "hostId",
+				"isList": false,
+				"db": "compute_hosts",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "接管推理实例 [name]:[port]",
+		"formatEN": "adopt instance [name]:[port]"
+	},
+	"/core/compute/instances/operate": {
+		"bodyKeys": [
+			"id",
+			"operation"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_instances",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "推理实例 [name] 执行 [operation]",
+		"formatEN": "instance [name] [operation]"
+	},
+	"/core/compute/instances/route": {
+		"bodyKeys": [
+			"id",
+			"routeEnabled",
+			"weight"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [
+			{
+				"input_column": "id",
+				"input_value": "id",
+				"isList": false,
+				"db": "compute_instances",
+				"output_column": "name",
+				"output_value": "name"
+			}
+		],
+		"formatZH": "设置实例 [name] 路由 [routeEnabled] 权重 [weight]",
+		"formatEN": "set instance [name] route [routeEnabled] weight [weight]"
+	},
+	"/core/compute/policies": {
+		"bodyKeys": [
+			"servedName",
 			"mode"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "恢复为社区版",
-		"formatEN": "restore Community Edition"
+		"formatZH": "保存调度策略 [servedName] 模式 [mode]",
+		"formatEN": "save scheduling policy [servedName] mode [mode]"
 	},
-	"/core/enterprise/licenses/upload": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "上传许可证",
-		"formatEN": "upload license"
-	},
-	"/core/enterprise/roles": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建角色 [name]",
-		"formatEN": "create role [name]"
-	},
-	"/core/enterprise/roles/delete": {
-		"bodyKeys": [
-			"ids"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "ids",
-				"isList": true,
-				"db": "roles",
-				"output_column": "name",
-				"output_value": "names"
-			}
-		],
-		"formatZH": "删除角色 [names]",
-		"formatEN": "delete role [names]"
-	},
-	"/core/enterprise/roles/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新角色 [name]",
-		"formatEN": "update role [name]"
-	},
-	"/core/enterprise/settings/footer/reset": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "重置企业版底部链接设置",
-		"formatEN": "reset Enterprise footer link settings"
-	},
-	"/core/enterprise/settings/footer/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新企业版底部链接设置",
-		"formatEN": "update Enterprise footer link settings"
-	},
-	"/core/enterprise/skills-hub/delete": {
+	"/core/compute/policies/del": {
 		"bodyKeys": [
 			"id"
 		],
@@ -1470,15 +1321,25 @@
 				"input_column": "id",
 				"input_value": "id",
 				"isList": false,
-				"db": "skill_hub_items",
-				"output_column": "name",
+				"db": "compute_policies",
+				"output_column": "served_name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "删除 Skills Hub 技能 [name]",
-		"formatEN": "delete Skills Hub skill [name]"
+		"formatZH": "删除调度策略 [name]",
+		"formatEN": "delete scheduling policy [name]"
 	},
-	"/core/enterprise/skills-hub/download": {
+	"/core/compute/profiles": {
+		"bodyKeys": [
+			"name",
+			"servedName"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "保存模型配置 [name] [servedName]",
+		"formatEN": "save model profile [name] [servedName]"
+	},
+	"/core/compute/profiles/del": {
 		"bodyKeys": [
 			"id"
 		],
@@ -1488,55 +1349,24 @@
 				"input_column": "id",
 				"input_value": "id",
 				"isList": false,
-				"db": "skill_hub_items",
+				"db": "compute_profiles",
 				"output_column": "name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "下载 Skills Hub 技能 [name]",
-		"formatEN": "download Skills Hub skill [name]"
+		"formatZH": "删除模型配置 [name]",
+		"formatEN": "delete model profile [name]"
 	},
-	"/core/enterprise/skills-hub/import": {
-		"bodyKeys": [
-			"type",
-			"version",
-			"repoURL",
-			"packageURL"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导入 Skills Hub 技能版本 [version]",
-		"formatEN": "import Skills Hub skill version [version]"
-	},
-	"/core/enterprise/skills-hub/status": {
-		"bodyKeys": [
-			"id",
-			"operate"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "skill_hub_items",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "更新 Skills Hub 技能 [name] 状态 [operate]",
-		"formatEN": "update Skills Hub skill [name] status [operate]"
-	},
-	"/core/enterprise/skills-hub/targets/create": {
+	"/core/compute/runtimes": {
 		"bodyKeys": [
 			"name"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "创建 Skills Hub 安装目标 [name]",
-		"formatEN": "create Skills Hub install target [name]"
+		"formatZH": "保存推理引擎模板 [name]",
+		"formatEN": "save runtime [name]"
 	},
-	"/core/enterprise/skills-hub/targets/delete": {
+	"/core/compute/runtimes/del": {
 		"bodyKeys": [
 			"id"
 		],
@@ -1546,142 +1376,73 @@
 				"input_column": "id",
 				"input_value": "id",
 				"isList": false,
-				"db": "skill_hub_install_targets",
+				"db": "compute_runtimes",
 				"output_column": "name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "删除 Skills Hub 安装目标 [name]",
-		"formatEN": "delete Skills Hub install target [name]"
+		"formatZH": "删除推理引擎模板 [name]",
+		"formatEN": "delete runtime [name]"
 	},
-	"/core/enterprise/skills-hub/targets/install": {
+	"/core/compute/setting": {
 		"bodyKeys": [
-			"skillID",
-			"targetIDs"
+			"enabled",
+			"listen",
+			"schedulerPaused"
 		],
 		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "skillID",
-				"isList": false,
-				"db": "skill_hub_items",
-				"output_column": "name",
-				"output_value": "skillName"
-			},
-			{
-				"input_column": "id",
-				"input_value": "targetIDs",
-				"isList": true,
-				"db": "skill_hub_install_targets",
-				"output_column": "name",
-				"output_value": "targetNames"
-			}
-		],
-		"formatZH": "安装 Skills Hub 技能 [skillName] 到目标 [targetNames]",
-		"formatEN": "install Skills Hub skill [skillName] to targets [targetNames]"
+		"beforeFunctions": [],
+		"formatZH": "修改模型路由设置 启用 [enabled] 监听 [listen] 暂停自动调度 [schedulerPaused]",
+		"formatEN": "update model router enabled [enabled] listen [listen] scheduler paused [schedulerPaused]"
 	},
-	"/core/enterprise/skills-hub/targets/status": {
+	"/core/compute/suggestions/operate": {
 		"bodyKeys": [
 			"id",
-			"enabled"
+			"operation"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "调度建议 [id] 执行 [operation]",
+		"formatEN": "scheduler suggestion [id] [operation]"
+	},
+	"/core/compute/switch": {
+		"bodyKeys": [
+			"instanceId",
+			"profileId",
+			"dryRun"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [
 			{
 				"input_column": "id",
-				"input_value": "id",
+				"input_value": "instanceId",
 				"isList": false,
-				"db": "skill_hub_install_targets",
+				"db": "compute_instances",
 				"output_column": "name",
 				"output_value": "name"
 			}
 		],
-		"formatZH": "更新 Skills Hub 安装目标 [name] 状态 [enabled]",
-		"formatEN": "update Skills Hub install target [name] status [enabled]"
+		"formatZH": "切换实例 [name] 模型 (预检 [dryRun])",
+		"formatEN": "switch model of instance [name] (dry run [dryRun])"
 	},
-	"/core/enterprise/skills-hub/targets/update": {
+	"/core/compute/topology/link": {
 		"bodyKeys": [
-			"name"
+			"hostAId",
+			"hostBId"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "更新 Skills Hub 安装目标 [name]",
-		"formatEN": "update Skills Hub install target [name]"
+		"formatZH": "添加互联链路 [hostAId]-[hostBId]",
+		"formatEN": "add fabric link [hostAId]-[hostBId]"
 	},
-	"/core/enterprise/skills-hub/upload": {
+	"/core/compute/topology/link/del": {
 		"bodyKeys": [
-			"version"
+			"id"
 		],
 		"paramKeys": [],
 		"beforeFunctions": [],
-		"formatZH": "上传 Skills Hub 技能包版本 [version]",
-		"formatEN": "upload Skills Hub package version [version]"
-	},
-	"/core/enterprise/users": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加用户 [name]",
-		"formatEN": "add user [name]"
-	},
-	"/core/enterprise/users/api/update": {
-		"bodyKeys": [
-			"id",
-			"ipWhiteList",
-			"apiTrustedProxies"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "users",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "更新用户 [name] API 接口配置 =\u003e IP 白名单: [ipWhiteList], API 可信代理: [apiTrustedProxies]",
-		"formatEN": "update user [name] api config =\u003e IP Allowlist: [ipWhiteList], API Trusted Proxies: [apiTrustedProxies]"
-	},
-	"/core/enterprise/users/del": {
-		"bodyKeys": [
-			"ids"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "ids",
-				"isList": true,
-				"db": "users",
-				"output_column": "name",
-				"output_value": "names"
-			}
-		],
-		"formatZH": "删除用户 [names]",
-		"formatEN": "delete user [names]"
-	},
-	"/core/enterprise/users/info/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name] 认证信息",
-		"formatEN": "update user [name] auth info"
-	},
-	"/core/enterprise/users/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name]",
-		"formatEN": "update user [name]"
+		"formatZH": "删除互联链路 [id]",
+		"formatEN": "delete fabric link [id]"
 	},
 	"/core/groups": {
 		"bodyKeys": [
@@ -1728,55 +1489,6 @@
 		"beforeFunctions": [],
 		"formatZH": "更新组 [name][type]",
 		"formatEN": "update group [name][type]"
-	},
-	"/core/licenses/bind": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "绑定许可证",
-		"formatEN": "bind license"
-	},
-	"/core/licenses/bind/free": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "修改许可证免费节点绑定",
-		"formatEN": "change bind of free node for license"
-	},
-	"/core/licenses/del": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除许可证",
-		"formatEN": "delete license"
-	},
-	"/core/licenses/sync": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步许可证信息",
-		"formatEN": "sync license info"
-	},
-	"/core/licenses/unbind": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "解绑许可证",
-		"formatEN": "unbind license"
-	},
-	"/core/licenses/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "替换许可证",
-		"formatEN": "change license"
-	},
-	"/core/licenses/upload": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加许可证",
-		"formatEN": "import license"
 	},
 	"/core/logs/clean": {
 		"bodyKeys": [
@@ -1931,472 +1643,6 @@
 		"formatZH": "更新系统 =\u003e [version]",
 		"formatEN": "upgrade system =\u003e [version]"
 	},
-	"/core/xapp/appQRCode": {
-		"bodyKeys": [
-			"panelName",
-			"panelUrl"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "生成移动端绑定二维码 [panelName]",
-		"formatEN": "generate mobile app QR code [panelName]"
-	},
-	"/core/xapp/verifyQRCode": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "校验移动端绑定二维码",
-		"formatEN": "verify mobile app QR code"
-	},
-	"/core/xpack/alert/offline/sync": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步离线告警",
-		"formatEN": "sync offline alert"
-	},
-	"/core/xpack/cluster": {
-		"bodyKeys": [
-			"clusterName",
-			"node",
-			"app"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建集群 [clusterName]",
-		"formatEN": "create cluster [clusterName]"
-	},
-	"/core/xpack/cluster/node": {
-		"bodyKeys": [
-			"clusterID",
-			"node",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "clusterID",
-				"isList": false,
-				"db": "clusters",
-				"output_column": "name",
-				"output_value": "clusterName"
-			}
-		],
-		"formatZH": "添加集群 [clusterName] 节点 [node]",
-		"formatEN": "add node [node] to cluster [clusterName]"
-	},
-	"/core/xpack/cluster/node/delete": {
-		"bodyKeys": [
-			"clusterID",
-			"clusterNodeID"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "clusterID",
-				"isList": false,
-				"db": "clusters",
-				"output_column": "name",
-				"output_value": "clusterName"
-			}
-		],
-		"formatZH": "删除集群 [clusterName] 节点 [clusterNodeID]",
-		"formatEN": "delete node [clusterNodeID] from cluster [clusterName]"
-	},
-	"/core/xpack/cluster/node/params/reveal": {
-		"bodyKeys": [
-			"id",
-			"key"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "查看服务器 [server] 上集群成员 [id] 的敏感参数 [key]",
-		"formatEN": "reveal parameter [key] for cluster member [id] on server [server]"
-	},
-	"/core/xpack/exchange/file": {
-		"bodyKeys": [
-			"sourceNode",
-			"targetNode",
-			"sourcePath",
-			"targetPath"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "交换文件 [sourcePath] 到 [targetPath]",
-		"formatEN": "exchange file [sourcePath] to [targetPath]"
-	},
-	"/core/xpack/exchange/image": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步节点镜像",
-		"formatEN": "sync images"
-	},
-	"/core/xpack/nodes": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加节点 [name]",
-		"formatEN": "add node [name]"
-	},
-	"/core/xpack/nodes/backup": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "备份主节点数据",
-		"formatEN": "backup master data"
-	},
-	"/core/xpack/nodes/backup/clean": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "清理主节点备份记录",
-		"formatEN": "clean master backup records"
-	},
-	"/core/xpack/nodes/backup/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "修改主节点备份设置",
-		"formatEN": "update master backup setting"
-	},
-	"/core/xpack/nodes/del": {
-		"bodyKeys": [
-			"ids"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "ids",
-				"isList": true,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "names"
-			}
-		],
-		"formatZH": "删除节点 [names]",
-		"formatEN": "delete node [names]"
-	},
-	"/core/xpack/nodes/favorite": {
-		"bodyKeys": [
-			"id",
-			"isFavorite"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "更新节点 [name] 收藏状态 [isFavorite]",
-		"formatEN": "update node [name] favorite [isFavorite]"
-	},
-	"/core/xpack/nodes/fix": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "修复节点 [name]",
-		"formatEN": "fix node [name]"
-	},
-	"/core/xpack/nodes/health/setting": {
-		"bodyKeys": [
-			"interval",
-			"autoCheckFailedNodes",
-			"loadFailedResources"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新节点健康检查设置",
-		"formatEN": "update node health check setting"
-	},
-	"/core/xpack/nodes/reinstall": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "重装节点 [name]",
-		"formatEN": "reinstall node [name]"
-	},
-	"/core/xpack/nodes/restart": {
-		"bodyKeys": [
-			"id",
-			"restartService"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "重启节点 [name] 服务 [restartService]",
-		"formatEN": "restart node [name] service [restartService]"
-	},
-	"/core/xpack/nodes/rollback": {
-		"bodyKeys": [
-			"nodeID"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "nodeID",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "回滚节点 [name]",
-		"formatEN": "rollback node [name]"
-	},
-	"/core/xpack/nodes/simple": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加节点 [name]",
-		"formatEN": "add node [name]"
-	},
-	"/core/xpack/nodes/simple/del": {
-		"bodyKeys": [
-			"ids"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "ids",
-				"isList": true,
-				"db": "simple_nodes",
-				"output_column": "name",
-				"output_value": "names"
-			}
-		],
-		"formatZH": "删除节点 [names]",
-		"formatEN": "delete node [names]"
-	},
-	"/core/xpack/nodes/simple/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name]",
-		"formatEN": "update node [name]"
-	},
-	"/core/xpack/nodes/simple/update/base": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name] 基础信息",
-		"formatEN": "update base info for node [name]"
-	},
-	"/core/xpack/nodes/sync": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "同步节点数据 [name]",
-		"formatEN": "sync node [name]"
-	},
-	"/core/xpack/nodes/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name]",
-		"formatEN": "update node [name]"
-	},
-	"/core/xpack/nodes/update/base": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [name] 基础信息",
-		"formatEN": "update base info for node [name]"
-	},
-	"/core/xpack/nodes/update/proxy": {
-		"bodyKeys": [
-			"id",
-			"enable"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "更新节点 [name] 代理设置 [enable]",
-		"formatEN": "update node [name] proxy setting [enable]"
-	},
-	"/core/xpack/nodes/upgrade": {
-		"bodyKeys": [
-			"ids"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "ids",
-				"isList": true,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "names"
-			}
-		],
-		"formatZH": "升级节点 [names]",
-		"formatEN": "upgrade node [names]"
-	},
-	"/core/xpack/nodes/upgrade/auto": {
-		"bodyKeys": [
-			"nodes"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新节点自动升级设置",
-		"formatEN": "update node auto upgrade setting"
-	},
-	"/core/xpack/nodes/upgrade/clean": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "清理节点升级包",
-		"formatEN": "clean node upgrade package"
-	},
-	"/core/xpack/nodes/upgrade/log/del": {
-		"bodyKeys": [
-			"nodeID"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "nodeID",
-				"isList": false,
-				"db": "nodes",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "删除节点更新日志 [name]",
-		"formatEN": "delete node upgrade log [name]"
-	},
-	"/core/xpack/settings/app/custom": {
-		"bodyKeys": [
-			"status",
-			"appStoreUrl",
-			"appStoreType"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新自定义应用配置 [status]",
-		"formatEN": "update custom app config [status]"
-	},
-	"/core/xpack/settings/app/image-prefix": {
-		"bodyKeys": [
-			"imagePrefix"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新应用镜像前缀 [imagePrefix]",
-		"formatEN": "update app image prefix [imagePrefix]"
-	},
-	"/core/xpack/settings/reset": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "重置专业版设置",
-		"formatEN": "reset xpack settings"
-	},
-	"/core/xpack/settings/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新专业版设置",
-		"formatEN": "update xpack settings"
-	},
-	"/core/xpack/settings/update/item": {
-		"bodyKeys": [
-			"key",
-			"value"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新专业版设置 [key]",
-		"formatEN": "update xpack setting [key]"
-	},
-	"/core/xpack/sync/app": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步节点应用",
-		"formatEN": "sync app"
-	},
-	"/core/xpack/sync/ssl": {
-		"bodyKeys": [
-			"primaryDomain"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步 SSL 证书 [primaryDomain]",
-		"formatEN": "sync SSL certificate [primaryDomain]"
-	},
 	"/cronjobs": {
 		"bodyKeys": [
 			"type",
@@ -2515,33 +1761,6 @@
 		],
 		"formatZH": "更新计划任务 [name]",
 		"formatEN": "update cronjob [name]"
-	},
-	"/custom/app/config": {
-		"bodyKeys": [
-			"status",
-			"appStoreUrl",
-			"appStoreType"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新自定义应用配置 [status]",
-		"formatEN": "update custom app config [status]"
-	},
-	"/custom/app/image-prefix": {
-		"bodyKeys": [
-			"imagePrefix"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新应用镜像前缀 [imagePrefix]",
-		"formatEN": "update app image prefix [imagePrefix]"
-	},
-	"/custom/app/sync": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步自定义应用商店",
-		"formatEN": "sync custom app store"
 	},
 	"/dashboard/app/launcher/show": {
 		"bodyKeys": [
@@ -2800,78 +2019,6 @@
 		"formatZH": "创建 postgresql 数据库 [name]",
 		"formatEN": "create postgresql database [name]"
 	},
-	"/databases/pg/users": {
-		"bodyKeys": [
-			"database",
-			"username"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 PostgreSQL 实例 [database] 用户 [username]",
-		"formatEN": "create PostgreSQL instance [database] user [username]"
-	},
-	"/databases/pg/users/update": {
-		"bodyKeys": [
-			"database",
-			"username"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "修改 PostgreSQL 实例 [database] 用户 [username]",
-		"formatEN": "update PostgreSQL instance [database] user [username]"
-	},
-	"/databases/pg/users/password/save": {
-		"bodyKeys": [
-			"database",
-			"username"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "补充 PostgreSQL 实例 [database] 用户 [username] 密码",
-		"formatEN": "save PostgreSQL instance [database] user [username] password locally"
-	},
-	"/databases/pg/users/password": {
-		"bodyKeys": [
-			"database",
-			"username"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "修改 PostgreSQL 实例 [database] 用户 [username] 密码",
-		"formatEN": "change PostgreSQL instance [database] user [username] password"
-	},
-	"/databases/pg/users/del": {
-		"bodyKeys": [
-			"database",
-			"username"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 PostgreSQL 实例 [database] 用户 [username]",
-		"formatEN": "delete PostgreSQL instance [database] user [username]"
-	},
-	"/databases/pg/grants": {
-		"bodyKeys": [
-			"database",
-			"username",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "绑定 PostgreSQL 实例 [database] 数据库 [name] 用户 [username]",
-		"formatEN": "bind PostgreSQL instance [database] database [name] user [username]"
-	},
-	"/databases/pg/grants/del": {
-		"bodyKeys": [
-			"database",
-			"username",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "撤销 PostgreSQL 实例 [database] 数据库 [name] 用户 [username] 绑定",
-		"formatEN": "revoke PostgreSQL instance [database] database [name] user [username] binding"
-	},
 	"/databases/pg/bind": {
 		"bodyKeys": [
 			"name",
@@ -2919,6 +2066,28 @@
 		"formatZH": "postgresql 数据库 [name] 描述信息修改 [description]",
 		"formatEN": "The description of the postgresql database [name] is modified =\u003e [description]"
 	},
+	"/databases/pg/grants": {
+		"bodyKeys": [
+			"database",
+			"username",
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "绑定 PostgreSQL 实例 [database] 数据库 [name] 用户 [username]",
+		"formatEN": "bind PostgreSQL instance [database] database [name] user [username]"
+	},
+	"/databases/pg/grants/del": {
+		"bodyKeys": [
+			"database",
+			"username",
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "撤销 PostgreSQL 实例 [database] 数据库 [name] 用户 [username] 绑定",
+		"formatEN": "revoke PostgreSQL instance [database] database [name] user [username] binding"
+	},
 	"/databases/pg/password": {
 		"bodyKeys": [
 			"id"
@@ -2946,6 +2115,56 @@
 		"beforeFunctions": [],
 		"formatZH": "更新数据库 [database] 用户 [username] 权限",
 		"formatEN": "Update [username] privileges of database [database]"
+	},
+	"/databases/pg/users": {
+		"bodyKeys": [
+			"database",
+			"username"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "创建 PostgreSQL 实例 [database] 用户 [username]",
+		"formatEN": "create PostgreSQL instance [database] user [username]"
+	},
+	"/databases/pg/users/del": {
+		"bodyKeys": [
+			"database",
+			"username"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "删除 PostgreSQL 实例 [database] 用户 [username]",
+		"formatEN": "delete PostgreSQL instance [database] user [username]"
+	},
+	"/databases/pg/users/password": {
+		"bodyKeys": [
+			"database",
+			"username"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "修改 PostgreSQL 实例 [database] 用户 [username] 密码",
+		"formatEN": "change PostgreSQL instance [database] user [username] password"
+	},
+	"/databases/pg/users/password/save": {
+		"bodyKeys": [
+			"database",
+			"username"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "补充 PostgreSQL 实例 [database] 用户 [username] 密码",
+		"formatEN": "save PostgreSQL instance [database] user [username] password locally"
+	},
+	"/databases/pg/users/update": {
+		"bodyKeys": [
+			"database",
+			"username"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "修改 PostgreSQL 实例 [database] 用户 [username]",
+		"formatEN": "update PostgreSQL instance [database] user [username]"
 	},
 	"/databases/redis/conf/update": {
 		"bodyKeys": [],
@@ -3851,6 +3070,29 @@
 		"beforeFunctions": [],
 		"formatZH": "更新文件管理 AI 设置 [aiStatus][aiAccountId]",
 		"formatEN": "update file manage AI setting [aiStatus][aiAccountId]"
+	},
+	"/settings/proxy-node/close": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "关闭代理节点订阅",
+		"formatEN": "close proxy node subscription"
+	},
+	"/settings/proxy-node/save": {
+		"bodyKeys": [],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "保存代理节点订阅",
+		"formatEN": "save proxy node subscription"
+	},
+	"/settings/proxy-node/select": {
+		"bodyKeys": [
+			"name"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "切换代理节点 [name]",
+		"formatEN": "switch proxy node [name]"
 	},
 	"/settings/snapshot": {
 		"bodyKeys": [
@@ -5259,651 +4501,5 @@
 		"beforeFunctions": [],
 		"formatZH": "更新网站 [primaryDomain]",
 		"formatEN": "Update website [primaryDomain]"
-	},
-	"/xpack/alert/logs/sync": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步短信告警信息 [id]",
-		"formatEN": "sync SMS alert info [id]"
-	},
-	"/xpack/alert/logs/sync/all": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "同步全部短信告警信息",
-		"formatEN": "sync all SMS alert info"
-	},
-	"/xpack/alert/offline/update": {
-		"bodyKeys": [
-			"id",
-			"type",
-			"licenseId"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新离线告警日志 [id]",
-		"formatEN": "update offline alert log [id]"
-	},
-	"/xpack/model/downloader/featured/sync/status": {
-		"bodyKeys": [
-			"value"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新推荐模型自动同步 [value]",
-		"formatEN": "update featured model automatic synchronization [value]"
-	},
-	"/xpack/model/downloader/hf/download": {
-		"bodyKeys": [
-			"repoID",
-			"revision"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "下载 Hugging Face 模型 [repoID]",
-		"formatEN": "download Hugging Face model [repoID]"
-	},
-	"/xpack/model/downloader/local/delete": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除本地模型 [name]",
-		"formatEN": "delete local model [name]"
-	},
-	"/xpack/model/downloader/modelscope/download": {
-		"bodyKeys": [
-			"repoID",
-			"revision"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "下载 ModelScope 模型 [repoID]",
-		"formatEN": "download ModelScope model [repoID]"
-	},
-	"/xpack/model/downloader/settings": {
-		"bodyKeys": [
-			"modelDir"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新模型下载设置 [modelDir]",
-		"formatEN": "update model downloader settings [modelDir]"
-	},
-	"/xpack/model/downloader/tasks/cancel": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "model_download_tasks",
-				"output_column": "repo_id",
-				"output_value": "repoID"
-			}
-		],
-		"formatZH": "取消模型下载任务 [repoID]",
-		"formatEN": "cancel model download task [repoID]"
-	},
-	"/xpack/model/downloader/tasks/remove": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "model_download_tasks",
-				"output_column": "repo_id",
-				"output_value": "repoID"
-			}
-		],
-		"formatZH": "移除模型下载任务 [repoID]",
-		"formatEN": "remove model download task [repoID]"
-	},
-	"/xpack/model/downloader/tasks/retry": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "model_download_tasks",
-				"output_column": "repo_id",
-				"output_value": "repoID"
-			}
-		],
-		"formatZH": "重试模型下载任务 [repoID]",
-		"formatEN": "retry model download task [repoID]"
-	},
-	"/xpack/monitor/config/global": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新全局设置",
-		"formatEN": "update global config"
-	},
-	"/xpack/monitor/config/site/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新网站设置",
-		"formatEN": "update website config"
-	},
-	"/xpack/monitor/logs/clear": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "清空日志",
-		"formatEN": "clear log"
-	},
-	"/xpack/tampers/del": {
-		"bodyKeys": [
-			"website",
-			"path",
-			"withDelete"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除防篡改 [website][path]",
-		"formatEN": "delete tamper [website][path]"
-	},
-	"/xpack/tampers/template": {
-		"bodyKeys": [
-			"name",
-			"content"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "保存防篡改模版 [name] - [content]",
-		"formatEN": "save tamper template info  [name] - [content]"
-	},
-	"/xpack/tampers/template/del": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "tampers",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "删除防篡改模版 [name]",
-		"formatEN": "delete tamper template [name]"
-	},
-	"/xpack/tampers/update": {
-		"bodyKeys": [
-			"website",
-			"status",
-			"path"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新防篡改信息 [website][path] =\u003e [status]",
-		"formatEN": "update tamper info [website][path] =\u003e [status]"
-	},
-	"/xpack/vllm/command-template/create": {
-		"bodyKeys": [
-			"name",
-			"imageType"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 vLLM 命令模板 [name]",
-		"formatEN": "create vLLM command template [name]"
-	},
-	"/xpack/vllm/command-template/delete": {
-		"bodyKeys": [
-			"id"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "vllm_command_templates",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "删除 vLLM 命令模板 [name]",
-		"formatEN": "delete vLLM command template [name]"
-	},
-	"/xpack/vllm/command-template/update": {
-		"bodyKeys": [
-			"id",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 vLLM 命令模板 [name]",
-		"formatEN": "update vLLM command template [name]"
-	},
-	"/xpack/vllm/create": {
-		"bodyKeys": [
-			"name",
-			"appVersion"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 vLLM [name]",
-		"formatEN": "create vLLM [name]"
-	},
-	"/xpack/vllm/monitor/setting/update": {
-		"bodyKeys": [
-			"vllmID",
-			"key",
-			"value"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "修改 vLLM [vllmID] 监控设置 [key]-[value]",
-		"formatEN": "update vLLM [vllmID] monitor setting [key]-[value]"
-	},
-	"/xpack/vllm/operate": {
-		"bodyKeys": [
-			"id",
-			"operate"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [
-			{
-				"input_column": "id",
-				"input_value": "id",
-				"isList": false,
-				"db": "vllms",
-				"output_column": "name",
-				"output_value": "name"
-			}
-		],
-		"formatZH": "操作 vLLM [name] [operate]",
-		"formatEN": "operate vLLM [name] [operate]"
-	},
-	"/xpack/vllm/update": {
-		"bodyKeys": [
-			"id",
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 vLLM [name]",
-		"formatEN": "update vLLM [name]"
-	},
-	"/xpack/waf/block/export": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导出 WAF 封锁 IP",
-		"formatEN": "export WAF blocked IP"
-	},
-	"/xpack/waf/block/remove": {
-		"bodyKeys": [
-			"ip"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "解封 IP [ip]",
-		"formatEN": "unblock ip [ip]"
-	},
-	"/xpack/waf/cdn/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 CDN 配置",
-		"formatEN": "update CDN config"
-	},
-	"/xpack/waf/config/global/spider": {
-		"bodyKeys": [
-			"rules"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新全局蜘蛛允许列表",
-		"formatEN": "update global spider allowlist"
-	},
-	"/xpack/waf/config/global/state": {
-		"bodyKeys": [
-			"scope",
-			"state"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [state]全局配置[scope]",
-		"formatEN": "update [state] global config [scope]"
-	},
-	"/xpack/waf/config/website/state": {
-		"bodyKeys": [
-			"scope",
-			"state",
-			"mode"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 [state]网站配置[scope]",
-		"formatEN": "update [state] website config [scope]"
-	},
-	"/xpack/waf/html/revert": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "回滚拦截页面 [name]",
-		"formatEN": "revert html res [name]"
-	},
-	"/xpack/waf/html/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新拦截页面 [name]",
-		"formatEN": "update html res [name]"
-	},
-	"/xpack/waf/ip/default": {
-		"bodyKeys": [
-			"ip",
-			"type"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加 IP [ip] 到默认[type]组",
-		"formatEN": "add ip [ip] to default[type]group"
-	},
-	"/xpack/waf/ip/group/create": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 IP 组 [name]",
-		"formatEN": "create ip group [name]"
-	},
-	"/xpack/waf/ip/group/delete": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 IP 组 [name]",
-		"formatEN": "delete ip group [name]"
-	},
-	"/xpack/waf/ip/group/export": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导出 IP 组 [name]",
-		"formatEN": "export IP group [name]"
-	},
-	"/xpack/waf/ip/group/import": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导入 IP 组",
-		"formatEN": "import IP group"
-	},
-	"/xpack/waf/ip/group/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 IP 组 [name]",
-		"formatEN": "update ip group [name]"
-	},
-	"/xpack/waf/location/update": {
-		"bodyKeys": [
-			"type"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新[type]地址库信息",
-		"formatEN": "update [type] location"
-	},
-	"/xpack/waf/log/clear": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "清空 WAF 日志",
-		"formatEN": "clear waf log"
-	},
-	"/xpack/waf/log/export": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导出 WAF 日志",
-		"formatEN": "export WAF log"
-	},
-	"/xpack/waf/rule/acl/create": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建自定义规则 [name]",
-		"formatEN": "create acl [name]"
-	},
-	"/xpack/waf/rule/acl/delete": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除自定义规则 [name]",
-		"formatEN": "delete acl [name]"
-	},
-	"/xpack/waf/rule/acl/update": {
-		"bodyKeys": [
-			"name"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新自定义规则 [name]",
-		"formatEN": "update acl [name]"
-	},
-	"/xpack/waf/rule/app/update": {
-		"bodyKeys": [
-			"name",
-			"state"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新应用规则 [name] 状态 [state]",
-		"formatEN": "update app rule [name] state [state]"
-	},
-	"/xpack/waf/rule/cc": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新[scope]频率访问限制",
-		"formatEN": "update [scope] CC config"
-	},
-	"/xpack/waf/rule/common/apply": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "应用规则 [scope] 到网站",
-		"formatEN": "apply rule [scope] to websites"
-	},
-	"/xpack/waf/rule/common/create": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建规则 [scope]",
-		"formatEN": "create rule [scope]"
-	},
-	"/xpack/waf/rule/common/delete": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除规则 [scope]",
-		"formatEN": "delete rule [scope]"
-	},
-	"/xpack/waf/rule/common/export": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导出规则 [scope]",
-		"formatEN": "export rule [scope]"
-	},
-	"/xpack/waf/rule/common/import": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "导入规则 [scope]",
-		"formatEN": "import rule [scope]"
-	},
-	"/xpack/waf/rule/common/update": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新规则 [scope]",
-		"formatEN": "update rule [scope]"
-	},
-	"/xpack/waf/rule/geo": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新地区访问限制",
-		"formatEN": "update geo restrict"
-	},
-	"/xpack/waf/rule/ip/create": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建[scope] IP 规则",
-		"formatEN": "create [scope] IP rule"
-	},
-	"/xpack/waf/rule/ip/delete": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除[scope] IP 规则",
-		"formatEN": "delete [scope] IP rule"
-	},
-	"/xpack/waf/rule/ip/update": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新[scope] IP 规则",
-		"formatEN": "update [scope] IP rule"
-	},
-	"/xpack/waf/rule/log": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新日志配置",
-		"formatEN": "update waf log config"
-	},
-	"/xpack/waf/rule/simple/create": {
-		"bodyKeys": [
-			"scope"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建规则 [scope]",
-		"formatEN": "create rule [scope]"
-	},
-	"/xpack/waf/rule/urlcc/create": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "创建 URL 频率访问限制规则",
-		"formatEN": "create URL CC rule"
-	},
-	"/xpack/waf/rule/urlcc/delete": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "删除 URL 频率访问限制规则",
-		"formatEN": "delete URL CC rule"
-	},
-	"/xpack/waf/rule/urlcc/update": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新 URL 频率访问限制规则",
-		"formatEN": "update URL CC rule"
-	},
-	"/xpack/waf/rule/vuln/update": {
-		"bodyKeys": [
-			"id",
-			"state"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新漏洞规则 [id] 状态 [state]",
-		"formatEN": "update vuln rule [id] state [state]"
-	},
-	"/xpack/waf/url/default": {
-		"bodyKeys": [
-			"url",
-			"type"
-		],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "添加 URL [url] 到默认[type]组",
-		"formatEN": "add URL [url] to default[type]group"
-	},
-	"/xpack/waf/website/rule/cc": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新网站频率访问限制",
-		"formatEN": "update website CC config"
-	},
-	"/xpack/waf/website/rule/geo": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "更新网站地区访问限制",
-		"formatEN": "update geo restrict"
-	},
-	"/xpack/xsetting/sync": {
-		"bodyKeys": [],
-		"paramKeys": [],
-		"beforeFunctions": [],
-		"formatZH": "从主节点同步设置",
-		"formatEN": "sync settings from master"
 	}
 }

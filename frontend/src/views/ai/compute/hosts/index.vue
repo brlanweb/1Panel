@@ -1,8 +1,7 @@
 <template>
     <div v-loading="loading">
         <div class="toolbar">
-            <el-button type="primary" @click="hostRef.open()">{{ $t('compute.host.add') }}</el-button>
-            <el-button @click="batchRef.open()">{{ $t('compute.host.batch') }}</el-button>
+            <el-button type="primary" @click="importRef.open()">{{ $t('compute.host.import') }}</el-button>
             <el-button @click="topoVisible = true">{{ $t('compute.topo.title') }}</el-button>
             <span class="spacer" />
             <el-input v-model="keyword" class="p-w-250" clearable :placeholder="$t('compute.host.search')" />
@@ -17,8 +16,17 @@
                 <template #default="{ row }">
                     <div class="strong">{{ row.name }}</div>
                     <div class="sub">
-                        {{ row.addr }}
+                        {{ row.addr || '—' }}
                         <span v-if="row.hostname">· {{ row.hostname }}</span>
+                    </div>
+                    <div class="sub">
+                        <el-tag size="small" effect="plain" :type="row.source === 'terminal' ? 'info' : 'success'">
+                            {{ $t('compute.host.source_' + row.source) }}
+                        </el-tag>
+                        <span v-if="row.sourceMissing" class="stat-danger">{{ $t('compute.host.sourceMissing') }}</span>
+                        <span v-else-if="row.source !== 'local' && row.sourceName !== row.name">
+                            {{ row.sourceName }}
+                        </span>
                     </div>
                     <div class="sub" v-if="row.labels">
                         <el-tag v-for="l in row.labels.split(',')" :key="l" size="small" effect="plain" class="mr-1">
@@ -149,7 +157,7 @@
         </el-table>
 
         <HostOperate ref="hostRef" @saved="refresh(true)" />
-        <HostBatch ref="batchRef" @saved="refresh(true)" />
+        <HostImport ref="importRef" @saved="refresh(true)" />
         <AdoptDialog ref="adoptRef" @saved="refresh(true)" />
         <DrawerPro v-model="topoVisible" :header="$t('compute.topo.title')" size="large" @close="topoVisible = false">
             <Topology v-if="topoVisible" :hosts="hosts" />
@@ -165,7 +173,7 @@ import { deleteComputeHost, listComputeHosts, refreshComputeHost, setComputeSche
 import { MsgSuccess } from '@/utils/message';
 import { ago, barColor, pct, rate, size, t, tempColor } from '../helper';
 import HostOperate from './operate.vue';
-import HostBatch from './batch.vue';
+import HostImport from './import.vue';
 import HostDetail from './detail.vue';
 import AdoptDialog from './adopt.vue';
 import Topology from './topology.vue';
@@ -174,7 +182,7 @@ const loading = ref(false);
 const hosts = ref<Compute.Host[]>([]);
 const keyword = ref('');
 const hostRef = ref();
-const batchRef = ref();
+const importRef = ref();
 const adoptRef = ref();
 const topoVisible = ref(false);
 

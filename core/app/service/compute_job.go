@@ -195,6 +195,13 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 	if prof.NodeCount > 1 && !rt.MultiNode {
 		add("runtime", false, "runtime "+rt.Name+" is single node")
 	}
+	if rt.Backend == model.ComputeBackendVllm {
+		for _, id := range hostIDs {
+			if h, ok := hosts[id]; ok && !h.IsPanel() {
+				add(h.Name+":backend", false, "runtime "+rt.Name+" deploys through AI → vLLM and needs a panel host (cluster node / local)")
+			}
+		}
+	}
 	for _, id := range hostIDs {
 		h, ok := hosts[id]
 		if !ok {
@@ -281,7 +288,7 @@ func computeModelPathCheck(prof model.ComputeProfile, ids []uint, hosts map[uint
 		if !ok {
 			continue
 		}
-		out, err := computeSSH.RunTimeout(h, script, false, 15*time.Second)
+		out, err := computeExec(h, script, false, 15*time.Second)
 		if err != nil || !strings.Contains(out, "OK") {
 			missing = append(missing, h.Name)
 		}
@@ -300,6 +307,9 @@ func computePlace(prof model.ComputeProfile, runtime model.ComputeRuntime, hosts
 	avail := map[uint]uint64{}
 	for id, h := range hosts {
 		if !h.Schedulable || busy[id] != "" {
+			continue
+		}
+		if runtime.Backend == model.ComputeBackendVllm && !h.IsPanel() {
 			continue
 		}
 		rt := computeState.hostRealtime(id)
@@ -463,6 +473,40 @@ func computeRunDeploy(run *computeJobRun, spec computeJobSpec) error {
 // computeLaunch: render → start workers → start head → wait healthy → warm up.
 func computeLaunch(run *computeJobRun, in model.ComputeInstance, prof model.ComputeProfile, rt model.ComputeRuntime,
 	ids []uint, hosts map[uint]model.ComputeHost, key string) error {
+	if rt.Backend == model.ComputeBackendVllm {
+		if len(ids) != 1 {
+			return fmt.Errorf("runtime %s is single host", rt.Name)
+		}
+		h := hosts[ids[0]]
+		if err := run.step(fmt.Sprintf("deploy on %s (AI → vLLM)", h.Name), func() (string, error) {
+			depID, ctr, msg, err := computeVllmLaunch(in, prof, rt, h, key)
+			if depID > 0 {
+				_ = repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"vllm_deployment_id": depID, "container_name": ctr})
+			}
+			return msg, err
+		}); err != nil {
+			return err
+		}
+	} else {
+		if in.VllmDeploymentID > 0 {
+			_ = repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"vllm_deployment_id": 0})
+		}
+		if err := computeLaunchScripts(run, in, prof, rt, ids, hosts, key); err != nil {
+			return err
+		}
+	}
+	timeout := time.Duration(prof.StartTimeoutSec) * time.Second
+	if err := run.step("wait healthy", func() (string, error) {
+		return computeWaitHealthy(in, rt, key, timeout)
+	}); err != nil {
+		return err
+	}
+	_ = run.step("warm up", func() (string, error) { return computeWarmup(in, key) })
+	return nil
+}
+
+func computeLaunchScripts(run *computeJobRun, in model.ComputeInstance, prof model.ComputeProfile, rt model.ComputeRuntime,
+	ids []uint, hosts map[uint]model.ComputeHost, key string) error {
 	vars, err := computeBuildVars(in, prof, rt, ids, hosts, key)
 	if err != nil {
 		return err
@@ -488,18 +532,11 @@ func computeLaunch(run *computeJobRun, in model.ComputeInstance, prof model.Comp
 		}
 		script := scripts[i]
 		if err := run.step(fmt.Sprintf("start %s (%s)", h.Name, role), func() (string, error) {
-			return computeSSH.RunTimeout(h, script, true, computeStepTimeout)
+			return computeExec(h, script, true, computeStepTimeout)
 		}); err != nil {
 			return err
 		}
 	}
-	timeout := time.Duration(prof.StartTimeoutSec) * time.Second
-	if err := run.step("wait healthy", func() (string, error) {
-		return computeWaitHealthy(in, rt, key, timeout)
-	}); err != nil {
-		return err
-	}
-	_ = run.step("warm up", func() (string, error) { return computeWarmup(in, key) })
 	return nil
 }
 
@@ -548,6 +585,19 @@ func computeWarmup(in model.ComputeInstance, key string) (string, error) {
 }
 
 func computeStopHosts(in model.ComputeInstance, rt model.ComputeRuntime, ids []uint, hosts map[uint]model.ComputeHost) (string, error) {
+	return computeStopHostsMode(in, rt, ids, hosts, false)
+}
+
+// computeStopHostsMode stops the instance; remove also deletes the AI →
+// vLLM deployment of a vllm-backed instance (scripts always remove the
+// container).
+func computeStopHostsMode(in model.ComputeInstance, rt model.ComputeRuntime, ids []uint, hosts map[uint]model.ComputeHost, remove bool) (string, error) {
+	if in.VllmDeploymentID > 0 || rt.Backend == model.ComputeBackendVllm {
+		if len(ids) == 0 {
+			return "", nil
+		}
+		return computeVllmOperate(in, hosts[ids[0]], remove)
+	}
 	var msgs []string
 	var firstErr error
 	for i, id := range ids {
@@ -557,7 +607,7 @@ func computeStopHosts(in model.ComputeInstance, rt model.ComputeRuntime, ids []u
 		if err != nil {
 			return "", err
 		}
-		out, err := computeSSH.RunTimeout(h, script, true, 2*time.Minute)
+		out, err := computeExec(h, script, true, 2*time.Minute)
 		msgs = append(msgs, h.Name+": "+strings.TrimSpace(out))
 		if err != nil && firstErr == nil {
 			firstErr = fmt.Errorf("%s: %w", h.Name, err)
@@ -605,8 +655,12 @@ func computeRunSwitch(run *computeJobRun, spec computeJobSpec) (bool, error) {
 	hosts := computeHostMap()
 	ids := spec.HostIDs
 	computeDrain(run, in)
-	if err := run.step("stop old", func() (string, error) { return computeStopHosts(in, oldRt, ids, hosts) }); err != nil {
+	leaveVllm := in.VllmDeploymentID > 0 && newRt.Backend != model.ComputeBackendVllm
+	if err := run.step("stop old", func() (string, error) { return computeStopHostsMode(in, oldRt, ids, hosts, leaveVllm) }); err != nil {
 		return false, err
+	}
+	if leaveVllm {
+		in.VllmDeploymentID = 0
 	}
 	key := computeInstanceKey(in)
 	if key == "" {
@@ -663,8 +717,8 @@ func computeRunStop(run *computeJobRun, spec computeJobSpec, remove bool) error 
 	}
 	hosts := computeHostMap()
 	computeDrain(run, in)
-	if in.ContainerName != "" {
-		if err := run.step("stop", func() (string, error) { return computeStopHosts(in, rt, spec.HostIDs, hosts) }); err != nil {
+	if in.ContainerName != "" || in.VllmDeploymentID > 0 {
+		if err := run.step("stop", func() (string, error) { return computeStopHostsMode(in, rt, spec.HostIDs, hosts, remove) }); err != nil {
 			_ = repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"status": model.ComputeInstFailed, "last_error": computeTrim(err.Error(), 500)})
 			return err
 		}

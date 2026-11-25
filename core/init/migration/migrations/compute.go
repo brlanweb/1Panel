@@ -27,8 +27,8 @@ var AddComputeAcceleratorKind = &gormigrate.Migration{
 	},
 }
 
-// AddComputeMenu adds "算力调度" under the cluster menu, right after the
-// resource monitor. The label must equal the frontend route name.
+// AddComputeMenu added "算力调度" under the cluster menu (historical; it is
+// moved under the AI menu by MoveComputeMenuToAI).
 var AddComputeMenu = &gormigrate.Migration{
 	ID: "20261124-add-compute-menu",
 	Migrate: func(tx *gorm.DB) error {

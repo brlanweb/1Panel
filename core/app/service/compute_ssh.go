@@ -11,11 +11,12 @@ import (
 
 	"github.com/1Panel-dev/1Panel/core/app/model"
 	"github.com/1Panel-dev/1Panel/core/global"
-	"github.com/1Panel-dev/1Panel/core/utils/encrypt"
 	"github.com/1Panel-dev/1Panel/core/utils/ssh"
 )
 
-// Pooled SSH connections for agentless (L0) compute hosts.
+// Pooled SSH connections for terminal-sourced (agentless) compute hosts.
+// Credentials are read from Terminal → Hosts on every dial; editing the
+// terminal host changes the signature and forces a redial.
 //
 // One TCP connection per host is kept and multiplexed (every command is a
 // new session on the same connection), so a 15-second sample costs one
@@ -80,47 +81,17 @@ func (p *computeSSHPool) Drop(hostID uint) {
 	}
 }
 
-func computeConnInfo(host model.ComputeHost) (ssh.ConnInfo, error) {
-	info := ssh.ConnInfo{
-		User:        host.SSHUser,
-		Addr:        host.Addr,
-		Port:        host.SSHPort,
-		AuthMode:    host.AuthMode,
-		DialTimeOut: computeSSHDialTimeout,
+// computeConnTarget resolves the Terminal → Hosts entry of a
+// terminal-sourced host; its signature changes on every edit there.
+func computeConnTarget(host model.ComputeHost) (computeTerminalHost, string, error) {
+	if host.Source != model.ComputeSourceTerminal {
+		return computeTerminalHost{}, "", fmt.Errorf("host %s is not reached over SSH", host.Name)
 	}
-	if info.Port == 0 {
-		info.Port = 22
+	t, err := computeTerminalHostByID(host.RefID)
+	if err != nil {
+		return t, "", err
 	}
-	if info.User == "" {
-		info.User = "root"
-	}
-	cred := ""
-	if host.CredCipher != "" {
-		plain, err := encrypt.StringDecrypt(host.CredCipher)
-		if err != nil {
-			return info, fmt.Errorf("decrypt credential: %w", err)
-		}
-		cred = plain
-	}
-	switch host.AuthMode {
-	case "key":
-		info.PrivateKey = []byte(cred)
-		if host.PassPhraseCipher != "" {
-			pass, err := encrypt.StringDecrypt(host.PassPhraseCipher)
-			if err != nil {
-				return info, fmt.Errorf("decrypt passphrase: %w", err)
-			}
-			info.PassPhrase = []byte(pass)
-		}
-	default:
-		info.AuthMode = "password"
-		info.Password = cred
-	}
-	return info, nil
-}
-
-func computeConnSig(host model.ComputeHost) string {
-	return fmt.Sprintf("%s|%d|%s|%s|%s|%s", host.Addr, host.SSHPort, host.SSHUser, host.AuthMode, host.CredCipher, host.PassPhraseCipher)
+	return t, computeTerminalSig(t), nil
 }
 
 func (p *computeSSHPool) conn(host model.ComputeHost) (*computeSSHConn, *ssh.SSHClient, error) {
@@ -134,13 +105,16 @@ func (p *computeSSHPool) conn(host model.ComputeHost) (*computeSSHConn, *ssh.SSH
 
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	sig := computeConnSig(host)
+	target, sig, err := computeConnTarget(host)
+	if err != nil {
+		return c, nil, err
+	}
 	if c.client != nil && c.sig != sig {
 		c.client.Close()
 		c.client = nil
 	}
 	if c.client == nil {
-		info, err := computeConnInfo(host)
+		info, err := computeTerminalConnInfo(target)
 		if err != nil {
 			return c, nil, err
 		}
@@ -209,7 +183,7 @@ func (p *computeSSHPool) runOnce(ctx context.Context, host model.ComputeHost, sc
 	session.Stderr = out
 	session.Stdin = strings.NewReader(script)
 	cmd := "sh -s"
-	if sudo && host.SSHUser != "root" && client.SudoItem != "" {
+	if sudo && client.Client.User() != "root" && client.SudoItem != "" {
 		cmd = "sudo -n sh -s"
 	}
 	done := make(chan error, 1)

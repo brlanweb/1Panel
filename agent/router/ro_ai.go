@@ -123,6 +123,9 @@ func (a *AIToolsRouter) InitRouter(Router *gin.RouterGroup) {
 		aiToolsRouter.POST("/agents/skills/install", baseApi.InstallAgentSkill)
 		aiToolsRouter.POST("/agents/skills/uninstall", baseApi.UninstallAgentSkill)
 		aiToolsRouter.POST("/agents/channel/pairing/approve", baseApi.ApproveAgentChannelPairing)
+		aiToolsRouter.POST("/compute/sample", baseApi.ComputeSample)
+		aiToolsRouter.POST("/compute/exec", baseApi.ComputeExec)
+
 		aiToolsRouter.GET("/vllm/settings", baseApi.LoadVllmSettings)
 		aiToolsRouter.POST("/vllm/settings/update", baseApi.UpdateVllmSettings)
 		aiToolsRouter.POST("/vllm/models/search", baseApi.PageVllmModels)

@@ -84,8 +84,11 @@ func (ComputeFabricLink) TableName() string { return "compute_fabric_links" }
 // each host of an instance; see compute_template.go for the variables.
 type ComputeRuntime struct {
 	BaseModel
-	Name           string `gorm:"not null;uniqueIndex" json:"name"`
-	Engine         string `gorm:"not null;default:vllm" json:"engine"`
+	Name   string `gorm:"not null;uniqueIndex" json:"name"`
+	Engine string `gorm:"not null;default:vllm" json:"engine"`
+	// Device is the accelerator family the image is built for (gpu / npu);
+	// placement only considers hosts with that kind of accelerator.
+	Device         string `gorm:"not null;default:gpu" json:"device"`
 	Image          string `json:"image"`
 	MultiNode      bool   `json:"multiNode"`
 	LaunchTemplate string `gorm:"type:text" json:"launchTemplate"`

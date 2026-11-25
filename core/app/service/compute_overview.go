@@ -42,7 +42,11 @@ func (u *ComputeService) Overview() (dto.ComputeOverview, error) {
 		res.MemTotal += rt.MemTotal
 		res.MemUsed += rt.MemTotal - min(rt.MemAvailable, rt.MemTotal)
 		for _, g := range rt.GPUs {
-			res.GPUs++
+			if g.Kind == computeKindNPU {
+				res.NPUs++
+			} else {
+				res.GPUs++
+			}
 			gpuUtil += g.Util
 			gpuN++
 		}

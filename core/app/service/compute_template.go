@@ -189,12 +189,30 @@ docker run -d --name {{q .ContainerName}} --restart unless-stopped \
 {{- end}}
 `
 
+// vLLM Ascend (quay.io/ascend/vllm-ascend). Requires Ascend Docker Runtime
+// on the host (`docker info` default runtime = ascend), which binds the
+// devices selected by ASCEND_VISIBLE_DEVICES plus the driver into the
+// container. Set ASCEND_VISIBLE_DEVICES in the profile env (e.g. 0-7);
+// A3 exposes two dies per NPU, so one NPU is "0-1".
+const computeVllmAscend = `set -e
+docker rm -f {{q .ContainerName}} >/dev/null 2>&1 || true
+docker run -d --name {{q .ContainerName}} --restart unless-stopped \
+  --network host --shm-size 16g \
+  -v {{q .ModelDir}}:{{q .ModelDir}}:ro {{env .Env}}\
+  {{q .Image}} \
+  vllm serve {{q .ModelPath}} --served-model-name {{q .ServedName}} \
+  --host 0.0.0.0 --port {{.Port}}{{if .APIKey}} --api-key {{q .APIKey}}{{end}} {{.ExtraArgs}}
+`
+
 func computeBuiltinRuntimes() []model.ComputeRuntime {
 	return []model.ComputeRuntime{
-		{Name: "vllm-single", Engine: "vllm", Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: false,
+		{Name: "vllm-ascend", Engine: "vllm", Device: computeKindNPU, Image: "quay.io/ascend/vllm-ascend:v0.32.0rc1", MultiNode: false,
+			LaunchTemplate: computeVllmAscend, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
+			Builtin: true, Remark: "vLLM Ascend single host (Ascend Docker Runtime; set ASCEND_VISIBLE_DEVICES in env)"},
+		{Name: "vllm-single", Engine: "vllm", Device: computeKindGPU, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: false,
 			LaunchTemplate: computeVllmSingle, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
 			Builtin: true, Remark: "vLLM single host (docker)"},
-		{Name: "vllm-ray-multinode", Engine: "vllm", Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: true,
+		{Name: "vllm-ray-multinode", Engine: "vllm", Device: computeKindGPU, Image: "nvcr.io/nvidia/vllm:25.09-py3", MultiNode: true,
 			LaunchTemplate: computeVllmRay, StopTemplate: computeStopDocker, HealthPath: "/health", MetricsPath: "/metrics",
 			Builtin: true, Remark: "vLLM over Ray across a fabric domain (NCCL over RoCE)"},
 	}

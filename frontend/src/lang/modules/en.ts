@@ -9012,6 +9012,8 @@ const message = {
             throughput: 'Throughput',
         },
         warn: {
+            npuTemp: 'NPU{0} temperature {1}°C',
+            npuHealth: 'NPU {0} health {1}',
             gpuTemp: 'GPU{0} temperature {1}°C',
             rdmaErr: 'Optical port {0}: {1} new errors',
             rdmaDown: 'Optical port {0} link down',
@@ -9020,6 +9022,7 @@ const message = {
             diskHigh: 'Root partition usage above 90%',
         },
         overview: {
+            accel: 'Accelerator avg util',
             emptyTitle: 'No compute hosts managed yet',
             emptyHelper: 'Adding a host only requires an SSH account; nothing is installed on the host. After onboarding, the optical interconnect topology and running inference services are discovered automatically.',
             hosts: 'Online hosts',
@@ -9042,6 +9045,8 @@ const message = {
             warnings: 'Host alerts',
         },
         host: {
+            accelerator: 'Accelerator',
+            npuUnhealthy: '{0} NPU chip(s) unhealthy',
             add: 'Add host',
             edit: 'Edit host',
             batch: 'Bulk import',
@@ -9168,6 +9173,8 @@ const message = {
             switchConfirm: 'Switch the model of {0}? The instance is unavailable during the switch.',
         },
         tpl: {
+            device: 'Device',
+            memPoolHint: '(device memory for NPU / discrete GPU, host memory for unified memory)',
             profiles: 'Model profiles',
             profilesHelper: 'Model + runtime template + resource requirements; used by deployment and auto scaling',
             addProfile: 'New model profile',
@@ -9346,7 +9353,7 @@ const message = {
         search: 'Search node name / IP',
         onlyRisk: 'Only with risks',
         temperature: 'Temperature',
-        gpu: 'GPU',
+        gpu: 'GPU / NPU',
         gpuCards: 'card(s)',
         maxTemp: 'max',
         kindCpuTemp: 'High CPU temperature',

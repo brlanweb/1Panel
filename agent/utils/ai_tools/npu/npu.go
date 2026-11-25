@@ -114,6 +114,14 @@ func parseAscendSMI(data string) *Info {
 		if len(cells) != 3 {
 			continue
 		}
+		// A card header row is "<npu id> <product name>"; the rows after it
+		// are its chips ("<chip id> [<device id>]", all numeric). 310P cards
+		// and A3 dual-die NPUs list several chips under one header, so the
+		// header is kept until the next one instead of being consumed by
+		// the first chip.
+		if isAscendCardHeader(cells[0]) {
+			pending = nil
+		}
 		if pending == nil {
 			fields := strings.Fields(cells[0])
 			if len(fields) < 2 {
@@ -153,14 +161,15 @@ func parseAscendSMI(data string) *Info {
 			pending = nil
 			continue
 		}
-		pending.ChipIndex = uint(chipID)
+		chip := *pending
+		chip.ChipIndex = uint(chipID)
 		if len(deviceFields) > 1 {
 			deviceID, err := strconv.ParseUint(deviceFields[1], 10, 64)
 			if err != nil {
 				pending = nil
 				continue
 			}
-			pending.Index = uint(deviceID)
+			chip.Index = uint(deviceID)
 		}
 
 		metrics := strings.Fields(cells[2])
@@ -168,13 +177,13 @@ func parseAscendSMI(data string) *Info {
 			pending = nil
 			continue
 		}
-		pending.BusID = strings.TrimSpace(cells[1])
-		pending.AICore = ascendValueWithUnit(metrics[0], "%")
-		pending.MemoryUsed, pending.MemoryTotal, pending.HBMUsed, pending.HBMTotal = ascendMemoryPools(cells[2], chipMetricsHeader)
-		pending.MemUsed, pending.MemTotal = ascendMemoryUsage(cells[2])
-		deviceIndexes[ascendDeviceKey{npuID: pending.NPUIndex, chipID: pending.ChipIndex}] = len(info.Devices)
-		info.Devices = append(info.Devices, *pending)
-		pending = nil
+		chip.BusID = strings.TrimSpace(cells[1])
+		chip.AICore = ascendValueWithUnit(metrics[0], "%")
+		chip.MemoryUsed, chip.MemoryTotal, chip.HBMUsed, chip.HBMTotal = ascendMemoryPools(cells[2], chipMetricsHeader)
+		chip.MemUsed, chip.MemTotal = ascendMemoryUsage(cells[2])
+		chip.Processes = nil
+		deviceIndexes[ascendDeviceKey{npuID: chip.NPUIndex, chipID: chip.ChipIndex}] = len(info.Devices)
+		info.Devices = append(info.Devices, chip)
 	}
 
 	for i := range info.Devices {
@@ -184,6 +193,20 @@ func parseAscendSMI(data string) *Info {
 		}
 	}
 	return info
+}
+
+// isAscendCardHeader reports whether the first cell is "<id> <name>" with a
+// non-numeric product name (chip rows only contain numbers).
+func isAscendCardHeader(cell string) bool {
+	fields := strings.Fields(cell)
+	if len(fields) < 2 {
+		return false
+	}
+	if _, err := strconv.ParseUint(fields[0], 10, 64); err != nil {
+		return false
+	}
+	_, err := strconv.ParseUint(fields[1], 10, 64)
+	return err != nil
 }
 
 func ascendTableCells(line string) []string {

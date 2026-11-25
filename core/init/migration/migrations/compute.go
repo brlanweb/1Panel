@@ -18,6 +18,15 @@ var AddComputeTables = &gormigrate.Migration{
 	},
 }
 
+// AddComputeAcceleratorKind adds compute_runtimes.device (gpu / npu) and
+// the built-in vLLM Ascend runtime is seeded at start-up.
+var AddComputeAcceleratorKind = &gormigrate.Migration{
+	ID: "20261125-add-compute-accelerator-kind",
+	Migrate: func(tx *gorm.DB) error {
+		return tx.AutoMigrate(&model.ComputeRuntime{})
+	},
+}
+
 // AddComputeMenu adds "算力调度" under the cluster menu, right after the
 // resource monitor. The label must equal the frontend route name.
 var AddComputeMenu = &gormigrate.Migration{

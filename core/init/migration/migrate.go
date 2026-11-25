@@ -98,5 +98,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.AddClusterNodeHardwareColumns,
 		migrations.AddComputeTables,
 		migrations.AddComputeMenu,
+		migrations.AddComputeAcceleratorKind,
 	}
 }

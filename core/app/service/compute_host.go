@@ -342,7 +342,11 @@ func (u *ComputeService) TestHost(req dto.ComputeHostReq) (dto.ComputeHostTestRe
 	res.OK = true
 	res.Hostname, res.Arch, res.OS, res.Driver = slow.Hostname, slow.Arch, slow.OS, slow.Driver
 	if len(fast.GPUs) > 0 {
-		res.GpuModel = fmt.Sprintf("%s x%d", fast.GPUs[0].Name, len(fast.GPUs))
+		name := fast.GPUs[0].Name
+		if fast.GPUs[0].Kind == computeKindNPU {
+			name = "Ascend " + name + " (NPU)"
+		}
+		res.GpuModel = fmt.Sprintf("%s x%d", name, len(fast.GPUs))
 	}
 	return res, nil
 }

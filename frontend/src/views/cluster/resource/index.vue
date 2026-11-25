@@ -177,7 +177,17 @@
                                                 </template>
                                                 <div v-for="g in row.gpus" :key="g.kind + g.index" class="disk-line">
                                                     <div class="disk-line-head">
-                                                        <span class="disk-path">#{{ g.index }} {{ g.name }}</span>
+                                                        <span class="disk-path">
+                                                            <el-tag
+                                                                v-if="g.kind === 'npu'"
+                                                                size="small"
+                                                                type="warning"
+                                                                effect="plain"
+                                                            >
+                                                                NPU
+                                                            </el-tag>
+                                                            #{{ g.index }} {{ g.name }}
+                                                        </span>
                                                         <span>
                                                             <span
                                                                 v-if="g.temperature !== null"

@@ -24,7 +24,9 @@
                 <span v-if="profile" class="input-help">
                     {{ profile.modelPath }} · {{ $t('compute.tpl.nodeCount') }} {{ profile.nodeCount }}
                     <span v-if="profile.needFabric">· {{ $t('compute.tpl.needFabric') }}</span>
-                    <span v-if="profile.minMemGb">· ≥{{ profile.minMemGb }} GiB</span>
+                    <span v-if="profile.minMemGb">
+                        · ≥{{ profile.minMemGb }} GiB {{ $t('compute.tpl.memPoolHint') }}
+                    </span>
                 </span>
             </el-form-item>
             <template v-if="mode === 'deploy'">

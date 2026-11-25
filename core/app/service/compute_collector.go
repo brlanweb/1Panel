@@ -253,6 +253,9 @@ func computeCollectHost(h model.ComputeHost, doSlow bool) bool {
 		unified := false
 		if len(fast.GPUs) > 0 {
 			gpuModel = fast.GPUs[0].Name
+			if fast.GPUs[0].Kind == "npu" && !strings.HasPrefix(strings.ToLower(gpuModel), "ascend") {
+				gpuModel = "Ascend " + gpuModel
+			}
 			unified = computeIsUnified(fast.GPUs[0])
 		}
 		vars["hostname"] = slow.Hostname
@@ -276,7 +279,7 @@ func computeCollectHost(h model.ComputeHost, doSlow bool) bool {
 // computeIsUnified: GB10 / GH200-class parts report memory as N/A (or 0)
 // because the GPU shares system memory.
 func computeIsUnified(g computeGPURaw) bool {
-	if g.MemTotal > 0 {
+	if g.MemTotal > 0 || g.Kind == "npu" {
 		return false
 	}
 	name := strings.ToUpper(g.Name)
@@ -303,8 +306,12 @@ func computeBuildRealtime(cur computeFastRaw, prev *computeFastRaw, dt time.Dura
 		rt.CpuPercent = computeRound((dTotal - dIdle) / dTotal * 100)
 	}
 	for _, g := range cur.GPUs {
-		item := dto.ComputeGPU{Index: g.Index, Name: g.Name, Util: g.Util, Temp: g.Temp, Power: g.Power,
-			MemUsed: uint64(g.MemUsed) << 20, MemTotal: uint64(g.MemTotal) << 20}
+		kind := g.Kind
+		if kind == "" {
+			kind = "gpu"
+		}
+		item := dto.ComputeGPU{Kind: kind, Index: g.Index, Card: g.Card, Chip: g.Chip, Name: g.Name, Health: g.Health,
+			Util: g.Util, Temp: g.Temp, Power: g.Power, MemUsed: uint64(g.MemUsed) << 20, MemTotal: uint64(g.MemTotal) << 20}
 		if computeIsUnified(g) {
 			item.Unified = true
 			item.MemTotal = cur.MemTotal
@@ -312,7 +319,10 @@ func computeBuildRealtime(cur computeFastRaw, prev *computeFastRaw, dt time.Dura
 		}
 		rt.GPUs = append(rt.GPUs, item)
 		if g.Temp >= 85 {
-			rt.Warnings = append(rt.Warnings, fmt.Sprintf("gpuTemp:%d:%.0f", g.Index, g.Temp))
+			rt.Warnings = append(rt.Warnings, fmt.Sprintf("%sTemp:%d:%.0f", kind, g.Index, g.Temp))
+		}
+		if kind == "npu" && !computeNPUHealthy(g.Health) {
+			rt.Warnings = append(rt.Warnings, fmt.Sprintf("npuHealth:%d-%d:%s", g.Card, g.Chip, g.Health))
 		}
 	}
 	prevNic := map[string]computeNicRaw{}

@@ -79,13 +79,17 @@ export const warningText = (code: string) => {
     const parts = code.split(':');
     // overview warnings are prefixed with the host name
     let host = '';
-    if (!['gpuTemp', 'rdmaErr', 'rdmaDown', 'memLow', 'swap', 'diskHigh'].includes(parts[0])) {
+    if (!['gpuTemp', 'npuTemp', 'npuHealth', 'rdmaErr', 'rdmaDown', 'memLow', 'swap', 'diskHigh'].includes(parts[0])) {
         host = parts.shift() + ' ';
     }
     const [kind, a, b] = parts;
     switch (kind) {
         case 'gpuTemp':
             return host + t('compute.warn.gpuTemp', [a, b]);
+        case 'npuTemp':
+            return host + t('compute.warn.npuTemp', [a, b]);
+        case 'npuHealth':
+            return host + t('compute.warn.npuHealth', [a, b]);
         case 'rdmaErr':
             return host + t('compute.warn.rdmaErr', [a, b]);
         case 'rdmaDown':

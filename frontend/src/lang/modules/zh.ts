@@ -8400,6 +8400,8 @@ const message = {
             throughput: '吞吐',
         },
         warn: {
+            npuTemp: 'NPU{0} 温度 {1}°C',
+            npuHealth: 'NPU {0} 健康状态 {1}',
             gpuTemp: 'GPU{0} 温度 {1}°C',
             rdmaErr: '光口 {0} 新增错误 {1}',
             rdmaDown: '光口 {0} 链路断开',
@@ -8408,6 +8410,7 @@ const message = {
             diskHigh: '根分区使用率超过 90%',
         },
         overview: {
+            accel: '加速卡平均利用率',
             emptyTitle: '还没有纳管算力主机',
             emptyHelper: '添加主机只需要 SSH 账号，不在主机上安装任何程序；纳管后会自动发现光口互联拓扑和正在运行的推理服务。',
             hosts: '在线主机',
@@ -8430,6 +8433,8 @@ const message = {
             warnings: '主机告警',
         },
         host: {
+            accelerator: '加速卡',
+            npuUnhealthy: '{0} 个 NPU 芯片状态异常',
             add: '添加主机',
             edit: '编辑主机',
             batch: '批量导入',
@@ -8556,6 +8561,8 @@ const message = {
             switchConfirm: '确认切换 {0} 的模型？切换期间该实例不提供服务。',
         },
         tpl: {
+            device: '设备',
+            memPoolHint: '（NPU/独显按卡内存，统一内存按主机内存）',
             profiles: '模型配置',
             profilesHelper: '模型 + 引擎模板 + 资源需求，部署和自动扩容都基于它',
             addProfile: '新建模型配置',
@@ -8733,7 +8740,7 @@ const message = {
         search: '搜索节点名称 / IP',
         onlyRisk: '只看有风险',
         temperature: '温度',
-        gpu: 'GPU',
+        gpu: 'GPU / NPU',
         gpuCards: '张卡',
         maxTemp: '最高',
         kindCpuTemp: 'CPU 温度过高',

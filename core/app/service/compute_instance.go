@@ -106,16 +106,19 @@ func (u *ComputeService) SaveRuntime(req dto.ComputeRuntimeReq) error {
 	if req.MetricsPath == "" {
 		req.MetricsPath = "/metrics"
 	}
+	if req.Device == "" {
+		req.Device = computeKindGPU
+	}
 	if dup, err := repo.ComputeRuntimeRepo.Get(repo.WithByName(req.Name)); err == nil && dup.ID != req.ID {
 		return buserr.New("ErrRecordExist")
 	}
 	if req.ID == 0 {
-		rt := model.ComputeRuntime{Name: req.Name, Engine: req.Engine, Image: req.Image, MultiNode: req.MultiNode,
+		rt := model.ComputeRuntime{Name: req.Name, Engine: req.Engine, Device: req.Device, Image: req.Image, MultiNode: req.MultiNode,
 			LaunchTemplate: req.LaunchTemplate, StopTemplate: req.StopTemplate, HealthPath: req.HealthPath,
 			MetricsPath: req.MetricsPath, Remark: req.Remark}
 		return repo.ComputeRuntimeRepo.Create(&rt)
 	}
-	return repo.ComputeRuntimeRepo.Update(req.ID, map[string]interface{}{"name": req.Name, "engine": req.Engine, "image": req.Image,
+	return repo.ComputeRuntimeRepo.Update(req.ID, map[string]interface{}{"name": req.Name, "engine": req.Engine, "device": req.Device, "image": req.Image,
 		"multi_node": req.MultiNode, "launch_template": req.LaunchTemplate, "stop_template": req.StopTemplate,
 		"health_path": req.HealthPath, "metrics_path": req.MetricsPath, "remark": req.Remark})
 }

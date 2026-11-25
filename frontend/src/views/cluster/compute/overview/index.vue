@@ -31,13 +31,15 @@
                 </div>
             </el-card>
             <el-card shadow="hover" class="stat-card">
-                <div class="stat-title">{{ $t('compute.overview.gpu') }}</div>
+                <div class="stat-title">{{ $t('compute.overview.accel') }}</div>
                 <div class="stat-value">
                     {{ data.gpuUtilAvg.toFixed(0) }}
                     <span class="stat-unit">%</span>
                 </div>
                 <div class="stat-note">
-                    {{ data.gpus }} GPU · {{ $t('compute.overview.mem') }} {{ size(data.memUsed) }} /
+                    <template v-if="data.gpus">{{ data.gpus }} GPU ·</template>
+                    <template v-if="data.npus">{{ data.npus }} NPU ·</template>
+                    {{ $t('compute.overview.mem') }} {{ size(data.memUsed) }} /
                     {{ size(data.memTotal) }}
                 </div>
             </el-card>

@@ -20,6 +20,9 @@ echo '@@STAT'; head -1 /proc/stat; cat /proc/loadavg; nproc 2>/dev/null
 echo '@@MEM'; grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo
 echo '@@GPU'
 if command -v nvidia-smi >/dev/null 2>&1; then timeout 8 nvidia-smi --query-gpu=index,name,utilization.gpu,temperature.gpu,power.draw,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null; fi
+echo '@@NPU'
+S=$(command -v npu-smi 2>/dev/null || ls /usr/local/sbin/npu-smi /usr/local/bin/npu-smi 2>/dev/null | head -1)
+if [ -n "$S" ]; then timeout 8 "$S" info 2>/dev/null; fi
 echo '@@NET'
 for d in /sys/class/net/*; do n=${d##*/}
 case $n in lo|veth*|docker*|br-*|virbr*|cali*|flannel*|cni*|tun*|tap*|vxlan*|kube*) continue;; esac
@@ -37,7 +40,7 @@ echo '@@DISK'; df -P / 2>/dev/null | tail -1
 `
 
 const computeSlowScript = `export LC_ALL=C
-echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}"); (head -1 /proc/driver/nvidia/version 2>/dev/null || echo -); nproc 2>/dev/null || echo 0
+echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}"); (head -1 /proc/driver/nvidia/version 2>/dev/null || grep -m1 '^Version=' /usr/local/Ascend/driver/version.info 2>/dev/null || echo -); nproc 2>/dev/null || echo 0
 echo '@@ADDR'; ip -o -4 addr show 2>/dev/null | awk '{print $2, $4}'
 echo '@@ARP'; tail -n +2 /proc/net/arp 2>/dev/null | awk '$3=="0x2"{print $1, $4, $6}'
 echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null
@@ -106,9 +109,14 @@ type computeRdmaRaw struct {
 	LinkErrRecovery          uint64
 }
 
+// computeGPURaw is one accelerator: an NVIDIA GPU or an Ascend NPU chip.
 type computeGPURaw struct {
+	Kind     string // gpu / npu
 	Index    int
+	Card     int // NPU card id (npu-smi "NPU" column); GPU index otherwise
+	Chip     int // NPU chip id on the card
 	Name     string
+	Health   string // NPU health (OK / Warning / Alarm / Critical)
 	Util     float64
 	Temp     float64
 	Power    float64
@@ -175,8 +183,11 @@ func parseComputeFast(out string) computeFastRaw {
 		if len(f) < 7 {
 			continue
 		}
+		idx := int(cAtoU(f[0]))
 		r.GPUs = append(r.GPUs, computeGPURaw{
-			Index:    int(cAtoU(f[0])),
+			Kind:     "gpu",
+			Index:    idx,
+			Card:     idx,
 			Name:     strings.TrimSpace(f[1]),
 			Util:     cAtoF(f[2]),
 			Temp:     cAtoF(f[3]),
@@ -185,6 +196,7 @@ func parseComputeFast(out string) computeFastRaw {
 			MemTotal: cAtoF(f[6]),
 		})
 	}
+	r.GPUs = append(r.GPUs, parseComputeNPU(sec["NPU"])...)
 	for _, line := range sec["NET"] {
 		f := strings.Fields(line)
 		if len(f) < 5 {
@@ -253,7 +265,8 @@ type computeSlowRaw struct {
 	Procs      []computeProcRaw
 }
 
-var computeDriverRe = regexp.MustCompile(`\b(\d{3}\.\d+(?:\.\d+)?)\b`)
+// NVIDIA: "... 580.159.03 ..."; Ascend version.info: "Version=24.1.rc2".
+var computeDriverRe = regexp.MustCompile(`\b(\d{3}\.\d+(?:\.\d+)?)\b|Version=(\S+)`)
 
 func parseComputeSlow(out string) computeSlowRaw {
 	sec := computeSections(out)
@@ -266,8 +279,11 @@ func parseComputeSlow(out string) computeSlowRaw {
 		return ""
 	}
 	r.Hostname, r.Arch, r.OS = get(0), get(1), get(2)
-	if m := computeDriverRe.FindStringSubmatch(get(3)); len(m) > 1 {
+	if m := computeDriverRe.FindStringSubmatch(get(3)); len(m) > 2 {
 		r.Driver = m[1]
+		if r.Driver == "" {
+			r.Driver = m[2]
+		}
 	}
 	r.Cores = int(cAtoU(get(4)))
 	for _, line := range sec["ADDR"] {

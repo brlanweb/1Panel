@@ -66,6 +66,13 @@
                     </template>
                 </el-table-column>
                 <el-table-column :label="$t('compute.tpl.engine')" prop="engine" width="100" />
+                <el-table-column :label="$t('compute.tpl.device')" width="90">
+                    <template #default="{ row }">
+                        <el-tag size="small" effect="plain" :type="row.device === 'npu' ? 'warning' : 'primary'">
+                            {{ (row.device || 'gpu').toUpperCase() }}
+                        </el-tag>
+                    </template>
+                </el-table-column>
                 <el-table-column :label="$t('compute.tpl.image')" min-width="220">
                     <template #default="{ row }">
                         <span class="mono">{{ row.image }}</span>
@@ -204,12 +211,20 @@
             />
             <el-form label-position="top" :model="runtimeForm">
                 <el-row :gutter="12">
-                    <el-col :span="10">
+                    <el-col :span="9">
                         <el-form-item :label="$t('commons.table.name')" required>
                             <el-input v-model="runtimeForm.name" />
                         </el-form-item>
                     </el-col>
-                    <el-col :span="6">
+                    <el-col :span="4">
+                        <el-form-item :label="$t('compute.tpl.device')">
+                            <el-select v-model="runtimeForm.device">
+                                <el-option value="gpu" label="GPU" />
+                                <el-option value="npu" label="NPU" />
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="5">
                         <el-form-item :label="$t('compute.tpl.engine')">
                             <el-select v-model="runtimeForm.engine">
                                 <el-option value="vllm" label="vLLM" />
@@ -218,7 +233,7 @@
                             </el-select>
                         </el-form-item>
                     </el-col>
-                    <el-col :span="8">
+                    <el-col :span="6">
                         <el-form-item :label="$t('compute.tpl.multiNode')">
                             <el-switch v-model="runtimeForm.multiNode" />
                         </el-form-item>
@@ -298,6 +313,7 @@ const emptyRuntime = (): Partial<Compute.Runtime> => ({
     id: 0,
     name: '',
     engine: 'vllm',
+    device: 'gpu',
     image: '',
     multiNode: false,
     launchTemplate: '',

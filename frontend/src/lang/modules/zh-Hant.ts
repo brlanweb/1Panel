@@ -7969,6 +7969,8 @@ const message = {
             throughput: '吞吐量',
         },
         warn: {
+            npuTemp: 'NPU{0} 溫度 {1}°C',
+            npuHealth: 'NPU {0} 健康狀態 {1}',
             gpuTemp: 'GPU{0} 溫度 {1}°C',
             rdmaErr: '光口 {0} 新增錯誤 {1}',
             rdmaDown: '光口 {0} 連結中斷',
@@ -7977,6 +7979,7 @@ const message = {
             diskHigh: '根分割區使用率超過 90%',
         },
         overview: {
+            accel: '加速卡平均使用率',
             emptyTitle: '尚未納管算力主機',
             emptyHelper: '新增主機只需要 SSH 帳號，不會在主機上安裝任何程式；納管後會自動探索光口互聯拓撲和正在執行的推論服務。',
             hosts: '線上主機',
@@ -7999,6 +8002,8 @@ const message = {
             warnings: '主機告警',
         },
         host: {
+            accelerator: '加速卡',
+            npuUnhealthy: '{0} 個 NPU 晶片狀態異常',
             add: '新增主機',
             edit: '編輯主機',
             batch: '批次匯入',
@@ -8125,6 +8130,8 @@ const message = {
             switchConfirm: '確認切換 {0} 的模型？切換期間該實例不提供服務。',
         },
         tpl: {
+            device: '裝置',
+            memPoolHint: '（NPU/獨立顯示卡按卡上記憶體，統一記憶體按主機記憶體）',
             profiles: '模型設定',
             profilesHelper: '模型 + 引擎範本 + 資源需求，部署和自動擴容都以此為基礎',
             addProfile: '新增模型設定',
@@ -8302,7 +8309,7 @@ const message = {
         search: '搜索節點名稱 / IP',
         onlyRisk: '只看有风險',
         temperature: '溫度',
-        gpu: 'GPU',
+        gpu: 'GPU / NPU',
         gpuCards: '張卡',
         maxTemp: '最高',
         kindCpuTemp: 'CPU 溫度過高',

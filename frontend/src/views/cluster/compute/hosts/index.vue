@@ -45,7 +45,7 @@
                     </div>
                 </template>
             </el-table-column>
-            <el-table-column label="GPU" min-width="170">
+            <el-table-column :label="$t('compute.host.accelerator')" min-width="180">
                 <template #default="{ row }">
                     <template v-if="row.realtime.gpus?.length">
                         <el-progress
@@ -54,9 +54,15 @@
                             :color="'var(--el-color-primary)'"
                         />
                         <div class="sub">
+                            <el-tag size="small" effect="plain" :type="kindOf(row) === 'npu' ? 'warning' : 'primary'">
+                                {{ kindOf(row).toUpperCase() }}
+                            </el-tag>
                             {{ row.realtime.gpus.length }}× {{ shortGpu(row.realtime.gpus[0].name) }}
                             <span :style="{ color: tempColor(maxGpu(row).temp) }">· {{ maxGpu(row).temp }}°C</span>
                             <span v-if="maxGpu(row).power">· {{ maxGpu(row).power.toFixed(0) }}W</span>
+                        </div>
+                        <div v-if="badNpu(row)" class="sub stat-danger">
+                            {{ $t('compute.host.npuUnhealthy', [badNpu(row)]) }}
                         </div>
                     </template>
                     <span v-else class="sub">{{ row.gpuModel || '—' }}</span>
@@ -185,6 +191,9 @@ const errorOf = (h: Compute.Host) => (!onlineOf(h) ? h.realtime.error || h.lastE
 const maxGpu = (h: Compute.Host) =>
     (h.realtime.gpus || []).reduce((a, b) => (b.util > a.util ? b : a), h.realtime.gpus![0]);
 const shortGpu = (name: string) => name.replace(/^NVIDIA\s+/i, '');
+const kindOf = (h: Compute.Host) => (h.realtime.gpus?.[0]?.kind === 'npu' ? 'npu' : 'gpu');
+const badNpu = (h: Compute.Host) =>
+    (h.realtime.gpus || []).filter((g) => g.kind === 'npu' && g.health && g.health.toUpperCase() !== 'OK').length;
 const activeRdma = (h: Compute.Host) => (h.realtime.rdma || []).filter((r) => r.state === 'ACTIVE' || r.errDelta);
 const unregistered = (h: Compute.Host) => (h.realtime.processes || []).filter((p) => !p.instanceId);
 

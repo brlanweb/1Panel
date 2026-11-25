@@ -183,7 +183,7 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 		}
 	}
 	if len(hostIDs) == 0 {
-		hostIDs = computePlace(prof, hosts, busy)
+		hostIDs = computePlace(prof, rt, hosts, busy)
 		if len(hostIDs) == 0 {
 			add("placement", false, fmt.Sprintf("no %d free host(s) satisfy the profile", prof.NodeCount))
 			return res
@@ -222,15 +222,14 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 		if prof.MinMemGB > 0 && rtm.Online {
 			need := uint64(prof.MinMemGB) << 30
 			// The old instance of a switch frees its memory first.
-			avail := rtm.MemAvailable
-			if excludeInst > 0 {
-				avail = rtm.MemTotal
-			}
+			avail, pool := computeFreeMem(rtm, rt.Device, excludeInst > 0)
 			add(h.Name+":memory", avail+computeMemHeadroom >= need,
-				fmt.Sprintf("%.1f GiB available / %d GiB required", float64(avail)/(1<<30), prof.MinMemGB))
+				fmt.Sprintf("%.1f GiB %s available / %d GiB required", float64(avail)/(1<<30), pool, prof.MinMemGB))
 		}
-		if len(rtm.GPUs) == 0 && rtm.Online {
-			add(h.Name+":gpu", false, "no GPU detected")
+		if rtm.Online {
+			if n := computeAccelCount(rtm, rt.Device); n == 0 {
+				add(h.Name+":"+computeDeviceKind(rt.Device), false, "no "+strings.ToUpper(computeDeviceKind(rt.Device))+" detected")
+			}
 		}
 	}
 	if prof.NeedFabric && len(hostIDs) > 1 {
@@ -296,25 +295,27 @@ func computeModelPathCheck(prof model.ComputeProfile, ids []uint, hosts map[uint
 // computePlace picks hosts for a profile: free, online, schedulable, enough
 // memory; multi-host profiles take a whole connected fabric group. Prefers
 // the least loaded hosts.
-func computePlace(prof model.ComputeProfile, hosts map[uint]model.ComputeHost, busy map[uint]string) []uint {
+func computePlace(prof model.ComputeProfile, runtime model.ComputeRuntime, hosts map[uint]model.ComputeHost, busy map[uint]string) []uint {
 	var free []uint
+	avail := map[uint]uint64{}
 	for id, h := range hosts {
 		if !h.Schedulable || busy[id] != "" {
 			continue
 		}
 		rt := computeState.hostRealtime(id)
-		if !rt.Online || len(rt.GPUs) == 0 {
+		if !rt.Online || computeAccelCount(rt, runtime.Device) == 0 {
 			continue
 		}
-		if prof.MinMemGB > 0 && rt.MemAvailable+computeMemHeadroom < uint64(prof.MinMemGB)<<30 {
+		mem, _ := computeFreeMem(rt, runtime.Device, false)
+		if prof.MinMemGB > 0 && mem+computeMemHeadroom < uint64(prof.MinMemGB)<<30 {
 			continue
 		}
+		avail[id] = mem
 		free = append(free, id)
 	}
 	sort.Slice(free, func(i, j int) bool {
-		a, b := computeState.hostRealtime(free[i]), computeState.hostRealtime(free[j])
-		if a.MemAvailable != b.MemAvailable {
-			return a.MemAvailable > b.MemAvailable
+		if avail[free[i]] != avail[free[j]] {
+			return avail[free[i]] > avail[free[j]]
 		}
 		return free[i] < free[j]
 	})

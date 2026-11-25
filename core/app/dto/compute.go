@@ -47,9 +47,14 @@ type ComputeSchedulableReq struct {
 	Schedulable bool `json:"schedulable"`
 }
 
+// ComputeGPU is one accelerator: an NVIDIA GPU or an Ascend NPU chip.
 type ComputeGPU struct {
+	Kind     string  `json:"kind"` // gpu / npu
 	Index    int     `json:"index"`
+	Card     int     `json:"card"` // NPU card id (npu-smi "NPU" column)
+	Chip     int     `json:"chip"` // NPU chip id on the card
 	Name     string  `json:"name"`
+	Health   string  `json:"health"` // NPU: OK / Warning / Alarm / Critical
 	Util     float64 `json:"util"`
 	Temp     float64 `json:"temp"`
 	Power    float64 `json:"power"`
@@ -148,6 +153,7 @@ type ComputeRuntimeReq struct {
 	ID             uint   `json:"id"`
 	Name           string `json:"name" validate:"required,max=64"`
 	Engine         string `json:"engine" validate:"required,oneof=vllm sglang other"`
+	Device         string `json:"device" validate:"omitempty,oneof=gpu npu"`
 	Image          string `json:"image"`
 	MultiNode      bool   `json:"multiNode"`
 	LaunchTemplate string `json:"launchTemplate" validate:"required"`
@@ -358,6 +364,7 @@ type ComputeOverview struct {
 	HostsIdle     int                   `json:"hostsIdle"`
 	HostsCordoned int                   `json:"hostsCordoned"`
 	GPUs          int                   `json:"gpus"`
+	NPUs          int                   `json:"npus"`
 	GPUUtilAvg    float64               `json:"gpuUtilAvg"`
 	MemTotal      uint64                `json:"memTotal"`
 	MemUsed       uint64                `json:"memUsed"`

@@ -8,7 +8,7 @@
                     <span>{{ host.os || '—' }} · {{ host.arch || '—' }}</span>
                     <span class="k">{{ $t('compute.host.driver') }}</span>
                     <span>{{ host.driver || '—' }}</span>
-                    <span class="k">GPU</span>
+                    <span class="k">{{ $t('compute.host.accelerator') }}</span>
                     <span>{{ host.gpuModel || '—' }} × {{ host.gpuCount }}</span>
                     <span class="k">CPU</span>
                     <span>{{ host.cpuCores }} {{ $t('compute.host.cores') }}</span>
@@ -22,6 +22,31 @@
                     </span>
                     <span class="k">{{ $t('compute.host.collectCost') }}</span>
                     <span>{{ rt.collectMs ? rt.collectMs + ' ms' : '—' }}</span>
+                </div>
+                <div v-if="rt.gpus?.length" class="mt-2">
+                    <div v-for="g in rt.gpus" :key="g.kind + g.index + '-' + g.chip" class="line accel">
+                        <span>
+                            <el-tag size="small" effect="plain" :type="g.kind === 'npu' ? 'warning' : 'primary'">
+                                {{ (g.kind || 'gpu').toUpperCase() }}
+                            </el-tag>
+                            <template v-if="g.kind === 'npu'">{{ g.card }}/{{ g.chip }}</template>
+                            <template v-else>#{{ g.index }}</template>
+                            <el-tag
+                                v-if="g.kind === 'npu' && g.health && g.health.toUpperCase() !== 'OK'"
+                                size="small"
+                                type="danger"
+                            >
+                                {{ g.health }}
+                            </el-tag>
+                        </span>
+                        <span class="sub">
+                            {{ g.util.toFixed(0) }}% · {{ g.temp.toFixed(0) }}°C
+                            <template v-if="g.power">· {{ g.power.toFixed(0) }}W</template>
+                            <template v-if="g.memTotal && !g.unified">
+                                · {{ size(g.memUsed) }}/{{ size(g.memTotal) }}
+                            </template>
+                        </span>
+                    </div>
                 </div>
                 <div v-if="rt.warnings?.length" class="mt-2">
                     <el-tag v-for="w in rt.warnings" :key="w" type="warning" size="small" class="mr-1">
@@ -96,6 +121,9 @@ const rt = computed(() => props.host.realtime);
 .sec-title {
     font-weight: 600;
     margin-bottom: 8px;
+}
+.accel {
+    padding: 2px 0;
 }
 .rdma,
 .proc {

@@ -1,6 +1,10 @@
 export namespace Compute {
     export interface GPU {
+        kind: string;
         index: number;
+        card: number;
+        chip: number;
+        health: string;
         name: string;
         util: number;
         temp: number;
@@ -148,6 +152,7 @@ export namespace Compute {
         id: number;
         name: string;
         engine: string;
+        device: string;
         image: string;
         multiNode: boolean;
         launchTemplate: string;
@@ -310,6 +315,7 @@ export namespace Compute {
         hostsIdle: number;
         hostsCordoned: number;
         gpus: number;
+        npus: number;
         gpuUtilAvg: number;
         memTotal: number;
         memUsed: number;

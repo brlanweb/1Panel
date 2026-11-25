@@ -1,0 +1,365 @@
+package service
+
+import (
+	"bufio"
+	"regexp"
+	"strconv"
+	"strings"
+)
+
+// Agentless collection scripts and their parsers.
+//
+// Each tier is a single POSIX sh script executed in one SSH session; the
+// output is split into "@@SECTION" blocks. Only /proc, /sys and
+// nvidia-smi are read, nothing is written to the host. The fast tier runs
+// every 15s (5s while somebody watches the page), the slow tier every
+// 5 minutes.
+
+const computeFastScript = `export LC_ALL=C
+echo '@@STAT'; head -1 /proc/stat; cat /proc/loadavg; nproc 2>/dev/null
+echo '@@MEM'; grep -E '^(MemTotal|MemAvailable|SwapTotal|SwapFree):' /proc/meminfo
+echo '@@GPU'
+if command -v nvidia-smi >/dev/null 2>&1; then timeout 8 nvidia-smi --query-gpu=index,name,utilization.gpu,temperature.gpu,power.draw,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null; fi
+echo '@@NET'
+for d in /sys/class/net/*; do n=${d##*/}
+case $n in lo|veth*|docker*|br-*|virbr*|cali*|flannel*|cni*|tun*|tap*|vxlan*|kube*) continue;; esac
+echo "$n $(cat $d/operstate 2>/dev/null || echo unknown) $(cat $d/speed 2>/dev/null || echo -1) $(cat $d/statistics/rx_bytes 2>/dev/null || echo 0) $(cat $d/statistics/tx_bytes 2>/dev/null || echo 0)"
+done
+echo '@@RDMA'
+for p in /sys/class/infiniband/*/ports/*; do [ -d "$p" ] || continue
+dev=$(echo "$p" | cut -d/ -f5); port=${p##*/}; c=$p/counters
+nd=$(ls /sys/class/infiniband/$dev/device/net 2>/dev/null | head -1)
+st=$(awk '{print $2}' $p/state 2>/dev/null); rt=$(awk '{print $1}' $p/rate 2>/dev/null)
+v=""; for k in port_rcv_data port_xmit_data port_rcv_errors symbol_error link_downed port_xmit_discards link_error_recovery; do v="$v $(cat $c/$k 2>/dev/null || echo 0)"; done
+echo "$dev $port ${st:-UNKNOWN} ${rt:-0} ${nd:--}$v"
+done
+echo '@@DISK'; df -P / 2>/dev/null | tail -1
+`
+
+const computeSlowScript = `export LC_ALL=C
+echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETTY_NAME:-unknown}"); (head -1 /proc/driver/nvidia/version 2>/dev/null || echo -); nproc 2>/dev/null || echo 0
+echo '@@ADDR'; ip -o -4 addr show 2>/dev/null | awk '{print $2, $4}'
+echo '@@ARP'; tail -n +2 /proc/net/arp 2>/dev/null | awk '$3=="0x2"{print $1, $4, $6}'
+echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null
+echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang' | grep -v -E 'grep|sh -s' | cut -c1-800
+`
+
+func computeSections(out string) map[string][]string {
+	res := map[string][]string{}
+	cur := ""
+	sc := bufio.NewScanner(strings.NewReader(out))
+	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	for sc.Scan() {
+		line := strings.TrimRight(sc.Text(), "\r")
+		if strings.HasPrefix(line, "@@") {
+			cur = strings.TrimSpace(strings.TrimPrefix(line, "@@"))
+			if _, ok := res[cur]; !ok {
+				res[cur] = nil
+			}
+			continue
+		}
+		if cur == "" || strings.TrimSpace(line) == "" {
+			continue
+		}
+		res[cur] = append(res[cur], line)
+	}
+	return res
+}
+
+func cAtoF(s string) float64 {
+	s = strings.TrimSpace(s)
+	v, err := strconv.ParseFloat(s, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+func cAtoU(s string) uint64 {
+	v, err := strconv.ParseUint(strings.TrimSpace(s), 10, 64)
+	if err != nil {
+		return 0
+	}
+	return v
+}
+
+// ---- fast tier -----------------------------------------------------------
+
+type computeCPUStat struct {
+	Total uint64
+	Idle  uint64
+}
+
+type computeNicRaw struct {
+	Name      string
+	State     string
+	SpeedMbps int64
+	Rx, Tx    uint64
+}
+
+type computeRdmaRaw struct {
+	Dev, Port, State, NetDev string
+	RateGbps                 int
+	RcvData, XmitData        uint64 // in 4-byte words (IB spec)
+	RcvErrors, SymbolErrors  uint64
+	LinkDowned, XmitDiscards uint64
+	LinkErrRecovery          uint64
+}
+
+type computeGPURaw struct {
+	Index    int
+	Name     string
+	Util     float64
+	Temp     float64
+	Power    float64
+	MemUsed  float64 // MiB; 0 when N/A (unified memory)
+	MemTotal float64
+}
+
+type computeFastRaw struct {
+	CPU          computeCPUStat
+	Load1        float64
+	Cores        int
+	MemTotal     uint64 // bytes
+	MemAvailable uint64
+	SwapTotal    uint64
+	SwapFree     uint64
+	GPUs         []computeGPURaw
+	Nics         []computeNicRaw
+	Rdma         []computeRdmaRaw
+	DiskTotal    uint64
+	DiskUsed     uint64
+}
+
+func parseComputeFast(out string) computeFastRaw {
+	sec := computeSections(out)
+	var r computeFastRaw
+	for i, line := range sec["STAT"] {
+		f := strings.Fields(line)
+		switch {
+		case i == 0 && len(f) > 4 && f[0] == "cpu":
+			var total uint64
+			for _, v := range f[1:] {
+				total += cAtoU(v)
+			}
+			idle := cAtoU(f[4])
+			if len(f) > 5 {
+				idle += cAtoU(f[5]) // iowait
+			}
+			r.CPU = computeCPUStat{Total: total, Idle: idle}
+		case i == 1 && len(f) > 0:
+			r.Load1 = cAtoF(f[0])
+		case i == 2 && len(f) == 1:
+			r.Cores = int(cAtoU(f[0]))
+		}
+	}
+	for _, line := range sec["MEM"] {
+		f := strings.Fields(line)
+		if len(f) < 2 {
+			continue
+		}
+		v := cAtoU(f[1]) * 1024
+		switch strings.TrimSuffix(f[0], ":") {
+		case "MemTotal":
+			r.MemTotal = v
+		case "MemAvailable":
+			r.MemAvailable = v
+		case "SwapTotal":
+			r.SwapTotal = v
+		case "SwapFree":
+			r.SwapFree = v
+		}
+	}
+	for _, line := range sec["GPU"] {
+		f := strings.Split(line, ",")
+		if len(f) < 7 {
+			continue
+		}
+		r.GPUs = append(r.GPUs, computeGPURaw{
+			Index:    int(cAtoU(f[0])),
+			Name:     strings.TrimSpace(f[1]),
+			Util:     cAtoF(f[2]),
+			Temp:     cAtoF(f[3]),
+			Power:    cAtoF(f[4]),
+			MemUsed:  cAtoF(f[5]),
+			MemTotal: cAtoF(f[6]),
+		})
+	}
+	for _, line := range sec["NET"] {
+		f := strings.Fields(line)
+		if len(f) < 5 {
+			continue
+		}
+		speed, _ := strconv.ParseInt(f[2], 10, 64)
+		r.Nics = append(r.Nics, computeNicRaw{Name: f[0], State: f[1], SpeedMbps: speed, Rx: cAtoU(f[3]), Tx: cAtoU(f[4])})
+	}
+	for _, line := range sec["RDMA"] {
+		f := strings.Fields(line)
+		if len(f) < 12 {
+			continue
+		}
+		nd := f[4]
+		if nd == "-" {
+			nd = ""
+		}
+		r.Rdma = append(r.Rdma, computeRdmaRaw{
+			Dev: f[0], Port: f[1], State: f[2], RateGbps: int(cAtoF(f[3])), NetDev: nd,
+			RcvData: cAtoU(f[5]), XmitData: cAtoU(f[6]), RcvErrors: cAtoU(f[7]), SymbolErrors: cAtoU(f[8]),
+			LinkDowned: cAtoU(f[9]), XmitDiscards: cAtoU(f[10]), LinkErrRecovery: cAtoU(f[11]),
+		})
+	}
+	if lines := sec["DISK"]; len(lines) > 0 {
+		f := strings.Fields(lines[0])
+		if len(f) >= 4 {
+			r.DiskTotal = cAtoU(f[1]) * 1024
+			r.DiskUsed = cAtoU(f[2]) * 1024
+		}
+	}
+	return r
+}
+
+// ---- slow tier -----------------------------------------------------------
+
+type computeProcRaw struct {
+	Pid        int    `json:"pid"`
+	Engine     string `json:"engine"`
+	Port       int    `json:"port"`
+	Model      string `json:"model"`
+	ServedName string `json:"servedName"`
+	Cmd        string `json:"cmd"`
+}
+
+type computeNeighbour struct {
+	IP    string `json:"ip"`
+	Mac   string `json:"mac"`
+	Iface string `json:"iface"`
+}
+
+type computeContainer struct {
+	Name   string `json:"name"`
+	Image  string `json:"image"`
+	Status string `json:"status"`
+}
+
+type computeSlowRaw struct {
+	Hostname   string
+	Arch       string
+	OS         string
+	Driver     string
+	Cores      int
+	Addrs      map[string]string // iface -> ipv4
+	Neighbours []computeNeighbour
+	Containers []computeContainer
+	Procs      []computeProcRaw
+}
+
+var computeDriverRe = regexp.MustCompile(`\b(\d{3}\.\d+(?:\.\d+)?)\b`)
+
+func parseComputeSlow(out string) computeSlowRaw {
+	sec := computeSections(out)
+	r := computeSlowRaw{Addrs: map[string]string{}}
+	meta := sec["META"]
+	get := func(i int) string {
+		if i < len(meta) {
+			return strings.TrimSpace(meta[i])
+		}
+		return ""
+	}
+	r.Hostname, r.Arch, r.OS = get(0), get(1), get(2)
+	if m := computeDriverRe.FindStringSubmatch(get(3)); len(m) > 1 {
+		r.Driver = m[1]
+	}
+	r.Cores = int(cAtoU(get(4)))
+	for _, line := range sec["ADDR"] {
+		f := strings.Fields(line)
+		if len(f) < 2 {
+			continue
+		}
+		ip := strings.SplitN(f[1], "/", 2)[0]
+		if _, ok := r.Addrs[f[0]]; !ok {
+			r.Addrs[f[0]] = ip
+		}
+	}
+	for _, line := range sec["ARP"] {
+		f := strings.Fields(line)
+		if len(f) < 3 {
+			continue
+		}
+		r.Neighbours = append(r.Neighbours, computeNeighbour{IP: f[0], Mac: f[1], Iface: f[2]})
+	}
+	for _, line := range sec["CTR"] {
+		f := strings.SplitN(line, "|", 3)
+		if len(f) < 3 {
+			continue
+		}
+		r.Containers = append(r.Containers, computeContainer{Name: f[0], Image: f[1], Status: f[2]})
+	}
+	seen := map[int]bool{}
+	for _, line := range sec["PROC"] {
+		if p, ok := parseComputeProc(line); ok {
+			// Keep one entry per serving port (vLLM forks workers with the
+			// same command line).
+			if p.Port > 0 && seen[p.Port] {
+				continue
+			}
+			if p.Port > 0 {
+				seen[p.Port] = true
+			}
+			r.Procs = append(r.Procs, p)
+		}
+	}
+	return r
+}
+
+func parseComputeProc(line string) (computeProcRaw, bool) {
+	f := strings.Fields(line)
+	if len(f) < 2 {
+		return computeProcRaw{}, false
+	}
+	p := computeProcRaw{Pid: int(cAtoU(f[0])), Cmd: strings.Join(f[1:], " ")}
+	args := f[1:]
+	isServe := false
+	for i, a := range args {
+		switch {
+		case strings.Contains(a, "sglang"):
+			p.Engine = "sglang"
+		case strings.HasSuffix(a, "vllm") || strings.Contains(a, "vllm.entrypoints"):
+			p.Engine = "vllm"
+		}
+		if a == "serve" && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
+			isServe = true
+			p.Model = args[i+1]
+		}
+		if strings.Contains(a, "api_server") || strings.Contains(a, "launch_server") {
+			isServe = true
+		}
+		key, val := a, ""
+		if k, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "--") {
+			key, val = k, v
+		} else if i+1 < len(args) {
+			val = args[i+1]
+		}
+		switch key {
+		case "--port":
+			p.Port = int(cAtoU(val))
+		case "--model", "--model-path":
+			p.Model = val
+		case "--served-model-name":
+			p.ServedName = val
+		}
+	}
+	if p.Engine == "" || !isServe {
+		return p, false
+	}
+	if p.Port == 0 {
+		if p.Engine == "sglang" {
+			p.Port = 30000
+		} else {
+			p.Port = 8000
+		}
+	}
+	if p.ServedName == "" {
+		p.ServedName = p.Model
+	}
+	return p, true
+}

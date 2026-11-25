@@ -59,6 +59,7 @@ func Start() {
 	service.CloseTerminalSessions("all", "", "")
 	service.StartClusterAlertSampler()
 	service.StartClusterNodePatrol()
+	service.StartComputeScheduler()
 
 	rootRouter := router.Routers()
 

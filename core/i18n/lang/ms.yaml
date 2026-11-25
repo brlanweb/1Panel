@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "Bekas terdahulu tiada; langkau pembersihan imej."
 MCPInstallCleanupFailed: "Perkhidmatan MCP telah dinaik taraf, tetapi pembersihan sumber lama belum selesai. Semak secara manual."
 ErrClusterAppOnly: "Pasang dan naik taraf aplikasi ini di Ketersediaan Tinggi Aplikasi."
 ErrClusterAgentUpgradeRequired: "Agent pada nod yang dipilih tidak menyokong pemasangan aplikasi ketersediaan tinggi. Naik taraf nod dalam Pengurusan Multi-Mesin dan cuba lagi."
+
+# compute scheduling
+ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
+ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
+ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
+ErrComputePrecheck: "Precheck failed: {{ .detail }}"

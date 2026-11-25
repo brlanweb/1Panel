@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "The previous container is absent; skip image cleanup.
 MCPInstallCleanupFailed: "MCP service upgraded, but old resources could not be fully cleaned up. Check them manually."
 ErrClusterAppOnly: "Install and upgrade this application in Application High Availability."
 ErrClusterAgentUpgradeRequired: "The selected node’s Agent does not support high availability installation. Upgrade the node in Multi-Machine Management and try again."
+
+# compute scheduling
+ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
+ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
+ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
+ErrComputePrecheck: "Precheck failed: {{ .detail }}"

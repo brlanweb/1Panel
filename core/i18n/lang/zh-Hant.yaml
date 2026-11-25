@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "舊容器已不存在，略過舊映像清理。"
 MCPInstallCleanupFailed: "MCP 服務已升級，舊資源清理未完成，請手動檢查。"
 ErrClusterAppOnly: "請在「應用高可用」中安裝或升級此應用。"
 ErrClusterAgentUpgradeRequired: "所選節點的 Agent 版本暫不支援高可用安裝。請前往「多機管理」升級該節點後重試。"
+
+# compute scheduling
+ErrComputeHostInUse: "主機正被推理實例 {{ .detail }} 使用，請先停止或移除該實例"
+ErrComputeInUse: "該範本仍被 {{ .detail }} 引用，無法刪除"
+ErrComputeAdopted: "該實例為接管的現網實例，面板不負責其啟停；如確認操作請勾選強制執行"
+ErrComputeHostBusy: "所選主機上已有正在執行的任務，請稍後再試"
+ErrComputePrecheck: "預檢未通過：{{ .detail }}"

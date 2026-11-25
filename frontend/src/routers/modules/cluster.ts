@@ -30,6 +30,15 @@ const clusterRouter = {
             },
         },
         {
+            path: '/cluster/compute',
+            name: 'ClusterCompute',
+            component: () => import('@/views/cluster/compute/index.vue'),
+            meta: {
+                title: 'menu.clusterCompute',
+                permission: 'cluster_node_view',
+            },
+        },
+        {
             path: '/cluster/nodes',
             name: 'ClusterNodes',
             component: () => import('@/views/cluster/nodes/index.vue'),

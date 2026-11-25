@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "کانتینر قبلی وجود ندارد؛ پاک�
 MCPInstallCleanupFailed: "سرویس MCP ارتقا یافت، اما پاک‌سازی منابع قبلی کامل نشد. آن‌ها را دستی بررسی کنید."
 ErrClusterAppOnly: "این برنامه را در بخش دسترس‌پذیری بالای برنامه‌ها نصب و به‌روزرسانی کنید."
 ErrClusterAgentUpgradeRequired: "Agent گره انتخاب‌شده از نصب برنامه‌های دسترس‌پذیری بالا پشتیبانی نمی‌کند. گره را در «مدیریت چند ماشینه» ارتقا دهید و دوباره تلاش کنید."
+
+# compute scheduling
+ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
+ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
+ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
+ErrComputePrecheck: "Precheck failed: {{ .detail }}"

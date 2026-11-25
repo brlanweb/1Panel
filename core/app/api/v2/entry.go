@@ -20,6 +20,7 @@ var (
 	clusterSyncService          = service.NewIClusterSyncService()
 	clusterMonitorService       = service.NewIClusterMonitorService()
 	clusterDbReplicationService = service.NewIClusterDbReplicationService()
+	computeService              = service.NewIComputeService()
 	commandService              = service.NewICommandService()
 	scriptService               = service.NewIScriptService()
 )

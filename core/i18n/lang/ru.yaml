@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "Предыдущий контейнер отсутс�
 MCPInstallCleanupFailed: "Служба MCP обновлена, но старые ресурсы очищены не полностью. Проверьте их вручную."
 ErrClusterAppOnly: "Устанавливайте и обновляйте это приложение в разделе высокой доступности приложений."
 ErrClusterAgentUpgradeRequired: "Agent выбранного узла не поддерживает установку приложений высокой доступности. Обновите узел в разделе «Управление Несколькими Машинами» и повторите попытку."
+
+# compute scheduling
+ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
+ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
+ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
+ErrComputePrecheck: "Precheck failed: {{ .detail }}"

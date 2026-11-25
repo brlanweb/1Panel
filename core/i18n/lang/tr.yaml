@@ -601,3 +601,10 @@ MCPInstallCleanupSkipped: "Önceki konteyner yok; imaj temizliği atlandı."
 MCPInstallCleanupFailed: "MCP hizmeti yükseltildi ancak eski kaynakların temizliği tamamlanamadı. Elle kontrol edin."
 ErrClusterAppOnly: "Bu uygulamayı Uygulama Yüksek Erişilebilirliği bölümünde kurun ve yükseltin."
 ErrClusterAgentUpgradeRequired: "Seçilen düğümdeki Agent, yüksek erişilebilirlik uygulamalarının kurulumunu desteklemiyor. Düğümü Çoklu Makine Yönetimi bölümünde yükseltip tekrar deneyin."
+
+# compute scheduling
+ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
+ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
+ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
+ErrComputePrecheck: "Precheck failed: {{ .detail }}"

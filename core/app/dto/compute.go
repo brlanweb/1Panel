@@ -1,0 +1,378 @@
+package dto
+
+import "github.com/1Panel-dev/1Panel/core/app/model"
+
+// ---- hosts ---------------------------------------------------------------
+
+type ComputeHostReq struct {
+	ID            uint   `json:"id"`
+	Name          string `json:"name" validate:"required,max=64"`
+	Addr          string `json:"addr" validate:"required,max=255"`
+	SSHPort       int    `json:"sshPort" validate:"omitempty,min=1,max=65535"`
+	SSHUser       string `json:"sshUser" validate:"max=64"`
+	AuthMode      string `json:"authMode" validate:"omitempty,oneof=password key"`
+	Credential    string `json:"credential"`
+	PassPhrase    string `json:"passPhrase"`
+	ClusterNodeID uint   `json:"clusterNodeId"`
+	Labels        string `json:"labels" validate:"max=255"`
+	Remark        string `json:"remark" validate:"max=255"`
+	Schedulable   *bool  `json:"schedulable"`
+}
+
+type ComputeHostBatchReq struct {
+	// One host per line: name,addr[,port[,user]]; credentials are shared.
+	Lines      string `json:"lines" validate:"required"`
+	SSHUser    string `json:"sshUser"`
+	SSHPort    int    `json:"sshPort"`
+	AuthMode   string `json:"authMode" validate:"omitempty,oneof=password key"`
+	Credential string `json:"credential" validate:"required"`
+	PassPhrase string `json:"passPhrase"`
+	Labels     string `json:"labels"`
+}
+
+type ComputeHostTestRes struct {
+	OK        bool   `json:"ok"`
+	Message   string `json:"message"`
+	Hostname  string `json:"hostname"`
+	Arch      string `json:"arch"`
+	OS        string `json:"os"`
+	Driver    string `json:"driver"`
+	GpuModel  string `json:"gpuModel"`
+	LatencyMs int64  `json:"latencyMs"`
+	Sudo      bool   `json:"sudo"`
+}
+
+type ComputeSchedulableReq struct {
+	ID          uint `json:"id" validate:"required"`
+	Schedulable bool `json:"schedulable"`
+}
+
+type ComputeGPU struct {
+	Index    int     `json:"index"`
+	Name     string  `json:"name"`
+	Util     float64 `json:"util"`
+	Temp     float64 `json:"temp"`
+	Power    float64 `json:"power"`
+	MemUsed  uint64  `json:"memUsed"`  // bytes
+	MemTotal uint64  `json:"memTotal"` // bytes
+	Unified  bool    `json:"unified"`
+}
+
+type ComputeNic struct {
+	Name      string  `json:"name"`
+	State     string  `json:"state"`
+	SpeedMbps int64   `json:"speedMbps"`
+	IP        string  `json:"ip"`
+	RxRate    float64 `json:"rxRate"` // bytes/s
+	TxRate    float64 `json:"txRate"`
+}
+
+type ComputeRdma struct {
+	Dev      string  `json:"dev"`
+	Port     string  `json:"port"`
+	NetDev   string  `json:"netDev"`
+	State    string  `json:"state"`
+	RateGbps int     `json:"rateGbps"`
+	RxRate   float64 `json:"rxRate"` // bytes/s
+	TxRate   float64 `json:"txRate"`
+	// Error counters: totals since boot and the increase since the
+	// previous sample (non-zero deltas raise a fabric warning).
+	RcvErrors       uint64 `json:"rcvErrors"`
+	SymbolErrors    uint64 `json:"symbolErrors"`
+	LinkDowned      uint64 `json:"linkDowned"`
+	XmitDiscards    uint64 `json:"xmitDiscards"`
+	LinkErrRecovery uint64 `json:"linkErrRecovery"`
+	ErrDelta        uint64 `json:"errDelta"`
+}
+
+type ComputeProcess struct {
+	Pid        int    `json:"pid"`
+	Engine     string `json:"engine"`
+	Port       int    `json:"port"`
+	Model      string `json:"model"`
+	ServedName string `json:"servedName"`
+	Cmd        string `json:"cmd"`
+	InstanceID uint   `json:"instanceId"` // 0 = not registered yet
+}
+
+type ComputeHostRealtime struct {
+	Online         bool             `json:"online"`
+	Error          string           `json:"error"`
+	SampledAt      int64            `json:"sampledAt"`
+	CpuPercent     float64          `json:"cpuPercent"`
+	Load1          float64          `json:"load1"`
+	Cores          int              `json:"cores"`
+	MemTotal       uint64           `json:"memTotal"`
+	MemAvailable   uint64           `json:"memAvailable"`
+	MemUsedPercent float64          `json:"memUsedPercent"`
+	SwapUsed       uint64           `json:"swapUsed"`
+	DiskTotal      uint64           `json:"diskTotal"`
+	DiskUsed       uint64           `json:"diskUsed"`
+	GPUs           []ComputeGPU     `json:"gpus"`
+	Nics           []ComputeNic     `json:"nics"`
+	Rdma           []ComputeRdma    `json:"rdma"`
+	Processes      []ComputeProcess `json:"processes"`
+	Warnings       []string         `json:"warnings"`
+	CollectMs      int64            `json:"collectMs"`
+}
+
+type ComputeHostView struct {
+	model.ComputeHost
+	HasCredential bool                `json:"hasCredential"`
+	Realtime      ComputeHostRealtime `json:"realtime"`
+	Domain        string              `json:"domain"`
+	InstanceNames []string            `json:"instanceNames"`
+}
+
+// ---- topology ------------------------------------------------------------
+
+type ComputeLinkReq struct {
+	HostAID uint   `json:"hostAId" validate:"required"`
+	HostBID uint   `json:"hostBId" validate:"required"`
+	IfaceA  string `json:"ifaceA"`
+	IfaceB  string `json:"ifaceB"`
+	IPA     string `json:"ipA"`
+	IPB     string `json:"ipB"`
+}
+
+type ComputeFabricDomain struct {
+	Name    string                    `json:"name"`
+	HostIDs []uint                    `json:"hostIds"`
+	Links   []model.ComputeFabricLink `json:"links"`
+	Healthy bool                      `json:"healthy"`
+}
+
+// ---- templates / instances ------------------------------------------------
+
+type ComputeRuntimeReq struct {
+	ID             uint   `json:"id"`
+	Name           string `json:"name" validate:"required,max=64"`
+	Engine         string `json:"engine" validate:"required,oneof=vllm sglang other"`
+	Image          string `json:"image"`
+	MultiNode      bool   `json:"multiNode"`
+	LaunchTemplate string `json:"launchTemplate" validate:"required"`
+	StopTemplate   string `json:"stopTemplate" validate:"required"`
+	HealthPath     string `json:"healthPath"`
+	MetricsPath    string `json:"metricsPath"`
+	Remark         string `json:"remark"`
+}
+
+type ComputeProfileReq struct {
+	ID              uint   `json:"id"`
+	Name            string `json:"name" validate:"required,max=64"`
+	RuntimeID       uint   `json:"runtimeId" validate:"required"`
+	ServedName      string `json:"servedName" validate:"required,max=128"`
+	ModelPath       string `json:"modelPath" validate:"required"`
+	NodeCount       int    `json:"nodeCount" validate:"min=1,max=64"`
+	NeedFabric      bool   `json:"needFabric"`
+	MinMemGB        int    `json:"minMemGb"`
+	Port            int    `json:"port" validate:"omitempty,min=1,max=65535"`
+	ExtraArgs       string `json:"extraArgs"`
+	Env             string `json:"env"`
+	StartTimeoutSec int    `json:"startTimeoutSec"`
+	Remark          string `json:"remark"`
+}
+
+type ComputeEngineMetrics struct {
+	Healthy          bool    `json:"healthy"`
+	Running          float64 `json:"running"`
+	Waiting          float64 `json:"waiting"`
+	KVUsage          float64 `json:"kvUsage"`
+	TTFTMs           float64 `json:"ttftMs"`  // average over the last interval
+	QueueMs          float64 `json:"queueMs"` // average over the last interval
+	PromptTPS        float64 `json:"promptTps"`
+	GenTPS           float64 `json:"genTps"`
+	Inflight         int64   `json:"inflight"` // requests in flight through the router
+	LastActiveAt     int64   `json:"lastActiveAt"`
+	SampledAt        int64   `json:"sampledAt"`
+	Error            string  `json:"error"`
+	ReportedModel    string  `json:"reportedModel"`
+	GPUMemUtil       float64 `json:"gpuMemUtil"`
+	PromptTokens     float64 `json:"promptTokens"`
+	GenerationTokens float64 `json:"generationTokens"`
+}
+
+type ComputeInstanceView struct {
+	model.ComputeInstance
+	HostNames   []string             `json:"hostNames"`
+	ProfileName string               `json:"profileName"`
+	Metrics     ComputeEngineMetrics `json:"metrics"`
+}
+
+type ComputeInstanceReq struct {
+	ID            uint   `json:"id"`
+	Name          string `json:"name" validate:"required,max=64"`
+	ServedName    string `json:"servedName" validate:"required"`
+	HeadHostID    uint   `json:"headHostId" validate:"required"`
+	HostIDs       []uint `json:"hostIds"`
+	Port          int    `json:"port" validate:"required,min=1,max=65535"`
+	APIKey        string `json:"apiKey"`
+	ContainerName string `json:"containerName"`
+	Weight        int    `json:"weight"`
+}
+
+type ComputeAdoptReq struct {
+	HostID     uint   `json:"hostId" validate:"required"`
+	Port       int    `json:"port" validate:"required"`
+	Name       string `json:"name"`
+	ServedName string `json:"servedName"`
+	APIKey     string `json:"apiKey"`
+	// Extra hosts of a multi-host group (workers); head is HostID.
+	WorkerHostIDs []uint `json:"workerHostIds"`
+}
+
+type ComputeRouteReq struct {
+	ID           uint `json:"id" validate:"required"`
+	RouteEnabled bool `json:"routeEnabled"`
+	Weight       int  `json:"weight" validate:"min=0,max=1000"`
+}
+
+// ---- jobs ----------------------------------------------------------------
+
+type ComputeDeployReq struct {
+	ProfileID uint   `json:"profileId" validate:"required"`
+	HostIDs   []uint `json:"hostIds"` // empty = let the scheduler choose
+	Name      string `json:"name"`
+	DryRun    bool   `json:"dryRun"`
+}
+
+type ComputeSwitchReq struct {
+	InstanceID uint `json:"instanceId" validate:"required"`
+	ProfileID  uint `json:"profileId" validate:"required"`
+	DryRun     bool `json:"dryRun"`
+}
+
+type ComputeInstanceOpReq struct {
+	ID        uint   `json:"id" validate:"required"`
+	Operation string `json:"operation" validate:"required,oneof=stop start restart remove drain undrain"`
+	// Adopted instances are only touched with Force (the panel did not
+	// start them and may not know how to bring them back).
+	Force bool `json:"force"`
+}
+
+type ComputeJobStep struct {
+	Name       string `json:"name"`
+	Status     string `json:"status"` // pending / running / success / failed / skipped
+	Message    string `json:"message"`
+	StartedAt  int64  `json:"startedAt"`
+	FinishedAt int64  `json:"finishedAt"`
+}
+
+type ComputePrecheckItem struct {
+	Name    string `json:"name"`
+	OK      bool   `json:"ok"`
+	Message string `json:"message"`
+}
+
+type ComputePrecheckRes struct {
+	OK      bool                  `json:"ok"`
+	HostIDs []uint                `json:"hostIds"`
+	Items   []ComputePrecheckItem `json:"items"`
+	JobID   uint                  `json:"jobId"`
+}
+
+// ---- router / consumers ---------------------------------------------------
+
+type ComputeConsumerReq struct {
+	ID            uint   `json:"id"`
+	Name          string `json:"name" validate:"required,max=64"`
+	AllowedModels string `json:"allowedModels"`
+	RPM           int    `json:"rpm" validate:"min=0"`
+	Enabled       *bool  `json:"enabled"`
+	Remark        string `json:"remark"`
+}
+
+type ComputeConsumerKeyRes struct {
+	ID  uint   `json:"id"`
+	Key string `json:"key"`
+}
+
+type ComputeRouterSetting struct {
+	Enabled        bool   `json:"enabled"`
+	Listen         string `json:"listen" validate:"required"`
+	MaxRetries     int    `json:"maxRetries" validate:"min=0,max=3"`
+	RequestTimeout int    `json:"requestTimeout" validate:"min=10,max=3600"` // seconds
+	Running        bool   `json:"running"`
+	Error          string `json:"error"`
+	// Scheduler switches live here as well (one "settings" form).
+	SchedulerPaused bool `json:"schedulerPaused"`
+	WatchFast       bool `json:"watchFast"`
+}
+
+// ---- scheduler ------------------------------------------------------------
+
+type ComputePolicyReq struct {
+	ID            uint    `json:"id"`
+	ServedName    string  `json:"servedName" validate:"required"`
+	ProfileID     uint    `json:"profileId"`
+	Mode          string  `json:"mode" validate:"required,oneof=off suggest auto"`
+	MinInstances  int     `json:"minInstances" validate:"min=0"`
+	MaxInstances  int     `json:"maxInstances" validate:"min=0"`
+	HotSpare      int     `json:"hotSpare" validate:"min=0"`
+	Priority      int     `json:"priority" validate:"min=0,max=100"`
+	Preemptible   bool    `json:"preemptible"`
+	QueueHigh     float64 `json:"queueHigh"`
+	KVHigh        float64 `json:"kvHigh"`
+	SustainRounds int     `json:"sustainRounds"`
+	IdleMinutes   int     `json:"idleMinutes"`
+	CooldownSec   int     `json:"cooldownSec"`
+}
+
+type ComputeSuggestion struct {
+	ID         string `json:"id"`
+	Kind       string `json:"kind"` // scaleUp / scaleDown / preempt / minViolation / hotSpare / fabric
+	ServedName string `json:"servedName"`
+	ProfileID  uint   `json:"profileId"`
+	InstanceID uint   `json:"instanceId"`
+	HostIDs    []uint `json:"hostIds"`
+	Reason     string `json:"reason"`
+	Severity   string `json:"severity"` // info / warning / critical
+	CreatedAt  int64  `json:"createdAt"`
+	Actionable bool   `json:"actionable"`
+}
+
+type ComputeSuggestionOpReq struct {
+	ID        string `json:"id" validate:"required"`
+	Operation string `json:"operation" validate:"required,oneof=apply dismiss"`
+}
+
+// ---- overview ------------------------------------------------------------
+
+type ComputeModelSummary struct {
+	ServedName   string  `json:"servedName"`
+	Instances    int     `json:"instances"`
+	Healthy      int     `json:"healthy"`
+	Running      float64 `json:"running"`
+	Waiting      float64 `json:"waiting"`
+	KVUsage      float64 `json:"kvUsage"`
+	TTFTMs       float64 `json:"ttftMs"`
+	GenTPS       float64 `json:"genTps"`
+	PolicyMode   string  `json:"policyMode"`
+	MinInstances int     `json:"minInstances"`
+	MaxInstances int     `json:"maxInstances"`
+}
+
+type ComputeOverview struct {
+	Hosts         int                   `json:"hosts"`
+	HostsOnline   int                   `json:"hostsOnline"`
+	HostsIdle     int                   `json:"hostsIdle"`
+	HostsCordoned int                   `json:"hostsCordoned"`
+	GPUs          int                   `json:"gpus"`
+	GPUUtilAvg    float64               `json:"gpuUtilAvg"`
+	MemTotal      uint64                `json:"memTotal"`
+	MemUsed       uint64                `json:"memUsed"`
+	Instances     int                   `json:"instances"`
+	InstHealthy   int                   `json:"instHealthy"`
+	Domains       int                   `json:"domains"`
+	FabricIssues  int                   `json:"fabricIssues"`
+	RunningJobs   int                   `json:"runningJobs"`
+	Suggestions   int                   `json:"suggestions"`
+	GenTPS        float64               `json:"genTps"`
+	Models        []ComputeModelSummary `json:"models"`
+	Warnings      []string              `json:"warnings"`
+	Router        ComputeRouterSetting  `json:"router"`
+}
+
+type ComputeWatchReq struct {
+	Fast bool `json:"fast"`
+}

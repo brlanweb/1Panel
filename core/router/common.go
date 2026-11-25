@@ -12,6 +12,7 @@ func commonGroups() []CommonRouter {
 		&ClusterMonitorRouter{},
 		&ClusterSyncRouter{},
 		&ClusterDbReplicationRouter{},
+		&ComputeRouter{},
 		&ScriptRouter{},
 		&RuntimeDiagnosticsRouter{},
 		&PanelMCPRouter{},

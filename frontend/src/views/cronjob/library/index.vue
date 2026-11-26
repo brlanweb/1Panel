@@ -322,7 +322,7 @@ const buttons = [
         label: i18n.global.t('commons.button.handle'),
         disabled: () => !isAdminOrNodeAdmin.value,
         click: (row: Cronjob.ScriptInfo) => {
-            runRef.value!.acceptParams({ scriptID: row.id, scriptName: row.name });
+            runRef.value!.acceptParams({ scriptID: row.id, scriptName: row.name, script: row.script });
         },
     },
     {

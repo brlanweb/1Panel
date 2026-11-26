@@ -78,12 +78,14 @@ import { ElMessageBox } from 'element-plus';
 import Terminal from '@/components/terminal/index.vue';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 import { listNodeOptions } from '@/api/modules/setting';
+import { encodeBase64 } from '@/utils/base64';
 import i18n from '@/lang';
 
 const { currentNode, globalStore, isXpackOrEE, isAdmin, nodeRoles } = useGlobalStore();
 const terminalVisible = ref(false);
 const scriptID = ref(0);
 const scriptName = ref('');
+const scriptContent = ref('');
 const loading = ref(false);
 const selectedNodes = ref<string[]>([]);
 const activeNode = ref('');
@@ -111,11 +113,13 @@ const setTerminalRef = (name: string, el: Element | ComponentPublicInstance | nu
 interface DialogProps {
     scriptID: number;
     scriptName: string;
+    script: string;
 }
 const acceptParams = async (params: DialogProps): Promise<void> => {
     const token = ++loadToken;
     scriptID.value = params.scriptID;
     scriptName.value = params.scriptName;
+    scriptContent.value = params.script || '';
     const name = currentNode.value;
     nodes.value = [{ name, label: name === 'local' ? globalStore.getMasterAlias() : name, addr: '' }];
     selectedNodes.value = [name];
@@ -156,13 +160,32 @@ const startExecution = async () => {
     activeNode.value = sessions.value[0]?.name || '';
     await nextTick();
     for (const session of sessions.value) {
-        terminals.get(session.name)?.acceptParams({
+        terminals.get(session.name)?.acceptParams(loadSessionParams(session.name));
+    }
+};
+
+// The Terminal component always rewrites `operateNode` from its `node`
+// prop (empty -> 'local'), so the target node must be passed as `node`.
+// The master runs the script itself; a registered cluster node runs it in
+// its own local terminal, reached through the cluster proxy. The script is
+// shipped base64 encoded so quotes / newlines / heredocs survive the shell.
+const loadSessionParams = (name: string) => {
+    if (name === 'local') {
+        return {
             endpoint: '/api/v2/core/script/run',
-            args: new URLSearchParams({ script_id: String(scriptID.value), operateNode: session.name }).toString(),
+            args: new URLSearchParams({ script_id: String(scriptID.value) }).toString(),
             error: '',
             initCmd: '',
-        });
+            node: 'local',
+        };
     }
+    return {
+        endpoint: '/api/v2/hosts/terminal/local',
+        args: '',
+        error: '',
+        initCmd: `bash -c "$(printf '%s' '${encodeBase64(scriptContent.value)}' | base64 -d)"`,
+        node: name,
+    };
 };
 
 const selectNode = async (name: string) => {

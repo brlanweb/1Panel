@@ -89,8 +89,11 @@
                             <span class="strong">{{ p.servedName }}</span>
                         </span>
                         <el-tag v-if="p.instanceId" size="small" type="success">
-                            {{ $t('compute.host.registered') }}
+                            {{ p.worker ? $t('compute.host.workerOf') : $t('compute.host.registered') }}
                         </el-tag>
+                        <el-tooltip v-else-if="p.worker" :content="$t('compute.host.workerHelper')" placement="top">
+                            <el-tag size="small" type="info" effect="plain">Worker</el-tag>
+                        </el-tooltip>
                         <el-button v-else size="small" type="primary" link @click="emit('adopt', host, p)">
                             {{ $t('compute.inst.adopt') }}
                         </el-button>

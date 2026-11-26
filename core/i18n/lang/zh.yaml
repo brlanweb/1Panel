@@ -606,5 +606,6 @@ ErrClusterAgentUpgradeRequired: "所选节点的 Agent 版本暂不支持高可�
 ErrComputeHostInUse: "主机正被推理实例 {{ .detail }} 使用，请先停止或移除该实例"
 ErrComputeInUse: "该模板仍被 {{ .detail }} 引用，无法删除"
 ErrComputeAdopted: "该实例为接管的现网实例，面板不负责其启停；如确认操作请勾选强制执行"
+ErrComputeAdoptWorker: "该进程是多机推理的 worker（--headless / --node-rank>0），不对外提供服务；请在主节点上接管，并把本机选为 worker 主机"
 ErrComputeHostBusy: "所选主机上已有正在执行的任务，请稍后再试"
 ErrComputePrecheck: "预检未通过：{{ .detail }}"

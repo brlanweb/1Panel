@@ -102,5 +102,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.ComputeHostsReuseSources,
 		migrations.MoveComputeMenuToAI,
 		migrations.ComputeIntoModelServices,
+		migrations.ComputeInstanceUpstreamModel,
 	}
 }

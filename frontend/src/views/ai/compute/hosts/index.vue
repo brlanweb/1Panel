@@ -203,7 +203,9 @@ const kindOf = (h: Compute.Host) => (h.realtime.gpus?.[0]?.kind === 'npu' ? 'npu
 const badNpu = (h: Compute.Host) =>
     (h.realtime.gpus || []).filter((g) => g.kind === 'npu' && g.health && g.health.toUpperCase() !== 'OK').length;
 const activeRdma = (h: Compute.Host) => (h.realtime.rdma || []).filter((r) => r.state === 'ACTIVE' || r.errDelta);
-const unregistered = (h: Compute.Host) => (h.realtime.processes || []).filter((p) => !p.instanceId);
+// Worker ranks of a multi-host group serve no API: they are registered
+// through their head instance, never by themselves.
+const unregistered = (h: Compute.Host) => (h.realtime.processes || []).filter((p) => !p.instanceId && !p.worker);
 
 const refresh = async (force = false) => {
     if (force && !hosts.value.length) loading.value = true;

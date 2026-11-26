@@ -567,7 +567,7 @@ func computeWaitHealthy(in model.ComputeInstance, rt model.ComputeRuntime, key s
 }
 
 func computeWarmup(in model.ComputeInstance, key string) (string, error) {
-	body := fmt.Sprintf(`{"model":%q,"messages":[{"role":"user","content":"ping"}],"max_tokens":1}`, in.ServedName)
+	body := fmt.Sprintf(`{"model":%q,"messages":[{"role":"user","content":"ping"}],"max_tokens":1}`, computeUpstreamModel(in))
 	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(in.Endpoint, "/")+"/v1/chat/completions", strings.NewReader(body))
@@ -669,13 +669,17 @@ func computeRunSwitch(run *computeJobRun, spec computeJobSpec) (bool, error) {
 	keyCipher, _ := computeEncrypt(key)
 	next := in
 	next.ProfileID, next.ServedName, next.Port = newProf.ID, newProf.ServedName, newProf.Port
+	// The panel launches the new engine with --served-model-name set to the
+	// profile name, so an alias of the adopted engine no longer applies.
+	next.UpstreamModel = ""
 	next.Endpoint = computeEndpoint(hosts[ids[0]].Addr, newProf.Port)
 	if next.ContainerName == "" {
 		next.ContainerName = computeContainerName(in.Name)
 	}
 	_ = repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"status": model.ComputeInstStarting, "profile_id": next.ProfileID,
-		"served_name": next.ServedName, "port": next.Port, "endpoint": next.Endpoint, "container_name": next.ContainerName,
-		"api_key_cipher": keyCipher, "adopted": false})
+		"served_name": next.ServedName, "upstream_model": "", "port": next.Port, "endpoint": next.Endpoint,
+		"container_name": next.ContainerName, "api_key_cipher": keyCipher, "adopted": false})
+	computeRouterInvalidate()
 	computeState.dropInst(in.ID)
 	if err := computeLaunch(run, next, newProf, newRt, ids, hosts, key); err != nil {
 		_ = run.step("stop new", func() (string, error) { return computeStopHosts(next, newRt, ids, hosts) })
@@ -688,7 +692,8 @@ func computeRunSwitch(run *computeJobRun, spec computeJobSpec) (bool, error) {
 			return false, err
 		}
 		_ = repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"profile_id": in.ProfileID, "served_name": in.ServedName,
-			"port": in.Port, "endpoint": in.Endpoint})
+			"upstream_model": in.UpstreamModel, "port": in.Port, "endpoint": in.Endpoint})
+		computeRouterInvalidate()
 		rb := in
 		rb.ContainerName = next.ContainerName
 		if rerr := computeLaunch(run, rb, oldProf, oldRt2, ids, hosts, key); rerr != nil {

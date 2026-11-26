@@ -606,5 +606,6 @@ ErrClusterAgentUpgradeRequired: "Agent ຂອງໂນດທີ່ເລືອ�
 ErrComputeHostInUse: "The host is used by inference instance {{ .detail }}. Stop or remove it first."
 ErrComputeInUse: "Still referenced by {{ .detail }}, cannot delete."
 ErrComputeAdopted: "This is an adopted running instance; the panel does not manage its lifecycle. Tick force to proceed."
+ErrComputeAdoptWorker: "This process is a worker rank of a multi-host group (--headless / --node-rank>0) and serves no API; adopt it on the head host and select this host as a worker"
 ErrComputeHostBusy: "A job is already running on the selected hosts. Try again later."
 ErrComputePrecheck: "Precheck failed: {{ .detail }}"

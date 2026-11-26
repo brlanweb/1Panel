@@ -379,6 +379,9 @@ func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in 
 
 	ctx, cancel := context.WithTimeout(req.Context(), time.Duration(r.conf.RequestTimeout)*time.Second)
 	defer cancel()
+	// One pool may hold engines serving the model under another name: the
+	// client asks for the pool name, the engine must see its own.
+	body = computeRewriteModel(body, in)
 	url := strings.TrimRight(in.Endpoint, "/") + req.URL.Path
 	if req.URL.RawQuery != "" {
 		url += "?" + req.URL.RawQuery
@@ -452,6 +455,34 @@ func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in 
 	_ = stream
 	r.addUsage(c.ID, usage.prompt, usage.completion, resp.StatusCode >= 400)
 	return true, false, ""
+}
+
+// computeRewriteModel replaces the top-level "model" of a JSON request body
+// with the instance's upstream model name. Every other field, and its raw
+// encoding (numbers, unicode, key order of nested objects), is kept as is.
+// Bodies that are not a JSON object are returned untouched.
+func computeRewriteModel(body []byte, in model.ComputeInstance) []byte {
+	upstream := computeUpstreamModel(in)
+	if upstream == in.ServedName {
+		return body
+	}
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return body
+	}
+	if _, ok := obj["model"]; !ok {
+		return body
+	}
+	name, err := json.Marshal(upstream)
+	if err != nil {
+		return body
+	}
+	obj["model"] = name
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return body
+	}
+	return out
 }
 
 func (r *computeRouterSrv) fail(st *computeInstState) {

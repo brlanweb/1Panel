@@ -145,15 +145,31 @@ func (u *ComputeService) ListHosts(info string) ([]dto.ComputeHostView, error) {
 func computeProcessesView(hostID uint, slow *computeSlowRaw, insts []model.ComputeInstance) []dto.ComputeProcess {
 	res := make([]dto.ComputeProcess, 0, len(slow.Procs))
 	for _, p := range slow.Procs {
-		item := dto.ComputeProcess{Pid: p.Pid, Engine: p.Engine, Port: p.Port, Model: p.Model, ServedName: p.ServedName, Cmd: p.Cmd}
+		item := dto.ComputeProcess{Pid: p.Pid, Engine: p.Engine, Port: p.Port, Model: p.Model, ServedName: p.ServedName,
+			Cmd: p.Cmd, Worker: p.Worker}
 		for _, in := range insts {
-			if in.HeadHostID == hostID && in.Port == p.Port {
+			if in.Port != p.Port {
+				continue
+			}
+			// A head process belongs to the instance headed on this host; a
+			// worker belongs to the instance that lists this host as one of
+			// its group members (head registered with workers selected).
+			if in.HeadHostID == hostID || (p.Worker && computeHasID(in.HostIDs, hostID)) {
 				item.InstanceID = in.ID
 			}
 		}
 		res = append(res, item)
 	}
 	return res
+}
+
+func computeHasID(ids string, id uint) bool {
+	for _, item := range computeParseIDs(ids) {
+		if item == id {
+			return true
+		}
+	}
+	return false
 }
 
 // HostCandidates lists the hosts of a source that can be brought under

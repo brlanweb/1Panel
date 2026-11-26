@@ -219,6 +219,14 @@ func (u *ComputeService) ListInstances() ([]dto.ComputeInstanceView, error) {
 	return res, nil
 }
 
+// computeUpstreamModel is the model name the engine of an instance serves.
+func computeUpstreamModel(in model.ComputeInstance) string {
+	if in.UpstreamModel != "" {
+		return in.UpstreamModel
+	}
+	return in.ServedName
+}
+
 func computeEndpoint(addr string, port int) string {
 	return "http://" + net.JoinHostPort(addr, strconv.Itoa(port))
 }
@@ -242,9 +250,16 @@ func (u *ComputeService) SaveInstance(req dto.ComputeInstanceReq) error {
 	if weight <= 0 {
 		weight = 100
 	}
-	vars := map[string]interface{}{"name": req.Name, "served_name": req.ServedName, "head_host_id": req.HeadHostID,
-		"host_ids": computeJoinIDs(ids), "port": req.Port, "endpoint": computeEndpoint(head.Addr, req.Port),
-		"container_name": req.ContainerName, "weight": weight}
+	req.ServedName = strings.TrimSpace(req.ServedName)
+	upstream := strings.TrimSpace(req.UpstreamModel)
+	if upstream == req.ServedName {
+		upstream = ""
+	}
+	vars := map[string]interface{}{"name": req.Name, "served_name": req.ServedName, "upstream_model": upstream,
+		"head_host_id": req.HeadHostID, "host_ids": computeJoinIDs(ids), "port": req.Port,
+		"endpoint": computeEndpoint(head.Addr, req.Port), "container_name": req.ContainerName, "weight": weight}
+	// ServedName / upstream are read by the router cache.
+	defer computeRouterInvalidate()
 	if req.APIKey != "" {
 		c, err := encrypt.StringEncrypt(req.APIKey)
 		if err != nil {
@@ -255,7 +270,7 @@ func (u *ComputeService) SaveInstance(req dto.ComputeInstanceReq) error {
 	if req.ID > 0 {
 		return repo.ComputeInstanceRepo.Update(req.ID, vars)
 	}
-	in := model.ComputeInstance{Name: req.Name, ServedName: req.ServedName, HeadHostID: req.HeadHostID, HostIDs: computeJoinIDs(ids),
+	in := model.ComputeInstance{Name: req.Name, ServedName: req.ServedName, UpstreamModel: upstream, HeadHostID: req.HeadHostID, HostIDs: computeJoinIDs(ids),
 		Port: req.Port, Endpoint: computeEndpoint(head.Addr, req.Port), ContainerName: req.ContainerName, Adopted: true,
 		Status: model.ComputeInstUnknown, RouteEnabled: true, Weight: weight}
 	if c, ok := vars["api_key_cipher"].(string); ok {
@@ -274,7 +289,16 @@ func (u *ComputeService) Adopt(req dto.ComputeAdoptReq) error {
 	served := req.ServedName
 	if slow := computeState.hostSlow(host.ID); slow != nil {
 		for _, p := range slow.Procs {
-			if p.Port == req.Port && served == "" {
+			if p.Port != req.Port {
+				continue
+			}
+			// A worker rank serves no API on this port: registering it
+			// only produces a permanently failing instance. The group is
+			// adopted on its head with this host selected as a worker.
+			if p.Worker {
+				return buserr.New("ErrComputeAdoptWorker")
+			}
+			if served == "" {
 				served = p.ServedName
 			}
 		}

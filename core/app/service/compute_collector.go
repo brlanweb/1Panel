@@ -630,7 +630,7 @@ func computeCollectEngine(in model.ComputeInstance, st *computeInstState, path s
 	var m dto.ComputeEngineMetrics
 	var sample computeEngineSample
 	if err == nil {
-		sample = parseComputeMetrics(body, in.ServedName)
+		sample = parseComputeMetrics(body, computeUpstreamModel(in))
 		if !sample.Found {
 			err = fmt.Errorf("no engine metrics")
 		}

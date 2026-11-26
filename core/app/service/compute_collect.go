@@ -240,6 +240,10 @@ type computeProcRaw struct {
 	Model      string `json:"model"`
 	ServedName string `json:"servedName"`
 	Cmd        string `json:"cmd"`
+	// Worker is a non-head rank of a multi-host group (vLLM --headless or
+	// --node-rank > 0, SGLang --node-rank > 0). It carries the same --port
+	// as the head but serves no API, so it is never an instance by itself.
+	Worker bool `json:"worker"`
 }
 
 type computeNeighbour struct {
@@ -369,6 +373,12 @@ func parseComputeProc(line string) (computeProcRaw, bool) {
 			p.Model = val
 		case "--served-model-name":
 			p.ServedName = val
+		case "--headless":
+			p.Worker = true
+		case "--node-rank":
+			if rank := cAtoU(val); rank > 0 {
+				p.Worker = true
+			}
 		}
 	}
 	if p.Engine == "" || !isServe {

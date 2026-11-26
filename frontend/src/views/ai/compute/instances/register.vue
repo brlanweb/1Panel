@@ -15,6 +15,10 @@
                 <el-input v-model="form.servedName" />
                 <span class="input-help">{{ $t('compute.inst.servedHelper') }}</span>
             </el-form-item>
+            <el-form-item :label="$t('compute.inst.upstreamModel')">
+                <el-input v-model="form.upstreamModel" :placeholder="form.servedName" clearable />
+                <span class="input-help">{{ $t('compute.inst.upstreamModelHelper') }}</span>
+            </el-form-item>
             <el-form-item :label="$t('compute.inst.head')" required>
                 <el-select v-model="form.headHostId" filterable class="w-full">
                     <el-option v-for="h in hosts" :key="h.id" :label="`${h.name} (${h.addr})`" :value="h.id" />
@@ -84,6 +88,7 @@ const empty = () => ({
     id: 0,
     name: '',
     servedName: '',
+    upstreamModel: '',
     headHostId: undefined as number | undefined,
     hostIds: [] as number[],
     port: 8000,
@@ -101,6 +106,7 @@ const open = async (row?: Compute.Instance, servedName = '') => {
             id: row.id,
             name: row.name,
             servedName: row.servedName,
+            upstreamModel: row.upstreamModel || '',
             headHostId: row.headHostId,
             hostIds: ids.filter((i) => i !== row.headHostId),
             port: row.port,

@@ -4,8 +4,10 @@
             <template #header>
                 <div class="card-head">
                     <span class="strong">{{ $t('compute.access.router') }}</span>
-                    <el-tag v-if="setting.running" type="success">{{ $t('compute.access.running') }}</el-tag>
-                    <el-tag v-else-if="setting.enabled" type="danger">{{ $t('compute.access.failed') }}</el-tag>
+                    <!-- Status reflects the saved setting, not the unsaved switch. -->
+                    <el-tag v-if="dirty" type="warning">{{ $t('compute.access.unsaved') }}</el-tag>
+                    <el-tag v-else-if="setting.running" type="success">{{ $t('compute.access.running') }}</el-tag>
+                    <el-tag v-else-if="savedEnabled" type="danger">{{ $t('compute.access.failed') }}</el-tag>
                     <el-tag v-else type="info">{{ $t('compute.access.disabled') }}</el-tag>
                 </div>
             </template>
@@ -191,6 +193,26 @@ const setting = reactive<Compute.RouterSetting>({
     error: '',
     schedulerPaused: false,
 });
+// Last saved router setting: the status tag must not read "start failed"
+// while the switch was only flipped locally and not saved yet.
+const saved = ref({ enabled: false, listen: '', maxRetries: 1, requestTimeout: 600 });
+const savedEnabled = computed(() => saved.value.enabled);
+const dirty = computed(
+    () =>
+        setting.enabled !== saved.value.enabled ||
+        setting.listen !== saved.value.listen ||
+        setting.maxRetries !== saved.value.maxRetries ||
+        setting.requestTimeout !== saved.value.requestTimeout,
+);
+const applySaved = (data: Compute.RouterSetting) => {
+    Object.assign(setting, data);
+    saved.value = {
+        enabled: data.enabled,
+        listen: data.listen,
+        maxRetries: data.maxRetries,
+        requestTimeout: data.requestTimeout,
+    };
+};
 const visible = ref(false);
 const keyVisible = ref(false);
 const newKey = ref('');
@@ -212,7 +234,7 @@ const load = async () => {
     loading.value = true;
     try {
         const [s, c, i] = await Promise.all([getComputeSetting(), listComputeConsumers(), listComputeInstances()]);
-        Object.assign(setting, s.data);
+        applySaved(s.data);
         consumers.value = c.data || [];
         modelNames.value = [...new Set((i.data || []).map((x) => x.servedName))].sort();
     } finally {
@@ -231,7 +253,7 @@ const onSaveSetting = async () => {
         await updateComputeSetting({ ...setting });
         MsgSuccess(t('commons.msg.operationSuccess'));
         const s = await getComputeSetting();
-        Object.assign(setting, s.data);
+        applySaved(s.data);
     } finally {
         saving.value = false;
     }

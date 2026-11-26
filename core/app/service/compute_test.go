@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
 	"os"
@@ -171,8 +172,65 @@ func TestComputeProcEdgeCases(t *testing.T) {
 		t.Fatal("grep is not an engine")
 	}
 	p, ok := parseComputeProc("77 python3 -m sglang.launch_server --model-path /m/glm --served-model-name glm-5")
-	if !ok || p.Engine != "sglang" || p.Port != 30000 || p.ServedName != "glm-5" {
+	if !ok || p.Engine != "sglang" || p.Port != 30000 || p.ServedName != "glm-5" || p.Worker {
 		t.Fatalf("sglang: %+v %v", p, ok)
+	}
+}
+
+func TestComputeRewriteModel(t *testing.T) {
+	body := []byte(`{"model":"deepseek-v4-flash-0731","stream":true,"max_tokens":12345678901234,"messages":[{"role":"user","content":"\u4f60\u597d"}]}`)
+	same := model.ComputeInstance{ServedName: "deepseek-v4-flash-0731"}
+	if out := computeRewriteModel(body, same); string(out) != string(body) {
+		t.Fatalf("no alias must keep the body byte for byte: %s", out)
+	}
+	alias := model.ComputeInstance{ServedName: "deepseek-v4-flash-0731", UpstreamModel: "DeepSeek-V4-Flash-0731-w8a8"}
+	out := computeRewriteModel(body, alias)
+	var got map[string]json.RawMessage
+	if err := json.Unmarshal(out, &got); err != nil {
+		t.Fatal(err)
+	}
+	if string(got["model"]) != `"DeepSeek-V4-Flash-0731-w8a8"` || string(got["max_tokens"]) != "12345678901234" ||
+		string(got["stream"]) != "true" || !strings.Contains(string(got["messages"]), `\u4f60\u597d`) {
+		t.Fatalf("rewrite: %s", out)
+	}
+	if out := computeRewriteModel([]byte("not json"), alias); string(out) != "not json" {
+		t.Fatalf("non json must pass through: %s", out)
+	}
+	if computeUpstreamModel(alias) != "DeepSeek-V4-Flash-0731-w8a8" || computeUpstreamModel(same) != "deepseek-v4-flash-0731" {
+		t.Fatal("upstream model")
+	}
+	// Metrics are labelled with the engine's own name.
+	metrics := "vllm:num_requests_running{engine=\"0\",model_name=\"DeepSeek-V4-Flash-0731-w8a8\"} 2\n"
+	if s := parseComputeMetrics(metrics, computeUpstreamModel(alias)); !s.Found || s.Running != 2 {
+		t.Fatalf("metrics under upstream name: %+v", s)
+	}
+}
+
+func TestComputeProcWorkerRank(t *testing.T) {
+	const base = "1 /opt/env/bin/python /opt/env/bin/vllm serve /models/ds --served-model-name ds --port 8101 --nnodes 2"
+	head, ok := parseComputeProc(base + " --node-rank 0 --master-addr 192.168.103.10")
+	if !ok || head.Worker || head.Port != 8101 {
+		t.Fatalf("head: %+v %v", head, ok)
+	}
+	for _, args := range []string{" --node-rank 1 --headless", " --headless", " --node-rank=1"} {
+		w, ok := parseComputeProc(base + args)
+		if !ok || !w.Worker || w.Port != 8101 {
+			t.Fatalf("worker %q: %+v %v", args, w, ok)
+		}
+	}
+
+	// Head instance on host 1 lists host 2 as its worker.
+	insts := []model.ComputeInstance{{BaseModel: model.BaseModel{ID: 7}, HeadHostID: 1, HostIDs: "1,2", Port: 8101}}
+	worker, _ := parseComputeProc(base + " --node-rank 1 --headless")
+	view := computeProcessesView(2, &computeSlowRaw{Procs: []computeProcRaw{worker}}, insts)
+	if len(view) != 1 || !view[0].Worker || view[0].InstanceID != 7 {
+		t.Fatalf("worker must resolve to its head instance: %+v", view)
+	}
+	// A head process on a host that is only a worker of another group must
+	// not be claimed by that group.
+	view = computeProcessesView(2, &computeSlowRaw{Procs: []computeProcRaw{head}}, insts)
+	if view[0].InstanceID != 0 {
+		t.Fatalf("head on worker host must stay unregistered: %+v", view)
 	}
 }
 

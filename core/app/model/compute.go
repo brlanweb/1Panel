@@ -155,6 +155,13 @@ type ComputeInstance struct {
 	Name          string `gorm:"not null;uniqueIndex" json:"name"`
 	ProfileID     uint   `json:"profileId"`
 	ServedName    string `gorm:"not null;index" json:"servedName"`
+	// UpstreamModel is the model name the engine itself serves when it
+	// differs from ServedName, e.g. a w8a8 build on Ascend registered as
+	// "DeepSeek-V4-Flash-0731-w8a8" that belongs to the
+	// "deepseek-v4-flash-0731" pool. ServedName is the pool / router name;
+	// the router rewrites "model" to UpstreamModel when forwarding, and
+	// metrics are read under it. Empty means the same as ServedName.
+	UpstreamModel string `json:"upstreamModel"`
 	HeadHostID    uint   `gorm:"not null" json:"headHostId"`
 	HostIDs       string `gorm:"not null" json:"hostIds"` // comma separated, head first
 	Port          int    `gorm:"not null" json:"port"`

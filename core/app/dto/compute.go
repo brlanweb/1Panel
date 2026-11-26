@@ -98,6 +98,8 @@ type ComputeProcess struct {
 	ServedName string `json:"servedName"`
 	Cmd        string `json:"cmd"`
 	InstanceID uint   `json:"instanceId"` // 0 = not registered yet
+	// Worker rank of a multi-host group: no API, adopt its head instead.
+	Worker bool `json:"worker"`
 }
 
 type ComputeHostRealtime struct {
@@ -214,6 +216,7 @@ type ComputeInstanceReq struct {
 	ID            uint   `json:"id"`
 	Name          string `json:"name" validate:"required,max=64"`
 	ServedName    string `json:"servedName" validate:"required"`
+	UpstreamModel string `json:"upstreamModel"`
 	HeadHostID    uint   `json:"headHostId" validate:"required"`
 	HostIDs       []uint `json:"hostIds"`
 	Port          int    `json:"port" validate:"required,min=1,max=65535"`

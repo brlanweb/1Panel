@@ -21,6 +21,7 @@
                 <template #default="{ row }">
                     <div class="strong">{{ row.name }}</div>
                     <div class="sub">{{ row.servedName }}</div>
+                    <div v-if="row.upstreamModel" class="sub">→ {{ row.upstreamModel }}</div>
                     <div class="sub">
                         <el-tag v-if="row.adopted" size="small" type="info" effect="plain">
                             {{ $t('compute.inst.adopted') }}

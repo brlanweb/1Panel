@@ -44,6 +44,8 @@ export namespace Compute {
         servedName: string;
         cmd: string;
         instanceId: number;
+        // Non-head rank of a multi-host group (--headless / --node-rank > 0).
+        worker?: boolean;
     }
     export interface HostRealtime {
         online: boolean;
@@ -187,6 +189,8 @@ export namespace Compute {
         name: string;
         profileId: number;
         servedName: string;
+        // Model name the engine itself serves when it differs from servedName.
+        upstreamModel?: string;
         headHostId: number;
         hostIds: string;
         port: number;

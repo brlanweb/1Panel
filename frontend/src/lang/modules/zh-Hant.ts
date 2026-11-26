@@ -8046,6 +8046,8 @@ const message = {
             engines: '推論服務',
             noEngine: '未發現推論程序',
             registered: '已登記',
+            workerOf: '已隨主節點登記',
+            workerHelper: '多機推理的 worker 進程，不對外提供服務。請在主節點上接管，並把本機選為 worker 主機。',
             import: '匯入主機',
             importHelper:
                 '算力調度不單獨保存任何主機帳號。請從已接入的主機中選擇：叢集節點與本機透過面板介面採集與部署（推薦，可使用 AI → vLLM 部署方式）；終端主機沿用「終端 → 主機」中保存的 SSH 帳號，以無代理方式採集。',
@@ -8119,6 +8121,9 @@ const message = {
             adopt: '接管',
             adoptHelper: '只登記，不重新啟動：面板開始採集它的指標，並可以把它加入模型路由。',
             servedHelper: '用戶端請求中的 model 欄位，路由依此名稱分發。',
+            upstreamModel: '引擎實際模型名',
+            upstreamModelHelper:
+                '引擎自己的 --served-model-name 與上面的服務模型名不同時填寫，例如華為昇騰上的 DeepSeek-V4-Flash-0731-w8a8。服務模型名決定加入哪個算力池；轉發時閘道會把請求裡的 model 改成這裡的名字。留空表示相同。',
             workers: '同組的其他主機',
             workersHelper: '多機推論（例如兩機 TP）時選擇 worker 主機，讓調度器知道這些主機已被占用。',
             apiKey: '上游 API Key',
@@ -8236,6 +8241,7 @@ const message = {
         access: {
             router: '模型路由（OpenAI 相容）',
             running: '執行中',
+            unsaved: '未儲存',
             failed: '啟動失敗',
             disabled: '未啟用',
             enable: '啟用',

@@ -9099,6 +9099,9 @@ const message = {
             engines: 'Inference services',
             noEngine: 'No inference processes found',
             registered: 'Registered',
+            workerOf: 'Registered via head',
+            workerHelper:
+                'Worker rank of a multi-host group, serves no API. Adopt it on the head host and select this host as a worker.',
             import: 'Import hosts',
             importHelper:
                 'Compute scheduling keeps no host accounts of its own. Pick hosts that are already connected: cluster nodes and this panel are sampled and deployed through the panel API (recommended, required for the AI → vLLM backend); terminal hosts reuse the SSH account saved in Terminal → Hosts and are sampled agentless.',
@@ -9177,6 +9180,9 @@ const message = {
             adoptHelper:
                 'Register only, no restart: the panel starts collecting its metrics and can add it to the model router.',
             servedHelper: 'The model field in client requests; the router dispatches by this name.',
+            upstreamModel: 'Engine model name',
+            upstreamModelHelper:
+                "Fill in when the engine's own --served-model-name differs from the served name above, e.g. DeepSeek-V4-Flash-0731-w8a8 on Ascend. The served name decides the pool; the router rewrites the request model to this name. Empty means the same.",
             workers: 'Other hosts in the group',
             workersHelper:
                 'For multi-host inference (e.g. 2-host TP), select the worker hosts so the scheduler knows they are occupied.',
@@ -9302,6 +9308,7 @@ const message = {
         access: {
             router: 'Model router (OpenAI compatible)',
             running: 'Running',
+            unsaved: 'Unsaved',
             failed: 'Failed to start',
             disabled: 'Disabled',
             enable: 'Enable',

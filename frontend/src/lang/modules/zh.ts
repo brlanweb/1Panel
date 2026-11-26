@@ -8484,6 +8484,8 @@ const message = {
             engines: '推理服务',
             noEngine: '未发现推理进程',
             registered: '已登记',
+            workerOf: '已随主节点登记',
+            workerHelper: '多机推理的 worker 进程，不对外提供服务。请在主节点上接管，并把本机选为 worker 主机。',
             import: '导入主机',
             importHelper:
                 '算力调度不单独保存任何主机账号。请从已接入的主机中选择：集群节点和本机通过面板接口采集与部署（推荐，可使用 AI → vLLM 部署方式）；终端主机复用「终端 → 主机」中保存的 SSH 账号，以无代理方式采集。',
@@ -8557,6 +8559,9 @@ const message = {
             adopt: '接管',
             adoptHelper: '只登记，不重启：面板开始采集它的指标，并可以把它加入模型路由。',
             servedHelper: '客户端请求里的 model 字段，路由按这个名字分发。',
+            upstreamModel: '引擎实际模型名',
+            upstreamModelHelper:
+                '引擎自己的 --served-model-name 与上面的服务模型名不同时填写，例如华为昇腾上的 DeepSeek-V4-Flash-0731-w8a8。服务模型名决定加入哪个算力池；转发时网关会把请求里的 model 改成这里的名字。留空表示相同。',
             workers: '同组的其他主机',
             workersHelper: '多机推理（例如两机 TP）时选择 worker 主机，便于调度器知道这些主机已被占用。',
             apiKey: '上游 API Key',
@@ -8674,6 +8679,7 @@ const message = {
         access: {
             router: '模型路由（OpenAI 兼容）',
             running: '运行中',
+            unsaved: '未保存',
             failed: '启动失败',
             disabled: '未启用',
             enable: '启用',

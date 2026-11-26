@@ -706,3 +706,46 @@ func (b *BaseApi) ComputeBindPool(c *gin.Context) {
 	data, err := computeService.BindPoolService(req.ID)
 	computeReply(c, data, err)
 }
+
+// @Tags Compute
+// @Summary Prepared models of all panel hosts (AI → vLLM → Models), by repo
+// @Success 200 {object} dto.ComputeModelList
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/models [get]
+func (b *BaseApi) ComputeListModels(c *gin.Context) {
+	data, err := computeService.ListModels()
+	computeReply(c, data, err)
+}
+
+// @Tags Compute
+// @Summary Page model router call logs (memory only, retention window)
+// @Accept json
+// @Param request body dto.ComputeCallLogSearch true "request"
+// @Success 200 {object} dto.ComputeCallLogPage
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/logs/search [post]
+func (b *BaseApi) ComputePageCallLogs(c *gin.Context) {
+	req, ok := computeBind[dto.ComputeCallLogSearch](c)
+	if !ok {
+		return
+	}
+	helper.SuccessWithData(c, computeService.PageCallLogs(req))
+}
+
+// @Tags Compute
+// @Summary Model call analytics (from the in-memory call logs)
+// @Accept json
+// @Param request body dto.ComputeAnalyticsReq true "request"
+// @Success 200 {object} dto.ComputeAnalytics
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/compute/analytics [post]
+func (b *BaseApi) ComputeAnalytics(c *gin.Context) {
+	req, ok := computeBind[dto.ComputeAnalyticsReq](c)
+	if !ok {
+		return
+	}
+	helper.SuccessWithData(c, computeService.Analytics(req))
+}

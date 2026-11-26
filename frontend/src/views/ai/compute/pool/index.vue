@@ -198,6 +198,7 @@ const router = useRouter();
 const buttons = computed(() => [
     { label: i18n.global.t('aiTools.model.services'), path: '/ai/model-services' },
     { label: i18n.global.t('compute.pool.title'), path: '/ai/model-services/pools' },
+    { label: i18n.global.t('compute.ana.title'), path: '/ai/model-services/analytics' },
 ]);
 
 const loading = ref(false);

@@ -18,18 +18,27 @@
                 <el-table-column :label="$t('compute.tpl.runtime')" min-width="150">
                     <template #default="{ row }">{{ runtimeName(row.runtimeId) }}</template>
                 </el-table-column>
-                <el-table-column :label="$t('compute.tpl.modelPath')" min-width="200">
+                <el-table-column :label="$t('compute.wiz.model')" min-width="220">
                     <template #default="{ row }">
-                        <span class="mono">{{ row.modelPath }}</span>
+                        <div v-if="row.modelRepo">{{ row.modelRepo }}</div>
+                        <span class="mono sub">{{ row.modelPath }}</span>
                     </template>
                 </el-table-column>
-                <el-table-column :label="$t('compute.tpl.resources')" min-width="160">
+                <el-table-column :label="$t('compute.tpl.resources')" min-width="200">
                     <template #default="{ row }">
-                        {{ row.nodeCount }}× {{ $t('compute.tpl.hosts') }}
-                        <el-tag v-if="row.needFabric" size="small" effect="plain">fabric</el-tag>
+                        <template v-if="row.nodeCount > 1">
+                            {{ $t('compute.wiz.multiN', [row.nodeCount]) }}
+                            <el-tag v-if="row.needFabric" size="small" effect="plain">fabric</el-tag>
+                        </template>
+                        <template v-else>
+                            {{ $t('compute.wiz.singleN', [row.maxPerHost || 1]) }}
+                        </template>
                         <div class="sub">
-                            :{{ row.port }}
-                            <span v-if="row.minMemGb">· ≥{{ row.minMemGb }} GiB</span>
+                            {{ hostNames(row) }}
+                        </div>
+                        <div class="sub">
+                            :{{ row.port }}+
+                            <span v-if="row.minMemGb">· {{ row.minMemGb }} GiB / {{ $t('compute.wiz.replica') }}</span>
                         </div>
                     </template>
                 </el-table-column>
@@ -102,104 +111,7 @@
             </el-table>
         </el-card>
 
-        <DrawerPro
-            v-model="profileVisible"
-            :header="$t('compute.tpl.profile')"
-            :resource="profileForm.name"
-            size="normal"
-            @close="profileVisible = false"
-        >
-            <el-form label-position="top" :model="profileForm">
-                <el-row :gutter="12">
-                    <el-col :span="12">
-                        <el-form-item :label="$t('commons.table.name')" required>
-                            <el-input v-model="profileForm.name" placeholder="deepseek-v4-2x" />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="12">
-                        <el-form-item :label="$t('compute.servedName')" required>
-                            <el-input v-model="profileForm.servedName" placeholder="deepseek-v4-flash-0731" />
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-                <el-form-item :label="$t('compute.tpl.runtime')" required>
-                    <el-select v-model="profileForm.runtimeId" class="w-full">
-                        <el-option v-for="r in runtimes" :key="r.id" :label="r.name" :value="r.id" />
-                    </el-select>
-                </el-form-item>
-                <el-form-item :label="$t('compute.tpl.modelPath')" required>
-                    <el-input v-model="profileForm.modelPath" placeholder="/models/DeepSeek-V4-Flash-0731" />
-                    <span class="input-help">{{ $t('compute.tpl.modelPathHelper') }}</span>
-                </el-form-item>
-                <el-row :gutter="12">
-                    <el-col :span="8">
-                        <el-form-item :label="$t('compute.tpl.nodeCount')">
-                            <el-input-number
-                                v-model="profileForm.nodeCount"
-                                :min="1"
-                                :max="64"
-                                controls-position="right"
-                            />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item :label="$t('compute.host.port')">
-                            <el-input-number
-                                v-model="profileForm.port"
-                                :min="1"
-                                :max="65535"
-                                controls-position="right"
-                            />
-                        </el-form-item>
-                    </el-col>
-                    <el-col :span="8">
-                        <el-form-item :label="$t('compute.tpl.minMem')">
-                            <el-input-number
-                                v-model="profileForm.minMemGb"
-                                :min="0"
-                                :max="2048"
-                                controls-position="right"
-                            />
-                        </el-form-item>
-                    </el-col>
-                </el-row>
-                <el-form-item>
-                    <el-checkbox v-model="profileForm.needFabric">{{ $t('compute.tpl.needFabric') }}</el-checkbox>
-                    <span class="input-help">{{ $t('compute.tpl.needFabricHelper') }}</span>
-                </el-form-item>
-                <el-form-item :label="$t('compute.tpl.extraArgs')">
-                    <el-input
-                        v-model="profileForm.extraArgs"
-                        type="textarea"
-                        :rows="3"
-                        class="code-area"
-                        placeholder="--max-model-len 200000 --gpu-memory-utilization 0.8 --kv-cache-dtype fp8"
-                    />
-                </el-form-item>
-                <el-form-item :label="$t('compute.tpl.env')">
-                    <el-input
-                        v-model="profileForm.env"
-                        type="textarea"
-                        :rows="3"
-                        class="code-area"
-                        placeholder="KEY=VALUE"
-                    />
-                </el-form-item>
-                <el-form-item :label="$t('compute.tpl.startTimeout')">
-                    <el-input-number
-                        v-model="profileForm.startTimeoutSec"
-                        :min="60"
-                        :max="7200"
-                        :step="60"
-                        controls-position="right"
-                    />
-                </el-form-item>
-            </el-form>
-            <template #footer>
-                <el-button @click="profileVisible = false">{{ $t('commons.button.cancel') }}</el-button>
-                <el-button type="primary" @click="onSaveProfile">{{ $t('commons.button.confirm') }}</el-button>
-            </template>
-        </DrawerPro>
+        <ProfileWizard ref="wizardRef" :runtimes="runtimes" @saved="load" />
 
         <DrawerPro
             v-model="runtimeVisible"
@@ -298,35 +210,21 @@ import { Compute } from '@/api/interface/compute';
 import {
     deleteComputeProfile,
     deleteComputeRuntime,
+    listComputeHosts,
     listComputeProfiles,
     listComputeRuntimes,
-    saveComputeProfile,
     saveComputeRuntime,
 } from '@/api/modules/compute';
+import ProfileWizard from './profile.vue';
 import { MsgSuccess } from '@/utils/message';
 import { t } from '../helper';
 
 const loading = ref(false);
 const runtimes = ref<Compute.Runtime[]>([]);
 const profiles = ref<Compute.Profile[]>([]);
-const profileVisible = ref(false);
+const hosts = ref<Compute.Host[]>([]);
 const runtimeVisible = ref(false);
-
-const emptyProfile = (): Partial<Compute.Profile> => ({
-    id: 0,
-    name: '',
-    runtimeId: undefined,
-    servedName: '',
-    modelPath: '',
-    nodeCount: 1,
-    needFabric: false,
-    minMemGb: 0,
-    port: 8000,
-    extraArgs: '',
-    env: '',
-    startTimeoutSec: 1800,
-    remark: '',
-});
+const wizardRef = ref();
 const emptyRuntime = (): Partial<Compute.Runtime> => ({
     id: 0,
     name: '',
@@ -342,39 +240,39 @@ const emptyRuntime = (): Partial<Compute.Runtime> => ({
     remark: '',
     builtin: false,
 });
-const profileForm = reactive<Partial<Compute.Profile>>(emptyProfile());
 const runtimeForm = reactive<Partial<Compute.Runtime>>(emptyRuntime());
 const isVllmBackend = computed(() => runtimeForm.backend === 'vllm');
 
 const runtimeName = (id: number) => runtimes.value.find((r) => r.id === id)?.name || `#${id}`;
+const hostNames = (row: Compute.Profile) => {
+    const ids = (row.hostIds || '').split(',').filter(Boolean).map(Number);
+    if (!ids.length) return t('compute.wiz.anyHost');
+    return ids
+        .map((id, i) => {
+            const name = hosts.value.find((h) => h.id === id)?.name || `#${id}`;
+            return i === 0 && row.nodeCount > 1 ? `${name} (${t('compute.wiz.head')})` : name;
+        })
+        .join(', ');
+};
 
 const load = async () => {
     loading.value = true;
     try {
-        const [r, p] = await Promise.all([listComputeRuntimes(), listComputeProfiles()]);
+        const [r, p, h] = await Promise.all([listComputeRuntimes(), listComputeProfiles(), listComputeHosts()]);
         runtimes.value = r.data || [];
         profiles.value = p.data || [];
+        hosts.value = h.data || [];
     } finally {
         loading.value = false;
     }
 };
 
-const openProfile = (row?: Compute.Profile) => {
-    Object.assign(profileForm, emptyProfile(), row || {});
-    if (!row) profileForm.runtimeId = runtimes.value[0]?.id;
-    profileVisible.value = true;
-};
+const openProfile = (row?: Compute.Profile) => wizardRef.value.open(row);
 const openRuntime = (row?: Compute.Runtime) => {
     Object.assign(runtimeForm, emptyRuntime(), row || {});
     runtimeVisible.value = true;
 };
 
-const onSaveProfile = async () => {
-    await saveComputeProfile({ ...profileForm });
-    MsgSuccess(t('commons.msg.operationSuccess'));
-    profileVisible.value = false;
-    load();
-};
 const onSaveRuntime = async () => {
     await saveComputeRuntime({ ...runtimeForm });
     MsgSuccess(t('commons.msg.operationSuccess'));

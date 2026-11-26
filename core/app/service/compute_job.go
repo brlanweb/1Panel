@@ -1,9 +1,12 @@
 package service
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
+	"math"
 	"net/http"
 	"sort"
 	"strings"
@@ -42,11 +45,14 @@ type computeJobSpec struct {
 	Source     string
 	Reason     string
 	Name       string
+	// Port of a new replica (several replicas may share a host).
+	Port int
 }
 
 type computeJobRun struct {
-	job   model.ComputeJob
-	steps []dto.ComputeJobStep
+	job     model.ComputeJob
+	steps   []dto.ComputeJobStep
+	savedAt time.Time
 }
 
 func (r *computeJobRun) step(name string, fn func() (string, error)) error {
@@ -71,7 +77,22 @@ func (r *computeJobRun) step(name string, fn func() (string, error)) error {
 	return err
 }
 
+// progress replaces the message of the running step (throttled), for long
+// steps such as a model copy.
+func (r *computeJobRun) progress(msg string) {
+	if len(r.steps) == 0 {
+		return
+	}
+	i := len(r.steps) - 1
+	r.steps[i].Message = computeTrim(msg, 2000)
+	if time.Since(r.savedAt) < 3*time.Second {
+		return
+	}
+	r.save()
+}
+
 func (r *computeJobRun) save() {
+	r.savedAt = time.Now()
 	b, _ := json.Marshal(r.steps)
 	_ = repo.ComputeJobRepo.Update(r.job.ID, map[string]interface{}{"steps": string(b)})
 }
@@ -158,6 +179,81 @@ func computeStartJob(spec computeJobSpec) (uint, error) {
 
 // ---- precheck / placement -------------------------------------------------
 
+// computeHostUse is what already runs on a host.
+type computeHostUse struct {
+	insts []string
+	multi bool // part of a multi-host group
+	ports map[int]bool
+}
+
+func computeHostUsage(excludeInst uint) map[uint]*computeHostUse {
+	insts, _ := repo.ComputeInstanceRepo.List()
+	res := map[uint]*computeHostUse{}
+	for _, in := range insts {
+		if in.ID == excludeInst || in.Status == model.ComputeInstStopped {
+			continue
+		}
+		ids := computeParseIDs(in.HostIDs)
+		for _, id := range ids {
+			u := res[id]
+			if u == nil {
+				u = &computeHostUse{ports: map[int]bool{}}
+				res[id] = u
+			}
+			u.insts = append(u.insts, in.Name)
+			u.ports[in.Port] = true
+			if len(ids) > 1 {
+				u.multi = true
+			}
+		}
+	}
+	return res
+}
+
+// computeHostFits: a host takes another replica of the plan when it is
+// empty, or (single-host plans with MaxPerHost > 1) it only runs
+// single-host replicas and fewer than MaxPerHost of them.
+func computeHostFits(prof model.ComputeProfile, u *computeHostUse) bool {
+	if u == nil || len(u.insts) == 0 {
+		return true
+	}
+	if prof.NodeCount > 1 || prof.MaxPerHost <= 1 || u.multi {
+		return false
+	}
+	return len(u.insts) < prof.MaxPerHost
+}
+
+// computePickPort returns the first port from the plan's port on that is
+// free on every host (instances and listening engine processes).
+func computePickPort(prof model.ComputeProfile, ids []uint, usage map[uint]*computeHostUse) int {
+	base := prof.Port
+	if base <= 0 {
+		base = 8000
+	}
+	for p := base; p < base+200 && p <= 65535; p++ {
+		ok := true
+		for _, id := range ids {
+			if u := usage[id]; u != nil && u.ports[p] {
+				ok = false
+				break
+			}
+			if slow := computeState.hostSlow(id); slow != nil {
+				for _, proc := range slow.Procs {
+					if proc.Port == p {
+						ok = false
+					}
+				}
+			}
+		}
+		if ok {
+			return p
+		}
+	}
+	return 0
+}
+
+func computeProfileHosts(prof model.ComputeProfile) []uint { return computeParseIDs(prof.HostIDs) }
+
 func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs []uint, excludeInst uint) dto.ComputePrecheckRes {
 	res := dto.ComputePrecheckRes{OK: true}
 	add := func(name string, ok bool, msg string) {
@@ -167,31 +263,22 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 		}
 	}
 	hosts := computeHostMap()
-	insts, _ := repo.ComputeInstanceRepo.List()
-	busy := map[uint]string{}
-	portUsed := map[uint]map[int]bool{}
-	for _, in := range insts {
-		if in.ID == excludeInst || in.Status == model.ComputeInstStopped {
-			continue
-		}
-		for _, id := range computeParseIDs(in.HostIDs) {
-			busy[id] = in.Name
-			if portUsed[id] == nil {
-				portUsed[id] = map[int]bool{}
-			}
-			portUsed[id][in.Port] = true
-		}
-	}
+	usage := computeHostUsage(excludeInst)
 	if len(hostIDs) == 0 {
-		hostIDs = computePlace(prof, rt, hosts, busy)
-		if len(hostIDs) == 0 {
-			add("placement", false, fmt.Sprintf("no %d free host(s) satisfy the profile", prof.NodeCount))
-			return res
+		if pinned := computeProfileHosts(prof); prof.NodeCount > 1 && len(pinned) > 0 {
+			hostIDs = pinned
+			add("placement", true, strings.Join(computeHostNames(hostIDs, hosts), ", "))
+		} else {
+			hostIDs = computePlace(prof, rt, hosts, usage)
+			if len(hostIDs) == 0 {
+				add("placement", false, fmt.Sprintf("no %d host(s) with room for the plan", max(prof.NodeCount, 1)))
+				return res
+			}
+			add("placement", true, strings.Join(computeHostNames(hostIDs, hosts), ", "))
 		}
-		add("placement", true, strings.Join(computeHostNames(hostIDs, hosts), ", "))
 	}
 	res.HostIDs = hostIDs
-	add("nodeCount", len(hostIDs) == prof.NodeCount, fmt.Sprintf("%d / %d", len(hostIDs), prof.NodeCount))
+	add("nodeCount", len(hostIDs) == max(prof.NodeCount, 1), fmt.Sprintf("%d / %d", len(hostIDs), max(prof.NodeCount, 1)))
 	if prof.NodeCount > 1 && !rt.MultiNode {
 		add("runtime", false, "runtime "+rt.Name+" is single node")
 	}
@@ -201,6 +288,12 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 				add(h.Name+":backend", false, "runtime "+rt.Name+" deploys through AI → vLLM and needs a panel host (cluster node / local)")
 			}
 		}
+	}
+	res.Port = computePickPort(prof, hostIDs, usage)
+	if res.Port == 0 {
+		add("port", false, fmt.Sprintf("no free port from %d on", prof.Port))
+	} else {
+		add("port", true, fmt.Sprintf("%d", res.Port))
 	}
 	for _, id := range hostIDs {
 		h, ok := hosts[id]
@@ -213,23 +306,17 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 		if !h.Schedulable {
 			add(h.Name+":schedulable", false, "cordoned")
 		}
-		if name, ok := busy[id]; ok {
-			add(h.Name+":free", false, "used by "+name)
-		}
-		if portUsed[id][prof.Port] {
-			add(h.Name+":port", false, fmt.Sprintf("port %d in use", prof.Port))
-		}
-		if slow := computeState.hostSlow(id); slow != nil {
-			for _, p := range slow.Procs {
-				if p.Port == prof.Port && excludeInst == 0 {
-					add(h.Name+":port", false, fmt.Sprintf("port %d used by pid %d", prof.Port, p.Pid))
-				}
+		if u := usage[id]; !computeHostFits(prof, u) {
+			msg := "used by " + strings.Join(u.insts, ", ")
+			if prof.NodeCount <= 1 && prof.MaxPerHost > 1 && !u.multi {
+				msg += fmt.Sprintf(" (%d / %d replicas per host)", len(u.insts), prof.MaxPerHost)
 			}
+			add(h.Name+":free", false, msg)
 		}
 		if prof.MinMemGB > 0 && rtm.Online {
 			need := uint64(prof.MinMemGB) << 30
 			// The old instance of a switch frees its memory first.
-			avail, pool := computeFreeMem(rtm, rt.Device, excludeInst > 0)
+			avail, pool := computeFreeMem(rtm, rt.Device, excludeInst > 0 && usage[id] == nil)
 			add(h.Name+":memory", avail+computeMemHeadroom >= need,
 				fmt.Sprintf("%.1f GiB %s available / %d GiB required", float64(avail)/(1<<30), pool, prof.MinMemGB))
 		}
@@ -244,12 +331,28 @@ func computePrecheck(prof model.ComputeProfile, rt model.ComputeRuntime, hostIDs
 		ok := len(fab) == len(hostIDs) && computeConnected(hostIDs)
 		add("fabric", ok, "hosts must share one fabric domain with ACTIVE links")
 	}
-	if c, ok := computeModelPathCheck(prof, hostIDs, hosts); !ok {
-		add("modelPath", false, c)
-	} else {
-		add("modelPath", true, c)
-	}
+	msg, ok := computeModelCheck(prof, hostIDs, hosts)
+	add("model", ok, msg)
 	return res
+}
+
+// computeModelCheck: every host has the model, or it can be copied there
+// from a host that has it.
+func computeModelCheck(prof model.ComputeProfile, ids []uint, hosts map[uint]model.ComputeHost) (string, bool) {
+	place := computeLocateModel(prof, ids, hosts)
+	if len(place.Missing) == 0 {
+		var parts []string
+		for _, id := range ids {
+			parts = append(parts, hosts[id].Name+": "+place.Have[id])
+		}
+		return strings.Join(parts, "; "), true
+	}
+	src, dir, ok := computeModelSource(prof, ids, place.Missing, hosts, place)
+	if !ok {
+		return computeNoModelErr(prof, place).Error(), false
+	}
+	return fmt.Sprintf("copy %s from %s to %s before start", dir, hosts[src].Name,
+		strings.Join(computeHostNames(place.Missing, hosts), ", ")), true
 }
 
 func computeConnected(ids []uint) bool {
@@ -280,50 +383,61 @@ func computeConnected(ids []uint) bool {
 	return len(seen) == len(ids)
 }
 
-func computeModelPathCheck(prof model.ComputeProfile, ids []uint, hosts map[uint]model.ComputeHost) (string, bool) {
-	var missing []string
-	script := fmt.Sprintf("test -e %s && echo OK || echo MISSING", computeShellQuote(prof.ModelPath))
-	for _, id := range ids {
+// computePlace picks hosts for a profile: online, schedulable, with room
+// (free, or below MaxPerHost single-host replicas) and enough memory.
+// Plans pinned to hosts only use those; a pinned multi-host plan uses
+// exactly its hosts. Replicas spread first (fewest replicas, then most
+// free memory).
+func computePlace(prof model.ComputeProfile, runtime model.ComputeRuntime, hosts map[uint]model.ComputeHost, usage map[uint]*computeHostUse) []uint {
+	pinned := computeProfileHosts(prof)
+	eligible := func(id uint) (uint64, bool) {
 		h, ok := hosts[id]
-		if !ok {
-			continue
-		}
-		out, err := computeExec(h, script, false, 15*time.Second)
-		if err != nil || !strings.Contains(out, "OK") {
-			missing = append(missing, h.Name)
-		}
-	}
-	if len(missing) > 0 {
-		return "model not found on " + strings.Join(missing, ", "), false
-	}
-	return prof.ModelPath, true
-}
-
-// computePlace picks hosts for a profile: free, online, schedulable, enough
-// memory; multi-host profiles take a whole connected fabric group. Prefers
-// the least loaded hosts.
-func computePlace(prof model.ComputeProfile, runtime model.ComputeRuntime, hosts map[uint]model.ComputeHost, busy map[uint]string) []uint {
-	var free []uint
-	avail := map[uint]uint64{}
-	for id, h := range hosts {
-		if !h.Schedulable || busy[id] != "" {
-			continue
+		if !ok || !h.Schedulable || !computeHostFits(prof, usage[id]) {
+			return 0, false
 		}
 		if runtime.Backend == model.ComputeBackendVllm && !h.IsPanel() {
-			continue
+			return 0, false
 		}
 		rt := computeState.hostRealtime(id)
 		if !rt.Online || computeAccelCount(rt, runtime.Device) == 0 {
-			continue
+			return 0, false
 		}
 		mem, _ := computeFreeMem(rt, runtime.Device, false)
 		if prof.MinMemGB > 0 && mem+computeMemHeadroom < uint64(prof.MinMemGB)<<30 {
-			continue
+			return 0, false
 		}
-		avail[id] = mem
-		free = append(free, id)
+		return mem, true
+	}
+	if prof.NodeCount > 1 && len(pinned) > 0 {
+		for _, id := range pinned {
+			if _, ok := eligible(id); !ok {
+				return nil
+			}
+		}
+		return pinned
+	}
+	cands := pinned
+	if len(cands) == 0 {
+		cands = computeAllHostIDs(hosts)
+	}
+	var free []uint
+	avail := map[uint]uint64{}
+	for _, id := range cands {
+		if mem, ok := eligible(id); ok {
+			avail[id] = mem
+			free = append(free, id)
+		}
+	}
+	load := func(id uint) int {
+		if u := usage[id]; u != nil {
+			return len(u.insts)
+		}
+		return 0
 	}
 	sort.Slice(free, func(i, j int) bool {
+		if load(free[i]) != load(free[j]) {
+			return load(free[i]) < load(free[j])
+		}
 		if avail[free[i]] != avail[free[j]] {
 			return avail[free[i]] > avail[free[j]]
 		}
@@ -363,6 +477,29 @@ func computePlace(prof model.ComputeProfile, runtime model.ComputeRuntime, hosts
 	return nil
 }
 
+// computeCanPlace reports whether one more replica of the plan fits.
+func computeCanPlace(prof model.ComputeProfile) bool {
+	rt, err := repo.ComputeRuntimeRepo.Get(repo.WithByID(prof.RuntimeID))
+	if err != nil {
+		return false
+	}
+	return len(computePlace(prof, rt, computeHostMap(), computeHostUsage(0))) > 0
+}
+
+// computeReplicaName is "<model>@<head host>", numbered when the host
+// already runs a replica with that name.
+func computeReplicaName(served, host string) string {
+	base := fmt.Sprintf("%s@%s", served, host)
+	name := base
+	for i := 2; i < 100; i++ {
+		if _, err := repo.ComputeInstanceRepo.Get(repo.WithByName(name)); err != nil {
+			return name
+		}
+		name = fmt.Sprintf("%s-%d", base, i)
+	}
+	return fmt.Sprintf("%s-%d", base, time.Now().Unix()%100000)
+}
+
 // ---- public entry points --------------------------------------------------
 
 func (u *ComputeService) Deploy(req dto.ComputeDeployReq) (dto.ComputePrecheckRes, error) {
@@ -381,13 +518,13 @@ func (u *ComputeService) Deploy(req dto.ComputeDeployReq) (dto.ComputePrecheckRe
 	name := strings.TrimSpace(req.Name)
 	if name == "" {
 		hosts := computeHostMap()
-		name = fmt.Sprintf("%s@%s", prof.ServedName, hosts[res.HostIDs[0]].Name)
+		name = computeReplicaName(prof.ServedName, hosts[res.HostIDs[0]].Name)
 	}
 	if _, err := repo.ComputeInstanceRepo.Get(repo.WithByName(name)); err == nil {
 		return res, buserr.New("ErrRecordExist")
 	}
 	id, err := computeStartJob(computeJobSpec{Type: "deploy", ProfileID: prof.ID, ServedName: prof.ServedName,
-		HostIDs: res.HostIDs, Source: "manual", Name: name})
+		HostIDs: res.HostIDs, Source: "manual", Name: name, Port: res.Port})
 	res.JobID = id
 	return res, err
 }
@@ -406,7 +543,7 @@ func (u *ComputeService) Switch(req dto.ComputeSwitchReq) (dto.ComputePrecheckRe
 		return dto.ComputePrecheckRes{}, buserr.New("ErrRecordNotFound")
 	}
 	ids := computeParseIDs(in.HostIDs)
-	if len(ids) != prof.NodeCount {
+	if len(ids) != max(prof.NodeCount, 1) {
 		return dto.ComputePrecheckRes{Items: []dto.ComputePrecheckItem{{Name: "nodeCount", Message: fmt.Sprintf("instance has %d host(s), profile needs %d", len(ids), prof.NodeCount)}}}, nil
 	}
 	res := computePrecheck(prof, rt, ids, in.ID)
@@ -418,7 +555,7 @@ func (u *ComputeService) Switch(req dto.ComputeSwitchReq) (dto.ComputePrecheckRe
 		return res, nil
 	}
 	id, err := computeStartJob(computeJobSpec{Type: "switch", InstanceID: in.ID, ProfileID: prof.ID,
-		ServedName: prof.ServedName, HostIDs: ids, Source: "manual"})
+		ServedName: prof.ServedName, HostIDs: ids, Source: "manual", Port: res.Port})
 	res.JobID = id
 	return res, err
 }
@@ -454,8 +591,12 @@ func computeRunDeploy(run *computeJobRun, spec computeJobSpec) error {
 	head := hosts[spec.HostIDs[0]]
 	key := computeRandomKey("sk-node-")
 	keyCipher, _ := computeEncrypt(key)
+	port := spec.Port
+	if port <= 0 {
+		port = prof.Port
+	}
 	in := model.ComputeInstance{Name: spec.Name, ProfileID: prof.ID, ServedName: prof.ServedName, HeadHostID: head.ID,
-		HostIDs: computeJoinIDs(spec.HostIDs), Port: prof.Port, Endpoint: computeEndpoint(head.Addr, prof.Port),
+		HostIDs: computeJoinIDs(spec.HostIDs), Port: port, Endpoint: computeEndpoint(head.Addr, port),
 		APIKeyCipher: keyCipher, ContainerName: computeContainerName(spec.Name), Status: model.ComputeInstStarting,
 		RouteEnabled: false, Weight: 100}
 	if err := repo.ComputeInstanceRepo.Create(&in); err != nil {
@@ -470,9 +611,21 @@ func computeRunDeploy(run *computeJobRun, spec computeJobSpec) error {
 	return repo.ComputeInstanceRepo.Update(in.ID, map[string]interface{}{"status": model.ComputeInstRunning, "route_enabled": true, "last_error": ""})
 }
 
-// computeLaunch: render → start workers → start head → wait healthy → warm up.
+// computeLaunch: model on every host → render → start workers → start
+// head → wait healthy → availability test. The instance only takes traffic
+// (route_enabled, set by the caller) after the test passed.
 func computeLaunch(run *computeJobRun, in model.ComputeInstance, prof model.ComputeProfile, rt model.ComputeRuntime,
 	ids []uint, hosts map[uint]model.ComputeHost, key string) error {
+	dir, err := computeEnsureModel(run, prof, ids, hosts)
+	if err != nil {
+		_ = run.step("model", func() (string, error) { return "", err })
+		return err
+	}
+	prof.ModelPath = dir
+	prof = computeTuneProfile(prof, rt, ids)
+	if prof.Image != "" {
+		rt.Image = prof.Image
+	}
 	if rt.Backend == model.ComputeBackendVllm {
 		if len(ids) != 1 {
 			return fmt.Errorf("runtime %s is single host", rt.Name)
@@ -501,8 +654,7 @@ func computeLaunch(run *computeJobRun, in model.ComputeInstance, prof model.Comp
 	}); err != nil {
 		return err
 	}
-	_ = run.step("warm up", func() (string, error) { return computeWarmup(in, key) })
-	return nil
+	return run.step("availability test", func() (string, error) { return computeVerify(in, key) })
 }
 
 func computeLaunchScripts(run *computeJobRun, in model.ComputeInstance, prof model.ComputeProfile, rt model.ComputeRuntime,
@@ -566,22 +718,112 @@ func computeWaitHealthy(in model.ComputeInstance, rt model.ComputeRuntime, key s
 	return last, fmt.Errorf("not healthy after %s", timeout)
 }
 
-func computeWarmup(in model.ComputeInstance, key string) (string, error) {
-	body := fmt.Sprintf(`{"model":%q,"messages":[{"role":"user","content":"ping"}],"max_tokens":1}`, computeUpstreamModel(in))
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
+// computeVerify sends a real chat completion through the instance's own
+// endpoint and key: HTTP 200 with a non-empty answer is required before the
+// instance joins its pool. The result reports first-token latency.
+func computeVerify(in model.ComputeInstance, key string) (string, error) {
+	body := fmt.Sprintf(`{"model":%q,"messages":[{"role":"user","content":"Reply with the single word: ok"}],"max_tokens":16,"temperature":0,"stream":true}`,
+		computeUpstreamModel(in))
+	var last error
+	for attempt := 1; attempt <= 3; attempt++ {
+		msg, err := computeVerifyOnce(in, key, body)
+		if err == nil {
+			return msg, nil
+		}
+		last = err
+		time.Sleep(time.Duration(attempt) * 5 * time.Second)
+	}
+	return "", fmt.Errorf("model test failed: %v", last)
+}
+
+func computeVerifyOnce(in model.ComputeInstance, key, body string) (string, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 180*time.Second)
 	defer cancel()
 	req, _ := http.NewRequestWithContext(ctx, http.MethodPost, strings.TrimRight(in.Endpoint, "/")+"/v1/chat/completions", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	if key != "" {
 		req.Header.Set("Authorization", "Bearer "+key)
 	}
-	client := &http.Client{Timeout: 120 * time.Second}
-	resp, err := client.Do(req)
+	start := time.Now()
+	resp, err := computeUpstream.RoundTrip(req)
 	if err != nil {
 		return "", err
 	}
-	resp.Body.Close()
-	return fmt.Sprintf("http %d", resp.StatusCode), nil
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		b, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return "", fmt.Errorf("http %d %s", resp.StatusCode, strings.TrimSpace(string(b)))
+	}
+	var ttft time.Duration
+	var text strings.Builder
+	reader := bufio.NewReader(resp.Body)
+	for {
+		line, rerr := reader.ReadString('\n')
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "data:") {
+			data := strings.TrimSpace(strings.TrimPrefix(line, "data:"))
+			if data == "[DONE]" {
+				break
+			}
+			var chunk struct {
+				Choices []struct {
+					Delta struct {
+						Content          string `json:"content"`
+						ReasoningContent string `json:"reasoning_content"`
+						Reasoning        string `json:"reasoning"`
+					} `json:"delta"`
+				} `json:"choices"`
+			}
+			if json.Unmarshal([]byte(data), &chunk) == nil {
+				for _, c := range chunk.Choices {
+					piece := c.Delta.Content + c.Delta.ReasoningContent + c.Delta.Reasoning
+					if piece != "" && ttft == 0 {
+						ttft = time.Since(start)
+					}
+					text.WriteString(piece)
+				}
+			}
+		}
+		if rerr != nil {
+			break
+		}
+	}
+	if strings.TrimSpace(text.String()) == "" {
+		return "", fmt.Errorf("empty answer")
+	}
+	return fmt.Sprintf("ok · first token %s · total %s · %q", ttft.Round(time.Millisecond), time.Since(start).Round(time.Millisecond),
+		computeTrim(strings.TrimSpace(text.String()), 60)), nil
+}
+
+// computeTuneProfile adjusts a plan for the actual hosts: the image of the
+// plan overrides the runtime's, and with several replicas per host every
+// engine is capped to its share of accelerator memory (MinMemGB of the
+// total), so the replicas fit next to each other.
+func computeTuneProfile(prof model.ComputeProfile, rt model.ComputeRuntime, ids []uint) model.ComputeProfile {
+	if prof.NodeCount > 1 || prof.MaxPerHost <= 1 || prof.MinMemGB <= 0 || len(ids) == 0 {
+		return prof
+	}
+	if strings.Contains(prof.ExtraArgs, "--gpu-memory-utilization") {
+		return prof
+	}
+	total, _ := computeFreeMem(computeState.hostRealtime(ids[0]), rt.Device, true)
+	if total == 0 {
+		return prof
+	}
+	util := float64(prof.MinMemGB) * (1 << 30) / float64(total)
+	if util > 0.9 {
+		return prof
+	}
+	util = math.Max(0.05, math.Ceil(util*100)/100)
+	arg := fmt.Sprintf("--gpu-memory-utilization %.2f", util)
+	if strings.TrimSpace(prof.ExtraArgs) == "" {
+		prof.ExtraArgs = arg
+	} else if rt.Backend == model.ComputeBackendVllm {
+		prof.ExtraArgs = strings.TrimRight(prof.ExtraArgs, "\n") + "\n" + arg
+	} else {
+		prof.ExtraArgs = strings.TrimSpace(prof.ExtraArgs) + " " + arg
+	}
+	return prof
 }
 
 func computeStopHosts(in model.ComputeInstance, rt model.ComputeRuntime, ids []uint, hosts map[uint]model.ComputeHost) (string, error) {
@@ -668,11 +910,15 @@ func computeRunSwitch(run *computeJobRun, spec computeJobSpec) (bool, error) {
 	}
 	keyCipher, _ := computeEncrypt(key)
 	next := in
-	next.ProfileID, next.ServedName, next.Port = newProf.ID, newProf.ServedName, newProf.Port
+	port := spec.Port
+	if port <= 0 {
+		port = newProf.Port
+	}
+	next.ProfileID, next.ServedName, next.Port = newProf.ID, newProf.ServedName, port
 	// The panel launches the new engine with --served-model-name set to the
 	// profile name, so an alias of the adopted engine no longer applies.
 	next.UpstreamModel = ""
-	next.Endpoint = computeEndpoint(hosts[ids[0]].Addr, newProf.Port)
+	next.Endpoint = computeEndpoint(hosts[ids[0]].Addr, port)
 	if next.ContainerName == "" {
 		next.ContainerName = computeContainerName(in.Name)
 	}

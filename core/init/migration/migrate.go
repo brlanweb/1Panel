@@ -103,5 +103,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.MoveComputeMenuToAI,
 		migrations.ComputeIntoModelServices,
 		migrations.ComputeInstanceUpstreamModel,
+		migrations.ComputeProfileWizard,
 	}
 }

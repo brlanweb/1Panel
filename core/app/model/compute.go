@@ -144,6 +144,20 @@ type ComputeProfile struct {
 	// unified memory can take a long time.
 	StartTimeoutSec int    `gorm:"not null;default:1800" json:"startTimeoutSec"`
 	Remark          string `json:"remark"`
+	// ModelRepo is the repo id of the model in AI → vLLM → Models (e.g.
+	// deepseek-ai/DeepSeek-V4-Flash-0731). Hosts may keep the model under
+	// different directories; the directory is resolved per host by repo,
+	// ModelPath is the fallback and the target path of a model sync.
+	ModelRepo string `gorm:"not null;default:''" json:"modelRepo"`
+	// HostIDs (comma separated, head first) pins the plan to hosts. A
+	// multi-host plan uses exactly these hosts; a single-host plan places
+	// each replica on one of them. Empty = any suitable host.
+	HostIDs string `gorm:"not null;default:''" json:"hostIds"`
+	// MaxPerHost (single-host plans) allows several replicas on one host
+	// when its accelerator memory fits them (each takes MinMemGB).
+	MaxPerHost int `gorm:"not null;default:1" json:"maxPerHost"`
+	// Image overrides the runtime image (e.g. taken from a vLLM recipe).
+	Image string `gorm:"not null;default:''" json:"image"`
 }
 
 func (ComputeProfile) TableName() string { return "compute_profiles" }
@@ -152,9 +166,9 @@ func (ComputeProfile) TableName() string { return "compute_profiles" }
 // group whose head exposes the API).
 type ComputeInstance struct {
 	BaseModel
-	Name          string `gorm:"not null;uniqueIndex" json:"name"`
-	ProfileID     uint   `json:"profileId"`
-	ServedName    string `gorm:"not null;index" json:"servedName"`
+	Name       string `gorm:"not null;uniqueIndex" json:"name"`
+	ProfileID  uint   `json:"profileId"`
+	ServedName string `gorm:"not null;index" json:"servedName"`
 	// UpstreamModel is the model name the engine itself serves when it
 	// differs from ServedName, e.g. a w8a8 build on Ascend registered as
 	// "DeepSeek-V4-Flash-0731-w8a8" that belongs to the
@@ -245,10 +259,10 @@ func (ComputeConsumer) TableName() string { return "compute_consumers" }
 type ComputePolicy struct {
 	BaseModel
 	// Name is the model service name of the pool (empty for plain policies).
-	Name       string `gorm:"not null;default:''" json:"name"`
-	AccountID  uint   `gorm:"not null;default:0" json:"accountId"`  // agent_provider_accounts.id (local agent)
-	ConsumerID uint   `gorm:"not null;default:0" json:"consumerId"` // router key used by that service
-	ServedName string `gorm:"not null;uniqueIndex" json:"servedName"`
+	Name         string `gorm:"not null;default:''" json:"name"`
+	AccountID    uint   `gorm:"not null;default:0" json:"accountId"`  // agent_provider_accounts.id (local agent)
+	ConsumerID   uint   `gorm:"not null;default:0" json:"consumerId"` // router key used by that service
+	ServedName   string `gorm:"not null;uniqueIndex" json:"servedName"`
 	ProfileID    uint   `json:"profileId"`                            // profile used when scaling up
 	Mode         string `gorm:"not null;default:suggest" json:"mode"` // off / suggest / auto
 	MinInstances int    `json:"minInstances"`

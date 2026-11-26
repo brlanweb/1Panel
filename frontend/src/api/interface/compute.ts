@@ -168,6 +168,105 @@ export namespace Compute {
         env: string;
         startTimeoutSec: number;
         remark: string;
+        modelRepo: string;
+        // Pinned hosts, head first (comma separated; empty = any host).
+        hostIds: string;
+        maxPerHost: number;
+        image: string;
+    }
+    export interface ProfileReq extends Omit<Profile, 'hostIds'> {
+        hostIds: number[];
+    }
+    export interface ModelHost {
+        hostId: number;
+        hostName: string;
+        dir: string;
+        size: number;
+        recipeId: number;
+    }
+    export interface ModelRecipe {
+        name: string;
+        gpuType: string;
+        image: string;
+        args: string;
+        env: string;
+    }
+    export interface PreparedModel {
+        repoId: string;
+        name: string;
+        hosts: ModelHost[] | null;
+        recipe: ModelRecipe | null;
+    }
+    export interface ModelList {
+        items: PreparedModel[] | null;
+        errors: string[] | null;
+    }
+    export interface CallLog {
+        id: number;
+        time: number;
+        consumer: string;
+        consumerId: number;
+        model: string;
+        instance: string;
+        path: string;
+        stream: boolean;
+        status: number;
+        success: boolean;
+        promptTokens: number;
+        completionTokens: number;
+        ttftMs: number;
+        latencyMs: number;
+        retries: number;
+        clientIp: string;
+        error: string;
+    }
+    export interface CallLogSearch {
+        page: number;
+        pageSize: number;
+        model?: string;
+        consumer?: string;
+        status?: '' | 'success' | 'failed';
+        start?: number;
+        end?: number;
+    }
+    export interface AnalyticsSummary {
+        requests: number;
+        failures: number;
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        avgRpm: number;
+        successRate: number;
+        avgTtftMs: number;
+        avgLatencyMs: number;
+    }
+    export interface AnalyticsBucket {
+        time: number;
+        requests: number;
+        failures: number;
+        tokens: number;
+        avgTtftMs: number;
+        avgLatencyMs: number;
+        byModel: Record<string, number>;
+    }
+    export interface AnalyticsShare {
+        name: string;
+        requests: number;
+        tokens: number;
+        failures: number;
+        avgTtftMs: number;
+    }
+    export interface Analytics {
+        start: number;
+        end: number;
+        bucketSec: number;
+        retentionHours: number;
+        summary: AnalyticsSummary;
+        buckets: AnalyticsBucket[] | null;
+        byModel: AnalyticsShare[] | null;
+        byConsumer: AnalyticsShare[] | null;
+        models: string[] | null;
+        consumers: string[] | null;
     }
     export interface EngineMetrics {
         healthy: boolean;
@@ -236,6 +335,7 @@ export namespace Compute {
     export interface PrecheckRes {
         ok: boolean;
         hostIds: number[] | null;
+        port: number;
         items: PrecheckItem[] | null;
         jobId: number;
     }
@@ -258,6 +358,7 @@ export namespace Compute {
         listen: string;
         maxRetries: number;
         requestTimeout: number;
+        logRetentionHours: number;
         running: boolean;
         error: string;
         schedulerPaused: boolean;

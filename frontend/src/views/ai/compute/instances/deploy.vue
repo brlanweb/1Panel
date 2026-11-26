@@ -18,11 +18,19 @@
                 <el-select v-model="profileId" filterable class="w-full" @change="pre = undefined">
                     <el-option v-for="p in profileOptions" :key="p.id" :label="p.name" :value="p.id">
                         <span>{{ p.name }}</span>
-                        <span class="sub ml-2">{{ p.servedName }} · {{ p.nodeCount }}×</span>
+                        <span class="sub ml-2">
+                            {{ p.servedName }} ·
+                            {{
+                                p.nodeCount > 1
+                                    ? $t('compute.wiz.multiN', [p.nodeCount])
+                                    : $t('compute.wiz.singleN', [p.maxPerHost || 1])
+                            }}
+                        </span>
                     </el-option>
                 </el-select>
                 <span v-if="profile" class="input-help">
-                    {{ profile.modelPath }} · {{ $t('compute.tpl.nodeCount') }} {{ profile.nodeCount }}
+                    {{ profile.modelRepo || profile.modelPath }} · {{ $t('compute.tpl.nodeCount') }}
+                    {{ profile.nodeCount }}
                     <span v-if="profile.needFabric">· {{ $t('compute.tpl.needFabric') }}</span>
                     <span v-if="profile.minMemGb">
                         · ≥{{ profile.minMemGb }} GiB {{ $t('compute.tpl.memPoolHint') }}
@@ -43,7 +51,7 @@
                             :key="h.id"
                             :label="h.name"
                             :value="h.id"
-                            :disabled="!h.schedulable || !!h.instanceNames?.length"
+                            :disabled="!h.schedulable || (!!h.instanceNames?.length && !stackable)"
                         >
                             <span>{{ h.name }}</span>
                             <span class="sub ml-2">
@@ -53,6 +61,7 @@
                         </el-option>
                     </el-select>
                     <span class="input-help">{{ $t('compute.inst.headFirst') }}</span>
+                    <span v-if="pinnedHint" class="input-help">{{ pinnedHint }}</span>
                 </el-form-item>
                 <el-form-item :label="$t('compute.inst.name')">
                     <el-input v-model="name" :placeholder="$t('compute.inst.nameAuto')" />
@@ -65,6 +74,7 @@
                     :closable="false"
                     show-icon
                     :title="pre.ok ? $t('compute.inst.precheckOk') : $t('compute.inst.precheckFail')"
+                    :description="pre.ok ? $t('compute.wiz.deployFlow') : ''"
                 />
                 <div v-for="it in pre.items || []" :key="it.name" class="line pre-item">
                     <span>
@@ -115,11 +125,21 @@ const pre = ref<Compute.PrecheckRes>();
 // servedName restricts the plans to one model (adding a replica to a pool).
 const servedName = ref('');
 const profile = computed(() => profiles.value.find((p) => p.id === profileId.value));
+// Busy hosts can take another single-host replica of a stacking plan.
+const stackable = computed(
+    () => !!profile.value && profile.value.nodeCount <= 1 && (profile.value.maxPerHost || 1) > 1,
+);
+const pinnedHint = computed(() => {
+    const ids = (profile.value?.hostIds || '').split(',').filter(Boolean).map(Number);
+    if (!ids.length) return '';
+    const names = ids.map((id) => hosts.value.find((h) => h.id === id)?.name || `#${id}`);
+    return t('compute.wiz.pinned', [names.join(', ')]);
+});
 const profileOptions = computed(() => {
     if (mode.value !== 'switch' || !instance.value)
         return servedName.value ? profiles.value.filter((p) => p.servedName === servedName.value) : profiles.value;
     const n = (instance.value.hostIds || '').split(',').filter(Boolean).length;
-    return profiles.value.filter((p) => p.nodeCount === n && p.id !== instance.value!.profileId);
+    return profiles.value.filter((p) => Math.max(p.nodeCount, 1) === n && p.id !== instance.value!.profileId);
 });
 
 const open = async (m: 'deploy' | 'switch', inst?: Compute.Instance, model = '') => {

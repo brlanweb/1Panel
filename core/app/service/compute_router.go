@@ -50,10 +50,11 @@ const (
 )
 
 type computeRouterConf struct {
-	Enabled        bool   `json:"enabled"`
-	Listen         string `json:"listen"`
-	MaxRetries     int    `json:"maxRetries"`
-	RequestTimeout int    `json:"requestTimeout"`
+	Enabled           bool   `json:"enabled"`
+	Listen            string `json:"listen"`
+	MaxRetries        int    `json:"maxRetries"`
+	RequestTimeout    int    `json:"requestTimeout"`
+	LogRetentionHours int    `json:"logRetentionHours"`
 }
 
 type computeRouterSrv struct {
@@ -92,7 +93,7 @@ var computeRouterDirty atomic.Bool
 func computeRouterInvalidate() { computeRouterDirty.Store(true) }
 
 func computeDefaultRouterConf() computeRouterConf {
-	return computeRouterConf{Enabled: false, Listen: "0.0.0.0:18080", MaxRetries: 1, RequestTimeout: 600}
+	return computeRouterConf{Enabled: false, Listen: "0.0.0.0:18080", MaxRetries: 1, RequestTimeout: 600, LogRetentionHours: computeLogDefaultHours}
 }
 
 func computeLoadRouterConf() computeRouterConf {
@@ -109,6 +110,7 @@ func computeLoadRouterConf() computeRouterConf {
 // computeRouterApply (re)starts or stops the listener to match settings.
 func computeRouterApply() error {
 	conf := computeLoadRouterConf()
+	computeSetLogRetention(conf.LogRetentionHours)
 	r := computeRouter
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -252,7 +254,10 @@ func (r *computeRouterSrv) serve(w http.ResponseWriter, req *http.Request) {
 		computeWriteErr(w, http.StatusNotFound, "not_found", "unsupported path")
 		return
 	}
+	start := time.Now()
 	if !r.allow(c) {
+		computeCallLogs.add(dto.ComputeCallLog{Time: start.UnixMilli(), Consumer: c.Name, ConsumerID: c.ID, Path: req.URL.Path,
+			Status: http.StatusTooManyRequests, Error: "rate limit exceeded", ClientIP: computeClientIP(req)})
 		computeWriteErr(w, http.StatusTooManyRequests, "rate_limit", "rate limit exceeded")
 		return
 	}
@@ -274,6 +279,12 @@ func (r *computeRouterSrv) serve(w http.ResponseWriter, req *http.Request) {
 		computeWriteErr(w, http.StatusForbidden, "model_not_allowed", "model not allowed for this key")
 		return
 	}
+	call := &computeCall{log: dto.ComputeCallLog{Time: start.UnixMilli(), Consumer: c.Name, ConsumerID: c.ID,
+		Model: head.Model, Path: req.URL.Path, Stream: head.Stream, ClientIP: computeClientIP(req)}}
+	defer func() {
+		call.log.LatencyMs = time.Since(start).Milliseconds()
+		computeCallLogs.add(call.log)
+	}()
 	tried := map[uint]bool{}
 	retries := r.conf.MaxRetries
 	var lastErr string
@@ -283,7 +294,8 @@ func (r *computeRouterSrv) serve(w http.ResponseWriter, req *http.Request) {
 			break
 		}
 		tried[in.ID] = true
-		done, retryable, errMsg := r.forward(w, req, in, body, c, head.Stream)
+		call.log.Retries = len(tried) - 1
+		done, retryable, errMsg := r.forward(w, req, in, body, c, head.Stream, call, start)
 		if done {
 			return
 		}
@@ -294,10 +306,35 @@ func (r *computeRouterSrv) serve(w http.ResponseWriter, req *http.Request) {
 	}
 	r.addUsage(c.ID, 0, 0, true)
 	if len(tried) == 0 {
+		call.fail(http.StatusServiceUnavailable, "no healthy instance")
 		computeWriteErr(w, http.StatusServiceUnavailable, "model_unavailable", "no healthy instance for model "+head.Model)
 		return
 	}
+	call.fail(http.StatusBadGateway, lastErr)
 	computeWriteErr(w, http.StatusBadGateway, "upstream_error", lastErr)
+}
+
+// computeCall is the call log entry of one router request.
+type computeCall struct {
+	log dto.ComputeCallLog
+}
+
+func (c *computeCall) fail(status int, msg string) {
+	c.log.Status, c.log.Success, c.log.Error = status, false, computeTrim(msg, 300)
+}
+
+func computeClientIP(req *http.Request) string {
+	if xf := req.Header.Get("X-Forwarded-For"); xf != "" {
+		return strings.TrimSpace(strings.Split(xf, ",")[0])
+	}
+	if xr := req.Header.Get("X-Real-IP"); xr != "" {
+		return xr
+	}
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
+		return req.RemoteAddr
+	}
+	return host
 }
 
 // computeLoadScore: queue dominates, then running + our own in-flight,
@@ -372,7 +409,7 @@ var computeHopHeaders = []string{"Connection", "Keep-Alive", "Proxy-Authenticate
 
 // forward returns done (response written), retryable (nothing written yet).
 func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in model.ComputeInstance, body []byte,
-	c model.ComputeConsumer, stream bool) (bool, bool, string) {
+	c model.ComputeConsumer, stream bool, call *computeCall, start time.Time) (bool, bool, string) {
 	st := computeState.inst(in.ID)
 	st.inflight.Add(1)
 	defer st.inflight.Add(-1)
@@ -382,6 +419,10 @@ func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in 
 	// One pool may hold engines serving the model under another name: the
 	// client asks for the pool name, the engine must see its own.
 	body = computeRewriteModel(body, in)
+	injected := false
+	if stream {
+		body, injected = computeStreamUsage(body)
+	}
 	url := strings.TrimRight(in.Endpoint, "/") + req.URL.Path
 	if req.URL.RawQuery != "" {
 		url += "?" + req.URL.RawQuery
@@ -433,29 +474,81 @@ func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in 
 	}
 	w.Header().Set("X-Upstream-Instance", in.Name)
 	w.WriteHeader(resp.StatusCode)
+	call.log.Instance, call.log.Status = in.Name, resp.StatusCode
 	usage := &computeUsageSniffer{}
+	errTail := &computeErrTail{on: resp.StatusCode >= 400}
+	var filter *computeUsageFilter
+	if injected && resp.StatusCode < 400 {
+		filter = &computeUsageFilter{}
+	}
 	flusher, _ := w.(http.Flusher)
 	buf := make([]byte, 32*1024)
+	var readErr error
 	for {
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
 			chunk := buf[:n]
-			usage.feed(chunk)
-			if _, werr := w.Write(chunk); werr != nil {
-				break
+			if call.log.TTFTMs == 0 {
+				// First body byte: for SSE the first token event (role /
+				// content), for JSON the whole answer is ready.
+				call.log.TTFTMs = max(time.Since(start).Milliseconds(), 1)
 			}
-			if flusher != nil {
-				flusher.Flush()
+			usage.feed(chunk)
+			errTail.feed(chunk)
+			if filter != nil {
+				chunk = filter.feed(chunk)
+			}
+			if len(chunk) > 0 {
+				if _, werr := w.Write(chunk); werr != nil {
+					break
+				}
+				if flusher != nil {
+					flusher.Flush()
+				}
 			}
 		}
 		if rerr != nil {
+			if rerr != io.EOF {
+				readErr = rerr
+			}
 			break
 		}
 	}
+	if filter != nil {
+		if rest := filter.flush(); len(rest) > 0 {
+			_, _ = w.Write(rest)
+		}
+	}
 	_ = stream
-	r.addUsage(c.ID, usage.prompt, usage.completion, resp.StatusCode >= 400)
+	call.log.PromptTokens, call.log.CompletionTokens = usage.prompt, usage.completion
+	call.log.Success = resp.StatusCode < 400 && readErr == nil
+	switch {
+	case resp.StatusCode >= 400:
+		call.log.Error = computeTrim(errTail.String(), 300)
+	case readErr != nil:
+		call.log.Error = "stream interrupted: " + computeTrim(readErr.Error(), 200)
+		if req.Context().Err() != nil {
+			call.log.Error = "client closed the connection"
+		}
+	}
+	r.addUsage(c.ID, usage.prompt, usage.completion, !call.log.Success)
 	return true, false, ""
 }
+
+// computeErrTail keeps the first bytes of an error response body.
+type computeErrTail struct {
+	on  bool
+	buf []byte
+}
+
+func (t *computeErrTail) feed(b []byte) {
+	if !t.on || len(t.buf) >= 512 {
+		return
+	}
+	t.buf = append(t.buf, b[:min(len(b), 512-len(t.buf))]...)
+}
+
+func (t *computeErrTail) String() string { return strings.TrimSpace(string(t.buf)) }
 
 // computeRewriteModel replaces the top-level "model" of a JSON request body
 // with the instance's upstream model name. Every other field, and its raw
@@ -483,6 +576,77 @@ func computeRewriteModel(body []byte, in model.ComputeInstance) []byte {
 		return body
 	}
 	return out
+}
+
+// computeStreamUsage asks the engine to append a usage chunk to a stream
+// (stream_options.include_usage), so streamed calls are counted too. A
+// request that already sets stream_options is left as is; vLLM / SGLang
+// send the usage as the last data chunk before [DONE].
+func computeStreamUsage(body []byte) ([]byte, bool) {
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(body, &obj); err != nil {
+		return body, false
+	}
+	if _, ok := obj["stream_options"]; ok {
+		return body, false
+	}
+	obj["stream_options"] = json.RawMessage(`{"include_usage":true}`)
+	out, err := json.Marshal(obj)
+	if err != nil {
+		return body, false
+	}
+	return out, true
+}
+
+// computeUsageFilter removes the usage-only SSE event ("choices": [] plus
+// "usage") that the router asked for on behalf of a client that did not:
+// some clients index choices[0] of every chunk. Events are passed through
+// as soon as they are complete; only a partial event is held back.
+type computeUsageFilter struct {
+	pending []byte
+}
+
+var computeSSESep = []byte("\n\n")
+
+func (f *computeUsageFilter) feed(b []byte) []byte {
+	f.pending = append(f.pending, b...)
+	var out []byte
+	for {
+		i := bytes.Index(f.pending, computeSSESep)
+		if i < 0 {
+			break
+		}
+		ev := f.pending[:i+2]
+		if !computeUsageOnlyEvent(ev) {
+			out = append(out, ev...)
+		}
+		f.pending = f.pending[i+2:]
+	}
+	return out
+}
+
+func (f *computeUsageFilter) flush() []byte {
+	out := f.pending
+	f.pending = nil
+	return out
+}
+
+func computeUsageOnlyEvent(ev []byte) bool {
+	if !bytes.Contains(ev, []byte(`"usage"`)) {
+		return false
+	}
+	data := bytes.TrimSpace(ev)
+	if !bytes.HasPrefix(data, []byte("data:")) {
+		return false
+	}
+	var chunk struct {
+		Choices []json.RawMessage `json:"choices"`
+		Usage   json.RawMessage   `json:"usage"`
+	}
+	if json.Unmarshal(bytes.TrimSpace(data[5:]), &chunk) != nil {
+		return false
+	}
+	return len(chunk.Choices) == 0 && len(chunk.Usage) > 0 && string(chunk.Usage) != "null"
 }
 
 func (r *computeRouterSrv) fail(st *computeInstState) {
@@ -636,14 +800,20 @@ func (u *ComputeService) GetRouterSetting() (dto.ComputeRouterSetting, error) {
 	running, lastErr := r.running, r.lastErr
 	r.mu.Unlock()
 	return dto.ComputeRouterSetting{Enabled: conf.Enabled, Listen: conf.Listen, MaxRetries: conf.MaxRetries,
-		RequestTimeout: conf.RequestTimeout, Running: running, Error: lastErr, SchedulerPaused: sched.Paused}, nil
+		RequestTimeout: conf.RequestTimeout, LogRetentionHours: int(computeLogRetention().Hours()), Running: running,
+		Error: lastErr, SchedulerPaused: sched.Paused}, nil
 }
 
 func (u *ComputeService) UpdateRouterSetting(req dto.ComputeRouterSetting) error {
 	if _, _, err := net.SplitHostPort(req.Listen); err != nil {
 		return buserr.WithDetail("ErrInvalidParams", "listen", nil)
 	}
-	conf := computeRouterConf{Enabled: req.Enabled, Listen: req.Listen, MaxRetries: req.MaxRetries, RequestTimeout: req.RequestTimeout}
+	retention := req.LogRetentionHours
+	if retention <= 0 {
+		retention = computeLogDefaultHours
+	}
+	conf := computeRouterConf{Enabled: req.Enabled, Listen: req.Listen, MaxRetries: req.MaxRetries, RequestTimeout: req.RequestTimeout,
+		LogRetentionHours: min(retention, computeLogMaxHours)}
 	b, _ := json.Marshal(conf)
 	if err := settingRepo.UpdateOrCreate(computeSettingRouter, string(b)); err != nil {
 		return err
@@ -652,5 +822,6 @@ func (u *ComputeService) UpdateRouterSetting(req dto.ComputeRouterSetting) error
 	if err := settingRepo.UpdateOrCreate(computeSettingSched, string(sb)); err != nil {
 		return err
 	}
+	computeCallLogs.prune(time.Now())
 	return computeRouterApply()
 }

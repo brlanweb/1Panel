@@ -127,7 +127,7 @@ func computeVllmLaunch(in model.ComputeInstance, prof model.ComputeProfile, rt m
 	name := computeVllmName(in.Name)
 	existing, ok := computeVllmFind(h, in.VllmDeploymentID, name)
 	req := map[string]interface{}{
-		"name": name, "external": false, "apiKey": key, "image": rt.Image, "port": prof.Port,
+		"name": name, "external": false, "apiKey": key, "image": rt.Image, "port": in.Port,
 		"modelId": modelID, "servedName": prof.ServedName, "gpuType": computeVllmGPUType(rt), "gpuDevices": "all",
 		"args": prof.ExtraArgs, "env": prof.Env, "taskID": uuid.New().String(),
 	}

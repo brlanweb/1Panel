@@ -171,19 +171,63 @@ type ComputeRuntimeReq struct {
 }
 
 type ComputeProfileReq struct {
-	ID              uint   `json:"id"`
-	Name            string `json:"name" validate:"required,max=64"`
-	RuntimeID       uint   `json:"runtimeId" validate:"required"`
-	ServedName      string `json:"servedName" validate:"required,max=128"`
-	ModelPath       string `json:"modelPath" validate:"required"`
-	NodeCount       int    `json:"nodeCount" validate:"min=1,max=64"`
+	ID   uint   `json:"id"`
+	Name string `json:"name" validate:"required,max=64"`
+	// RuntimeID 0 = pick the built-in runtime matching the hosts
+	// (accelerator kind, host count, panel / SSH).
+	RuntimeID  uint   `json:"runtimeId"`
+	ServedName string `json:"servedName" validate:"required,max=128"`
+	ModelRepo  string `json:"modelRepo" validate:"max=255"`
+	ModelPath  string `json:"modelPath" validate:"required"`
+	// HostIDs pins the plan to hosts, head first (multi-host: exactly
+	// these hosts; single-host: replicas are placed on these hosts).
+	HostIDs []uint `json:"hostIds"`
+	// NodeCount is derived from HostIDs for multi-host plans.
+	NodeCount       int    `json:"nodeCount" validate:"min=0,max=64"`
+	MaxPerHost      int    `json:"maxPerHost" validate:"min=0,max=16"`
 	NeedFabric      bool   `json:"needFabric"`
 	MinMemGB        int    `json:"minMemGb"`
 	Port            int    `json:"port" validate:"omitempty,min=1,max=65535"`
+	Image           string `json:"image"`
 	ExtraArgs       string `json:"extraArgs"`
 	Env             string `json:"env"`
 	StartTimeoutSec int    `json:"startTimeoutSec"`
 	Remark          string `json:"remark"`
+}
+
+// ComputeModelHost is one copy of a prepared model (AI → vLLM → Models of
+// a panel host).
+type ComputeModelHost struct {
+	HostID   uint   `json:"hostId"`
+	HostName string `json:"hostName"`
+	Dir      string `json:"dir"`
+	Size     int64  `json:"size"`
+	RecipeID uint   `json:"recipeId"`
+}
+
+// ComputeModelRecipe is the launch recipe linked to a prepared model.
+type ComputeModelRecipe struct {
+	Name    string `json:"name"`
+	GPUType string `json:"gpuType"`
+	Image   string `json:"image"`
+	Args    string `json:"args"`
+	Env     string `json:"env"`
+}
+
+// ComputeModelItem aggregates one model (by repo id) over the hosts that
+// have it downloaded.
+type ComputeModelItem struct {
+	RepoID string              `json:"repoId"`
+	Name   string              `json:"name"` // last path element, default served name
+	Hosts  []ComputeModelHost  `json:"hosts"`
+	Recipe *ComputeModelRecipe `json:"recipe"`
+	// Errors of hosts that could not be listed (offline, old panel).
+	Errors []string `json:"errors"`
+}
+
+type ComputeModelList struct {
+	Items  []ComputeModelItem `json:"items"`
+	Errors []string           `json:"errors"`
 }
 
 type ComputeEngineMetrics struct {
@@ -281,6 +325,7 @@ type ComputePrecheckItem struct {
 type ComputePrecheckRes struct {
 	OK      bool                  `json:"ok"`
 	HostIDs []uint                `json:"hostIds"`
+	Port    int                   `json:"port"`
 	Items   []ComputePrecheckItem `json:"items"`
 	JobID   uint                  `json:"jobId"`
 }
@@ -306,8 +351,11 @@ type ComputeRouterSetting struct {
 	Listen         string `json:"listen" validate:"required"`
 	MaxRetries     int    `json:"maxRetries" validate:"min=0,max=3"`
 	RequestTimeout int    `json:"requestTimeout" validate:"min=10,max=3600"` // seconds
-	Running        bool   `json:"running"`
-	Error          string `json:"error"`
+	// LogRetentionHours: call logs are kept in memory only and dropped
+	// after this many hours (1–72, default 24).
+	LogRetentionHours int    `json:"logRetentionHours" validate:"min=0,max=72"`
+	Running           bool   `json:"running"`
+	Error             string `json:"error"`
 	// Scheduler switches live here as well (one "settings" form).
 	SchedulerPaused bool `json:"schedulerPaused"`
 	WatchFast       bool `json:"watchFast"`
@@ -420,4 +468,96 @@ type ComputeOverview struct {
 
 type ComputeWatchReq struct {
 	Fast bool `json:"fast"`
+}
+
+// ---- call logs / analytics (memory only) -----------------------------------
+
+// ComputeCallLog is one request through the model router. Logs live in a
+// bounded in-memory ring and are dropped after the retention window; they
+// are never written to the database.
+type ComputeCallLog struct {
+	ID               uint64 `json:"id"`
+	Time             int64  `json:"time"` // unix ms, request start
+	Consumer         string `json:"consumer"`
+	ConsumerID       uint   `json:"consumerId"`
+	Model            string `json:"model"`
+	Instance         string `json:"instance"`
+	Path             string `json:"path"`
+	Stream           bool   `json:"stream"`
+	Status           int    `json:"status"`
+	Success          bool   `json:"success"`
+	PromptTokens     int64  `json:"promptTokens"`
+	CompletionTokens int64  `json:"completionTokens"`
+	TTFTMs           int64  `json:"ttftMs"`    // time to first response byte
+	LatencyMs        int64  `json:"latencyMs"` // until the response finished
+	Retries          int    `json:"retries"`
+	ClientIP         string `json:"clientIp"`
+	Error            string `json:"error"`
+}
+
+type ComputeCallLogSearch struct {
+	Page     int    `json:"page" validate:"required,number"`
+	PageSize int    `json:"pageSize" validate:"required,number"`
+	Model    string `json:"model"`
+	Consumer string `json:"consumer"`
+	Status   string `json:"status" validate:"omitempty,oneof=success failed"`
+	Start    int64  `json:"start"` // unix ms, 0 = retention start
+	End      int64  `json:"end"`   // unix ms, 0 = now
+}
+
+type ComputeCallLogPage struct {
+	Total int64            `json:"total"`
+	Items []ComputeCallLog `json:"items"`
+}
+
+type ComputeAnalyticsReq struct {
+	Start    int64  `json:"start"`
+	End      int64  `json:"end"`
+	Model    string `json:"model"`
+	Consumer string `json:"consumer"`
+}
+
+type ComputeAnalyticsSummary struct {
+	Requests         int64   `json:"requests"`
+	Failures         int64   `json:"failures"`
+	PromptTokens     int64   `json:"promptTokens"`
+	CompletionTokens int64   `json:"completionTokens"`
+	TotalTokens      int64   `json:"totalTokens"`
+	AvgRPM           float64 `json:"avgRpm"`
+	SuccessRate      float64 `json:"successRate"` // 0–100
+	AvgTTFTMs        float64 `json:"avgTtftMs"`
+	AvgLatencyMs     float64 `json:"avgLatencyMs"`
+}
+
+// ComputeAnalyticsBucket is one time slice of the trend charts.
+type ComputeAnalyticsBucket struct {
+	Time         int64            `json:"time"` // unix ms, bucket start
+	Requests     int64            `json:"requests"`
+	Failures     int64            `json:"failures"`
+	Tokens       int64            `json:"tokens"`
+	AvgTTFTMs    float64          `json:"avgTtftMs"`
+	AvgLatencyMs float64          `json:"avgLatencyMs"`
+	ByModel      map[string]int64 `json:"byModel"` // tokens per model
+}
+
+// ComputeAnalyticsShare is one slice of a distribution (by model / caller).
+type ComputeAnalyticsShare struct {
+	Name     string  `json:"name"`
+	Requests int64   `json:"requests"`
+	Tokens   int64   `json:"tokens"`
+	Failures int64   `json:"failures"`
+	AvgTTFT  float64 `json:"avgTtftMs"`
+}
+
+type ComputeAnalytics struct {
+	Start      int64                    `json:"start"`
+	End        int64                    `json:"end"`
+	BucketSec  int64                    `json:"bucketSec"`
+	Retention  int                      `json:"retentionHours"`
+	Summary    ComputeAnalyticsSummary  `json:"summary"`
+	Buckets    []ComputeAnalyticsBucket `json:"buckets"`
+	ByModel    []ComputeAnalyticsShare  `json:"byModel"`
+	ByConsumer []ComputeAnalyticsShare  `json:"byConsumer"`
+	Models     []string                 `json:"models"`
+	Consumers  []string                 `json:"consumers"`
 }

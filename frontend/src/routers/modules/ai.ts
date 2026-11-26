@@ -94,6 +94,13 @@ const aiRouter = {
             meta: { title: 'compute.pool.title', activeMenu: '/ai/model-services', permission: 'ai_model_view' },
         },
         {
+            path: '/ai/model-services/analytics',
+            name: 'ComputeAnalytics',
+            component: () => import('@/views/ai/compute/analytics/index.vue'),
+            hidden: true,
+            meta: { title: 'compute.ana.title', activeMenu: '/ai/model-services', permission: 'ai_model_view' },
+        },
+        {
             path: '/ai/gpu/scheduling',
             name: 'ComputeHosts',
             component: () => import('@/views/ai/compute/hosts/page.vue'),

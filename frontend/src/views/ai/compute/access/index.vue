@@ -42,6 +42,12 @@
                     />
                     <span class="ml-2 sub">s</span>
                 </el-form-item>
+                <el-form-item :label="$t('compute.access.logRetention')">
+                    <el-select v-model="setting.logRetentionHours" class="p-w-250">
+                        <el-option v-for="h in [1, 6, 12, 24, 48, 72]" :key="h" :value="h" :label="retentionLabel(h)" />
+                    </el-select>
+                    <span class="input-help">{{ $t('compute.access.logRetentionHelper') }}</span>
+                </el-form-item>
                 <el-form-item>
                     <el-button type="primary" :loading="saving" @click="onSaveSetting">
                         {{ $t('commons.button.save') }}
@@ -189,20 +195,23 @@ const setting = reactive<Compute.RouterSetting>({
     listen: '0.0.0.0:18080',
     maxRetries: 1,
     requestTimeout: 600,
+    logRetentionHours: 24,
     running: false,
     error: '',
     schedulerPaused: false,
 });
+const retentionLabel = (h: number) => (h < 24 ? t('compute.ana.hours', [h]) : t('compute.ana.days', [h / 24]));
 // Last saved router setting: the status tag must not read "start failed"
 // while the switch was only flipped locally and not saved yet.
-const saved = ref({ enabled: false, listen: '', maxRetries: 1, requestTimeout: 600 });
+const saved = ref({ enabled: false, listen: '', maxRetries: 1, requestTimeout: 600, logRetentionHours: 24 });
 const savedEnabled = computed(() => saved.value.enabled);
 const dirty = computed(
     () =>
         setting.enabled !== saved.value.enabled ||
         setting.listen !== saved.value.listen ||
         setting.maxRetries !== saved.value.maxRetries ||
-        setting.requestTimeout !== saved.value.requestTimeout,
+        setting.requestTimeout !== saved.value.requestTimeout ||
+        setting.logRetentionHours !== saved.value.logRetentionHours,
 );
 const applySaved = (data: Compute.RouterSetting) => {
     Object.assign(setting, data);
@@ -211,6 +220,7 @@ const applySaved = (data: Compute.RouterSetting) => {
         listen: data.listen,
         maxRetries: data.maxRetries,
         requestTimeout: data.requestTimeout,
+        logRetentionHours: data.logRetentionHours,
     };
 };
 const visible = ref(false);

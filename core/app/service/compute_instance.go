@@ -149,15 +149,45 @@ func (u *ComputeService) ListProfiles() ([]model.ComputeProfile, error) {
 }
 
 func (u *ComputeService) SaveProfile(req dto.ComputeProfileReq) error {
-	rt, err := repo.ComputeRuntimeRepo.Get(repo.WithByID(req.RuntimeID))
-	if err != nil {
-		return buserr.New("ErrRecordNotFound")
+	hosts := computeHostMap()
+	var ids []uint
+	seen := map[uint]bool{}
+	for _, id := range req.HostIDs {
+		if _, ok := hosts[id]; !ok {
+			return buserr.WithDetail("ErrInvalidParams", fmt.Sprintf("host #%d", id), nil)
+		}
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
 	}
+	// Multi-host plans are defined by their hosts (head first); a
+	// single-host plan with several hosts places replicas on them.
 	if req.NodeCount <= 0 {
 		req.NodeCount = 1
 	}
+	if req.NodeCount > 1 && len(ids) > 0 && len(ids) != req.NodeCount {
+		return buserr.WithDetail("ErrInvalidParams", fmt.Sprintf("a %d-host plan needs exactly %d hosts", req.NodeCount, req.NodeCount), nil)
+	}
+	var rt model.ComputeRuntime
+	var err error
+	if req.RuntimeID == 0 {
+		rt, err = computeAutoRuntime(ids, req.NodeCount, hosts)
+		if err != nil {
+			return buserr.WithDetail("ErrInvalidParams", err.Error(), nil)
+		}
+		req.RuntimeID = rt.ID
+	} else if rt, err = repo.ComputeRuntimeRepo.Get(repo.WithByID(req.RuntimeID)); err != nil {
+		return buserr.New("ErrRecordNotFound")
+	}
 	if req.NodeCount > 1 && !rt.MultiNode {
 		return buserr.WithDetail("ErrInvalidParams", "runtime is single node", nil)
+	}
+	if req.NodeCount > 1 || req.MaxPerHost <= 0 {
+		req.MaxPerHost = 1
+	}
+	if req.MaxPerHost > 1 && req.MinMemGB <= 0 {
+		return buserr.WithDetail("ErrInvalidParams", "several replicas per host need the memory per replica (min memory)", nil)
 	}
 	if req.Port == 0 {
 		req.Port = 8000
@@ -165,16 +195,22 @@ func (u *ComputeService) SaveProfile(req dto.ComputeProfileReq) error {
 	if req.StartTimeoutSec <= 0 {
 		req.StartTimeoutSec = 1800
 	}
+	req.ModelRepo = strings.TrimSpace(req.ModelRepo)
+	req.ModelPath = strings.TrimSpace(req.ModelPath)
 	if dup, err := repo.ComputeProfileRepo.Get(repo.WithByName(req.Name)); err == nil && dup.ID != req.ID {
 		return buserr.New("ErrRecordExist")
 	}
+	hostIDs := computeJoinIDs(ids)
 	vars := map[string]interface{}{"name": req.Name, "runtime_id": req.RuntimeID, "served_name": req.ServedName,
-		"model_path": req.ModelPath, "node_count": req.NodeCount, "need_fabric": req.NeedFabric, "min_mem_gb": req.MinMemGB,
-		"port": req.Port, "extra_args": req.ExtraArgs, "env": req.Env, "start_timeout_sec": req.StartTimeoutSec, "remark": req.Remark}
+		"model_repo": req.ModelRepo, "model_path": req.ModelPath, "host_ids": hostIDs, "node_count": req.NodeCount,
+		"max_per_host": req.MaxPerHost, "need_fabric": req.NeedFabric, "min_mem_gb": req.MinMemGB, "port": req.Port,
+		"image": strings.TrimSpace(req.Image), "extra_args": req.ExtraArgs, "env": req.Env,
+		"start_timeout_sec": req.StartTimeoutSec, "remark": req.Remark}
 	if req.ID == 0 {
-		p := model.ComputeProfile{Name: req.Name, RuntimeID: req.RuntimeID, ServedName: req.ServedName, ModelPath: req.ModelPath,
-			NodeCount: req.NodeCount, NeedFabric: req.NeedFabric, MinMemGB: req.MinMemGB, Port: req.Port, ExtraArgs: req.ExtraArgs,
-			Env: req.Env, StartTimeoutSec: req.StartTimeoutSec, Remark: req.Remark}
+		p := model.ComputeProfile{Name: req.Name, RuntimeID: req.RuntimeID, ServedName: req.ServedName, ModelRepo: req.ModelRepo,
+			ModelPath: req.ModelPath, HostIDs: hostIDs, NodeCount: req.NodeCount, MaxPerHost: req.MaxPerHost,
+			NeedFabric: req.NeedFabric, MinMemGB: req.MinMemGB, Port: req.Port, Image: strings.TrimSpace(req.Image),
+			ExtraArgs: req.ExtraArgs, Env: req.Env, StartTimeoutSec: req.StartTimeoutSec, Remark: req.Remark}
 		return repo.ComputeProfileRepo.Create(&p)
 	}
 	return repo.ComputeProfileRepo.Update(req.ID, vars)

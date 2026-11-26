@@ -295,7 +295,12 @@ const { isIntl, isMobile, currentNode, isMaster } = useGlobalStore();
 // Compute pools are built on the master panel only.
 const routerButtons = computed(() => [
     { label: i18n.global.t('aiTools.model.services'), path: '/ai/model-services' },
-    ...(isMaster.value ? [{ label: i18n.global.t('compute.pool.title'), path: '/ai/model-services/pools' }] : []),
+    ...(isMaster.value
+        ? [
+              { label: i18n.global.t('compute.pool.title'), path: '/ai/model-services/pools' },
+              { label: i18n.global.t('compute.ana.title'), path: '/ai/model-services/analytics' },
+          ]
+        : []),
 ]);
 const createRef = ref();
 const poolRef = ref();

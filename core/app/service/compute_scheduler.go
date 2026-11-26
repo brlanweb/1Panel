@@ -73,6 +73,7 @@ func computeSchedulerLoop() {
 		}
 	}()
 	go computeUsageFlushLoop()
+	go computeCallLogJanitor()
 	time.Sleep(45 * time.Second)
 	ticker := time.NewTicker(computeSchedTick)
 	defer ticker.Stop()
@@ -176,14 +177,18 @@ func computeSchedRound() {
 		prof, profErr := repo.ComputeProfileRepo.Get(repo.WithByID(p.ProfileID))
 		hasProfile := profErr == nil && p.ProfileID > 0
 		need := 1
+		// canPlace: one more replica fits (free hosts, or room on a host
+		// that stacks several single-host replicas).
+		canPlace := false
 		if hasProfile {
 			need = max(prof.NodeCount, 1)
+			canPlace = computeCanPlace(prof)
 		}
 		n := len(st.healthy)
 
 		if n < p.MinInstances && len(st.insts) < max(p.MaxInstances, p.MinInstances) {
 			add(dto.ComputeSuggestion{ID: "min:" + name, Kind: "minViolation", ServedName: name, ProfileID: p.ProfileID,
-				Severity: "critical", Actionable: hasProfile && freeHosts >= need,
+				Severity: "critical", Actionable: canPlace,
 				Reason: fmt.Sprintf("healthy %d < min %d", n, p.MinInstances)})
 		}
 
@@ -206,7 +211,7 @@ func computeSchedRound() {
 					reason += fmt.Sprintf(" / TTFT %.0f ms (≥%.0f ms)", st.ttft, p.TTFTHigh)
 				}
 				reason += fmt.Sprintf(" for %d rounds", rounds)
-				if hasProfile && freeHosts >= need {
+				if canPlace {
 					add(dto.ComputeSuggestion{ID: "up:" + name, Kind: "scaleUp", ServedName: name, ProfileID: p.ProfileID,
 						Severity: "warning", Actionable: true, Reason: reason})
 				} else if victim, ok := computePreemptVictim(p, states, need); ok {
@@ -381,12 +386,9 @@ func computeApplySuggestion(s dto.ComputeSuggestion, source string) (uint, error
 			return 0, buserr.WithDetail("ErrComputePrecheck", computePrecheckText(pre), nil)
 		}
 		hosts := computeHostMap()
-		name := fmt.Sprintf("%s@%s", prof.ServedName, hosts[pre.HostIDs[0]].Name)
-		if _, e := repo.ComputeInstanceRepo.Get(repo.WithByName(name)); e == nil {
-			name = fmt.Sprintf("%s-%d", name, time.Now().Unix()%100000)
-		}
+		name := computeReplicaName(prof.ServedName, hosts[pre.HostIDs[0]].Name)
 		id, err = computeStartJob(computeJobSpec{Type: "deploy", ProfileID: prof.ID, ServedName: prof.ServedName,
-			HostIDs: pre.HostIDs, Source: source, Reason: s.Reason, Name: name})
+			HostIDs: pre.HostIDs, Source: source, Reason: s.Reason, Name: name, Port: pre.Port})
 	case "scaleDown":
 		in, ierr := repo.ComputeInstanceRepo.Get(repo.WithByID(s.InstanceID))
 		if ierr != nil {

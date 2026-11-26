@@ -39,6 +39,7 @@ type IComputeService interface {
 	ListProfiles() ([]model.ComputeProfile, error)
 	SaveProfile(req dto.ComputeProfileReq) error
 	DeleteProfile(id uint) error
+	ListModels() (dto.ComputeModelList, error)
 
 	// instances
 	ListInstances() ([]dto.ComputeInstanceView, error)
@@ -60,6 +61,8 @@ type IComputeService interface {
 	DeleteConsumer(id uint) error
 	GetRouterSetting() (dto.ComputeRouterSetting, error)
 	UpdateRouterSetting(req dto.ComputeRouterSetting) error
+	PageCallLogs(req dto.ComputeCallLogSearch) dto.ComputeCallLogPage
+	Analytics(req dto.ComputeAnalyticsReq) dto.ComputeAnalytics
 
 	// scheduler
 	ListPolicies() ([]model.ComputePolicy, error)

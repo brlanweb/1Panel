@@ -29,7 +29,7 @@ export const listComputeRuntimes = () => get<Compute.Runtime[]>(`/core/compute/r
 export const saveComputeRuntime = (req: Partial<Compute.Runtime>) => post<any>(`/core/compute/runtimes`, req);
 export const deleteComputeRuntime = (id: number) => post<any>(`/core/compute/runtimes/del`, { id });
 export const listComputeProfiles = () => get<Compute.Profile[]>(`/core/compute/profiles`);
-export const saveComputeProfile = (req: Partial<Compute.Profile>) => post<any>(`/core/compute/profiles`, req);
+export const saveComputeProfile = (req: Partial<Compute.ProfileReq>) => post<any>(`/core/compute/profiles`, req, 60000);
 export const deleteComputeProfile = (id: number) => post<any>(`/core/compute/profiles/del`, { id });
 
 export const listComputeInstances = () => get<Compute.Instance[]>(`/core/compute/instances`);
@@ -69,3 +69,11 @@ export const bindComputePool = (id: number) => post<Compute.PoolRes>(`/core/comp
 export const listComputeSuggestions = () => get<Compute.Suggestion[]>(`/core/compute/suggestions`);
 export const operateComputeSuggestion = (id: string, operation: 'apply' | 'dismiss') =>
     post<{ jobId: number }>(`/core/compute/suggestions/operate`, { id, operation });
+
+// Prepared models of every panel host: lists each host, allow time.
+export const listComputeModels = () =>
+    http.get<Compute.ModelList>(`/core/compute/models`, undefined, { ...local, timeout: 60000 });
+export const searchComputeCallLogs = (req: Compute.CallLogSearch) =>
+    post<{ total: number; items: Compute.CallLog[] }>(`/core/compute/logs/search`, req);
+export const loadComputeAnalytics = (req: { start: number; end: number; model?: string; consumer?: string }) =>
+    post<Compute.Analytics>(`/core/compute/analytics`, req);

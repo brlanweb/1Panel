@@ -36,6 +36,7 @@ func (a *ComputeRouter) InitRouter(Router *gin.RouterGroup) {
 		r.GET("/profiles", b.ComputeListProfiles)
 		r.POST("/profiles", b.ComputeSaveProfile)
 		r.POST("/profiles/del", b.ComputeDeleteProfile)
+		r.GET("/models", b.ComputeListModels)
 
 		r.GET("/instances", b.ComputeListInstances)
 		r.POST("/instances", b.ComputeSaveInstance)
@@ -54,6 +55,8 @@ func (a *ComputeRouter) InitRouter(Router *gin.RouterGroup) {
 		r.POST("/consumers/del", b.ComputeDeleteConsumer)
 		r.GET("/setting", b.ComputeGetSetting)
 		r.POST("/setting", b.ComputeUpdateSetting)
+		r.POST("/logs/search", b.ComputePageCallLogs)
+		r.POST("/analytics", b.ComputeAnalytics)
 
 		r.GET("/policies", b.ComputeListPolicies)
 		r.POST("/policies", b.ComputeSavePolicy)

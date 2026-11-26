@@ -6,12 +6,15 @@ import { onMounted, nextTick, watch, onBeforeUnmount, ref } from 'vue';
 import echarts from '@/utils/echarts';
 import { useGlobalStore } from '@/composables/useGlobalStore';
 import { computeSizeFromKBs, computeSizeFromKB, computeSizeFromMB } from '@/utils/size';
+import { hexToRgba, loadChartPalette } from '@/utils/market-theme';
 import i18n from '@/lang';
 const { themeConfig } = useGlobalStore();
 const isDarkTheme = ref(false);
 const LineChartRef = ref<HTMLElement>();
 let mediaQuery: MediaQueryList;
 let resizeObserver: ResizeObserver | undefined;
+let themeObserver: MutationObserver | undefined;
+let themeFrame: number | undefined;
 const props = defineProps({
     id: {
         type: String,
@@ -39,70 +42,24 @@ const props = defineProps({
     },
 });
 
-const seriesStyle = [
-    {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-                offset: 0,
-                color: getComputedStyle(document.documentElement)
-                    .getPropertyValue('--panel-color-primary-light-9')
-                    .trim(),
-            },
-            {
-                offset: 1,
-                color: getComputedStyle(document.documentElement).getPropertyValue('--panel-color-primary').trim(),
-            },
-        ]),
-    },
-    {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-                offset: 0,
-                color: 'rgba(13, 148, 136, .3)',
-            },
-            {
-                offset: 1,
-                color: 'rgba(13, 148, 136, .4)',
-            },
-        ]),
-    },
-    {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-                offset: 0,
-                color: 'rgba(27, 143, 60, .3)',
-            },
-            {
-                offset: 1,
-                color: 'rgba(27, 143, 60, .4)',
-            },
-        ]),
-    },
-    {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-                offset: 0,
-                color: 'rgba(249, 199, 79, .3)',
-            },
-            {
-                offset: 1,
-                color: 'rgba(249, 199, 79, .4)',
-            },
-        ]),
-    },
-    {
-        color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-            {
-                offset: 0,
-                color: 'rgba(255, 173, 177, 0.3)',
-            },
-            {
-                offset: 1,
-                color: 'rgba(255, 173, 177, .4)',
-            },
-        ]),
-    },
-];
+// Series colors follow the active market theme (ginkgo / red). Each line
+// gets a solid stroke plus a soft top-down fade of the same hue, so
+// overlapping areas stay readable instead of stacking opaque blocks.
+const loadSeriesStyle = (index: number, total: number) => {
+    const palette = loadChartPalette();
+    const color = palette[index % palette.length];
+    const alpha = total > 1 ? 0.16 : 0.28;
+    return {
+        itemStyle: { color },
+        lineStyle: { width: 1.6, color },
+        areaStyle: {
+            color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
+                { offset: 0, color: hexToRgba(color, alpha) },
+                { offset: 1, color: hexToRgba(color, 0.01) },
+            ]),
+        },
+    };
+};
 
 function initChart() {
     const chartDom = LineChartRef.value;
@@ -130,13 +87,16 @@ function initChart() {
 
     const series = [];
     if (props.option?.yData?.length) {
+        const total = props.option.yData.length;
         props.option?.yData.forEach((item: any, index: number) => {
+            const style = loadSeriesStyle(index, total);
             series.push({
                 name: item?.name,
                 type: 'line',
                 smooth: true,
-                itemStyle: item.itemStyle ?? seriesStyle[index + 2],
-                areaStyle: item.areaStyle ?? seriesStyle[index],
+                itemStyle: item.itemStyle ?? style.itemStyle,
+                lineStyle: item.lineStyle ?? (item.itemStyle ? undefined : style.lineStyle),
+                areaStyle: item.areaStyle ?? style.areaStyle,
                 data: item?.data,
                 showSymbol: item.showSymbol ?? false,
                 symbolSize: item.symbolSize,
@@ -344,14 +304,24 @@ watch(
     },
 );
 
+// The root style attribute changes many times while a theme is applied;
+// coalesce them into one re-render per frame.
 function handleThemeChange() {
-    nextTick(() => initChart());
+    if (themeFrame !== undefined) return;
+    themeFrame = requestAnimationFrame(() => {
+        themeFrame = undefined;
+        initChart();
+    });
 }
 
 onMounted(() => {
     nextTick(() => {
         mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
         mediaQuery.addEventListener('change', handleThemeChange);
+        // The market theme is applied asynchronously after the page loads,
+        // re-render once the root palette changes.
+        themeObserver = new MutationObserver(handleThemeChange);
+        themeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
         initChart();
         window.addEventListener('resize', changeChartSize);
         if (LineChartRef.value) {
@@ -362,11 +332,13 @@ onMounted(() => {
 });
 
 onBeforeUnmount(() => {
+    if (themeFrame !== undefined) cancelAnimationFrame(themeFrame);
     if (LineChartRef.value) {
         echarts.getInstanceByDom(LineChartRef.value)?.dispose();
     }
     window.removeEventListener('resize', changeChartSize);
     mediaQuery?.removeEventListener('change', handleThemeChange);
+    themeObserver?.disconnect();
     resizeObserver?.disconnect();
 });
 </script>

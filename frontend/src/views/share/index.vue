@@ -187,7 +187,7 @@ onMounted(async () => {
     justify-content: center;
     padding: 24px;
     background:
-        radial-gradient(circle at top, rgba(13, 148, 136, 0.14), transparent 32%),
+        radial-gradient(circle at top, rgba(var(--panel-accent-rgb), 0.14), transparent 32%),
         linear-gradient(160deg, #f5f8ff 0%, #eef4ff 42%, #ffffff 100%);
 }
 
@@ -196,7 +196,7 @@ onMounted(async () => {
     padding: 32px;
     border-radius: 24px;
     background: rgba(255, 255, 255, 0.92);
-    border: 1px solid rgba(13, 148, 136, 0.12);
+    border: 1px solid rgba(var(--panel-accent-rgb), 0.12);
     box-shadow: 0 20px 60px rgba(15, 44, 92, 0.12);
 
     h1 {
@@ -220,7 +220,7 @@ onMounted(async () => {
     padding: 14px 16px;
     border-radius: 14px;
     background: #f7f9fd;
-    border: 1px solid rgba(13, 148, 136, 0.1);
+    border: 1px solid rgba(var(--panel-accent-rgb), 0.1);
 }
 
 .meta-item {

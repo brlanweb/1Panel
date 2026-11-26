@@ -1584,7 +1584,7 @@ onBeforeUnmount(() => {
     margin: -8px 10px 3px 20px;
 
     &:hover {
-        background-color: rgba(13, 148, 136, 0.03);
+        background-color: rgba(var(--panel-accent-rgb), 0.03);
     }
 
     .name {

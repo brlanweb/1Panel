@@ -968,7 +968,7 @@ const getSetting = async () => {
 };
 
 const applyLoginButtonTheme = () => {
-    loginBtnLinkColor.value = themeConfig.value.loginBtnLinkColor || '#0d9488';
+    loginBtnLinkColor.value = themeConfig.value.loginBtnLinkColor || '#b07d12';
     document.documentElement.style.setProperty('--login-btn-link-color', loginBtnLinkColor.value);
     document.documentElement.style.setProperty(
         '--login-btn-link-hover-color',

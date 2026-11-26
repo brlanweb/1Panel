@@ -47,14 +47,16 @@ function getThemeColors() {
     // Match the applied page theme, including while settings are still loading.
     const isDarkTheme = document.documentElement.classList.contains('dark');
     const style = getComputedStyle(document.documentElement);
+    const accent = style.getPropertyValue('--panel-color-primary').trim() || '#b07d12';
+    const accentRgb = style.getPropertyValue('--panel-accent-rgb').trim() || '176, 125, 18';
     return {
-        primaryLight2: style.getPropertyValue('--panel-color-primary-light-3').trim() || '#4c8ef1',
-        primaryLight1: style.getPropertyValue('--panel-color-primary').trim() || '#0d9488',
+        primaryLight2: style.getPropertyValue('--panel-color-primary-light-3').trim() || accent,
+        primaryLight1: accent,
         pieBgColor: isDarkTheme ? '#434552' : '#ffffff',
         textColor: isDarkTheme ? '#ffffff' : '#0f0f0f',
         subtextColor: isDarkTheme ? '#BBBFC4' : '#646A73',
-        shadowColor: isDarkTheme ? '#16191D' : 'rgba(13, 148, 136, 0.1)',
-        backgroundStyleColor: isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : 'rgba(13, 148, 136, 0.05)',
+        shadowColor: isDarkTheme ? '#16191D' : `rgba(${accentRgb}, 0.12)`,
+        backgroundStyleColor: isDarkTheme ? 'rgba(255, 255, 255, 0.05)' : `rgba(${accentRgb}, 0.07)`,
     };
 }
 

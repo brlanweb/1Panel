@@ -351,7 +351,7 @@ func computeModelCheck(prof model.ComputeProfile, ids []uint, hosts map[uint]mod
 	if !ok {
 		return computeNoModelErr(prof, place).Error(), false
 	}
-	return fmt.Sprintf("copy %s from %s to %s before start", dir, hosts[src].Name,
+	return fmt.Sprintf("copy %s from %s to %s before start", dir, computeHostOrMaster(hosts, src).Name,
 		strings.Join(computeHostNames(place.Missing, hosts), ", ")), true
 }
 

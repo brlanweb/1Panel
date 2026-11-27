@@ -49,8 +49,8 @@ echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETT
 echo '@@ADDR'; ip -o -4 addr show 2>/dev/null | awk '{print $2, $4}'
 echo '@@ROUTE'; ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}'
 echo '@@ARP'; tail -n +2 /proc/net/arp 2>/dev/null | awk '$3=="0x2"{print $1, $4, $6}'
-echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null
-echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang' | grep -v -E 'grep|sh -s' | cut -c1-800
+echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}' 2>/dev/null
+echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang|[t]ensorfold|[l]lama-server|[o]llama serve|[l]mdeploy|[t]rtllm-serve|[t]ext-generation-launcher|[t]ritonserver|[f]unasr' | grep -v -E 'grep|sh -s' | cut -c1-800
 `
 
 type computeSampleReq struct {

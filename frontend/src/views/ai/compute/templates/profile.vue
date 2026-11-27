@@ -27,7 +27,7 @@
                         <div class="opt">
                             <span>{{ m.repoId }}</span>
                             <span class="sub">
-                                {{ (m.hosts || []).map((h) => h.hostName).join(', ') }}
+                                {{ (m.hosts || []).map((h) => (h.hostId === 0 ? masterLabel : h.hostName)).join(', ') }}
                             </span>
                         </div>
                     </el-option>
@@ -264,6 +264,9 @@ const empty = (): Compute.ProfileReq => ({
 });
 const form = reactive<Compute.ProfileReq>(empty());
 
+// hostId 0 = the master panel itself (not a compute host): the model is
+// copied from it to the picked hosts before start.
+const masterLabel = computed(() => t('compute.wiz.masterHost'));
 const selected = computed(() => models.value.find((m) => m.repoId === modelKey.value));
 const hostsWithModel = computed(() => selected.value?.hosts || []);
 const defaultName = computed(() => {

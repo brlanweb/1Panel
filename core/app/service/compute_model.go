@@ -131,10 +131,60 @@ func computeAllHostIDs(hosts map[uint]model.ComputeHost) []uint {
 	return ids
 }
 
+// computeMasterID is the pseudo host id of the master panel itself when it
+// is not imported as a compute host: its "model preparation" list is still
+// a source models can be copied from (relay through the master).
+const computeMasterID uint = 0
+
+func computeMasterHost() model.ComputeHost {
+	// No Addr: the master is only ever a relay source, reached through its
+	// local agent socket.
+	h := model.ComputeHost{Name: "master", Source: model.ComputeSourceLocal, Mode: "agent"}
+	h.ID = computeMasterID
+	return h
+}
+
+// computeMasterIsSource reports whether the master has to be scanned
+// separately (no compute host already stands for the local panel).
+func computeMasterIsSource(hosts map[uint]model.ComputeHost) bool {
+	for _, h := range hosts {
+		if h.Source == model.ComputeSourceLocal {
+			return false
+		}
+	}
+	return true
+}
+
+// computeWithMaster returns a copy of hosts that also holds the master.
+func computeWithMaster(hosts map[uint]model.ComputeHost, master model.ComputeHost) map[uint]model.ComputeHost {
+	res := make(map[uint]model.ComputeHost, len(hosts)+1)
+	for id, h := range hosts {
+		res[id] = h
+	}
+	res[computeMasterID] = master
+	return res
+}
+
+// computeHostOrMaster resolves a host id that may be the master pseudo id.
+func computeHostOrMaster(hosts map[uint]model.ComputeHost, id uint) model.ComputeHost {
+	if id == computeMasterID {
+		return computeMasterHost()
+	}
+	return hosts[id]
+}
+
 // ListModels aggregates the prepared models of all panel hosts by repo id.
 func (u *ComputeService) ListModels() (dto.ComputeModelList, error) {
 	hosts := computeHostMap()
 	scan := computeScanModels(hosts, computeAllHostIDs(hosts))
+	if computeMasterIsSource(hosts) {
+		// Models prepared on the master (AI → vLLM → Models of this panel)
+		// are offered too and copied to the target hosts on deployment.
+		master := computeMasterHost()
+		list, err := computeHostModels(master)
+		hosts = computeWithMaster(hosts, master)
+		scan[computeMasterID] = computeHostModelSet{models: list, err: err}
+	}
 	byRepo := map[string]*dto.ComputeModelItem{}
 	var errs []string
 	recipeHost := map[string]uint{}
@@ -265,21 +315,31 @@ func computeModelSource(prof model.ComputeProfile, ids []uint, targets []uint, h
 	for _, id := range ids {
 		member[id] = true
 	}
+	withMaster := computeMasterIsSource(hosts)
+	if withMaster {
+		hosts = computeWithMaster(hosts, computeMasterHost())
+	}
 	for _, id := range computeAllHostIDs(hosts) {
-		if !member[id] {
+		if !member[id] && id != computeMasterID {
 			others = append(others, id)
 		}
+	}
+	if withMaster {
+		// The master is checked last: copying from a member host over the
+		// fabric is faster than relaying from the master.
+		others = append(others, computeMasterID)
 	}
 	elsewhere := computeLocateModel(prof, others, hosts)
 	var best uint
 	bestDir := ""
+	found := false
 	for _, id := range others {
 		dir, ok := elsewhere.Have[id]
 		if !ok {
 			continue
 		}
-		if best == 0 {
-			best, bestDir = id, dir
+		if !found {
+			best, bestDir, found = id, dir, true
 		}
 		for _, t := range targets {
 			if _, _, ok := computeLinkBetween(id, t); ok {
@@ -287,7 +347,7 @@ func computeModelSource(prof model.ComputeProfile, ids []uint, targets []uint, h
 			}
 		}
 	}
-	return best, bestDir, best > 0
+	return best, bestDir, found
 }
 
 // computeLinkBetween returns the fabric addresses (a side, b side) of an
@@ -327,7 +387,7 @@ func computeEnsureModel(run *computeJobRun, prof model.ComputeProfile, ids []uin
 			return "", computeNoModelErr(prof, place)
 		}
 	}
-	src := hosts[srcID]
+	src := computeHostOrMaster(hosts, srcID)
 	for _, id := range ids {
 		if id == srcID || place.Have[id] == want {
 			continue
@@ -370,7 +430,11 @@ func computeHasRsync(h model.ComputeHost) bool {
 func computeSyncModel(run *computeJobRun, prof model.ComputeProfile, src, dst model.ComputeHost, dir string) (string, error) {
 	var msg string
 	var err error
-	if computeHasRsync(src) && computeHasRsync(dst) {
+	if src.ID == computeMasterID && src.Source == model.ComputeSourceLocal && src.IsPanel() && dst.IsPanel() {
+		// From the master: push through the cluster API that already
+		// reaches every node (the node may not route back to the master).
+		msg, err = computeRelayModel(run, prof, src, dst, dir)
+	} else if computeHasRsync(src) && computeHasRsync(dst) {
 		msg, err = computeRsyncModel(run, src, dst, dir)
 	} else if src.IsPanel() && dst.IsPanel() {
 		msg, err = computeRelayModel(run, prof, src, dst, dir)

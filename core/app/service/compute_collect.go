@@ -44,8 +44,8 @@ echo '@@META'; hostname; uname -m; (. /etc/os-release 2>/dev/null; echo "${PRETT
 echo '@@ADDR'; ip -o -4 addr show 2>/dev/null | awk '{print $2, $4}'
 echo '@@ROUTE'; ip -o -4 route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<NF;i++) if($i=="src") print $(i+1)}'
 echo '@@ARP'; tail -n +2 /proc/net/arp 2>/dev/null | awk '$3=="0x2"{print $1, $4, $6}'
-echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}' 2>/dev/null
-echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang' | grep -v -E 'grep|sh -s' | cut -c1-800
+echo '@@CTR'; docker ps --format '{{.Names}}|{{.Image}}|{{.Status}}|{{.Ports}}' 2>/dev/null
+echo '@@PROC'; ps -eo pid=,args= 2>/dev/null | grep -E '[v]llm|[s]glang|[t]ensorfold|[l]lama-server|[o]llama serve|[l]mdeploy|[t]rtllm-serve|[t]ext-generation-launcher|[t]ritonserver|[f]unasr' | grep -v -E 'grep|sh -s' | cut -c1-800
 `
 
 func computeSections(out string) map[string][]string {
@@ -256,6 +256,7 @@ type computeContainer struct {
 	Name   string `json:"name"`
 	Image  string `json:"image"`
 	Status string `json:"status"`
+	Ports  string `json:"ports"`
 }
 
 type computeSlowRaw struct {
@@ -315,11 +316,15 @@ func parseComputeSlow(out string) computeSlowRaw {
 		r.Neighbours = append(r.Neighbours, computeNeighbour{IP: f[0], Mac: f[1], Iface: f[2]})
 	}
 	for _, line := range sec["CTR"] {
-		f := strings.SplitN(line, "|", 3)
+		f := strings.SplitN(line, "|", 4)
 		if len(f) < 3 {
 			continue
 		}
-		r.Containers = append(r.Containers, computeContainer{Name: f[0], Image: f[1], Status: f[2]})
+		c := computeContainer{Name: f[0], Image: f[1], Status: f[2]}
+		if len(f) > 3 {
+			c.Ports = strings.TrimSpace(f[3])
+		}
+		r.Containers = append(r.Containers, c)
 	}
 	seen := map[int]bool{}
 	for _, line := range sec["PROC"] {
@@ -335,7 +340,69 @@ func parseComputeSlow(out string) computeSlowRaw {
 			r.Procs = append(r.Procs, p)
 		}
 	}
+	// Engines whose command line carries no engine name (FunASR runs as
+	// "python /app/server.py") are recognised by their container instead,
+	// one entry per published host port.
+	for _, c := range r.Containers {
+		for _, p := range computeContainerProcs(c) {
+			if p.Port > 0 && seen[p.Port] {
+				continue
+			}
+			if p.Port > 0 {
+				seen[p.Port] = true
+			}
+			r.Procs = append(r.Procs, p)
+		}
+	}
 	return r
+}
+
+// computeContainerEngines maps a keyword of a container name / image to an
+// engine whose process cannot be recognised from ps.
+var computeContainerEngines = []struct{ Key, Engine string }{
+	{"funasr", "funasr"},
+	{"sensevoice", "funasr"},
+	{"paraformer", "funasr"},
+	{"text-embeddings-inference", "tei"},
+	{"xinference", "xinference"},
+}
+
+// "10.15.9.123:8006->8000/tcp, :::8006->8000/tcp"
+var computePortMapRe = regexp.MustCompile(`:(\d+)->(\d+)/tcp`)
+
+func computeContainerProcs(c computeContainer) []computeProcRaw {
+	if !strings.HasPrefix(strings.ToLower(c.Status), "up") {
+		return nil
+	}
+	hay := strings.ToLower(c.Name + " " + c.Image)
+	engine := ""
+	for _, e := range computeContainerEngines {
+		if strings.Contains(hay, e.Key) {
+			engine = e.Engine
+			break
+		}
+	}
+	if engine == "" {
+		return nil
+	}
+	base := computeProcRaw{Engine: engine, Model: c.Image, ServedName: c.Name, Cmd: "docker: " + c.Name + " (" + c.Image + ")"}
+	var res []computeProcRaw
+	seen := map[int]bool{}
+	for _, m := range computePortMapRe.FindAllStringSubmatch(c.Ports, -1) {
+		port := int(cAtoU(m[1]))
+		if port == 0 || seen[port] {
+			continue
+		}
+		seen[port] = true
+		p := base
+		p.Port = port
+		res = append(res, p)
+	}
+	if len(res) == 0 {
+		// host network or nothing published: still show the engine.
+		res = append(res, base)
+	}
+	return res
 }
 
 func parseComputeProc(line string) (computeProcRaw, bool) {
@@ -346,32 +413,59 @@ func parseComputeProc(line string) (computeProcRaw, bool) {
 	p := computeProcRaw{Pid: int(cAtoU(f[0])), Cmd: strings.Join(f[1:], " ")}
 	args := f[1:]
 	isServe := false
+	// Engines other than vLLM / SGLang are recognised only by the program
+	// itself (never by a path or argument), so wrapper scripts such as
+	// "bash -c cd ~/funasr-replicas && ./bench.sh" are not taken for one.
+	prog := computeProgram(args)
+	for _, e := range computeProgEngines {
+		if strings.Contains(prog, e.Key) {
+			p.Engine = e.Engine
+			isServe = isServe || e.AlwaysServe
+			break
+		}
+	}
 	for i, a := range args {
-		switch {
-		case strings.Contains(a, "sglang"):
-			p.Engine = "sglang"
-		case strings.HasSuffix(a, "vllm") || strings.Contains(a, "vllm.entrypoints"):
-			p.Engine = "vllm"
+		if p.Engine == "" || p.Engine == "vllm" || p.Engine == "sglang" {
+			switch {
+			case strings.Contains(a, "sglang"):
+				p.Engine = "sglang"
+			case strings.HasSuffix(a, "vllm") || strings.Contains(a, "vllm.entrypoints"):
+				p.Engine = "vllm"
+			}
 		}
 		if a == "serve" && i+1 < len(args) && !strings.HasPrefix(args[i+1], "-") {
 			isServe = true
-			p.Model = args[i+1]
+			if args[i+1] != "api_server" {
+				p.Model = args[i+1]
+			} else if i+2 < len(args) && !strings.HasPrefix(args[i+2], "-") {
+				p.Model = args[i+2] // lmdeploy serve api_server <model>
+			}
+		}
+		if a == "serve" {
+			isServe = true // "ollama serve", "tensorfold-native serve --model ..."
 		}
 		if strings.Contains(a, "api_server") || strings.Contains(a, "launch_server") {
 			isServe = true
 		}
 		key, val := a, ""
-		if k, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "--") {
+		if k, v, ok := strings.Cut(a, "="); ok && strings.HasPrefix(a, "-") {
 			key, val = k, v
 		} else if i+1 < len(args) {
 			val = args[i+1]
 		}
 		switch key {
-		case "--port":
+		case "--port", "--server-port", "--http-port":
 			p.Port = int(cAtoU(val))
-		case "--model", "--model-path":
-			p.Model = val
-		case "--served-model-name":
+		case "--model", "--model-path", "--model-id":
+			if !strings.HasPrefix(val, "-") {
+				p.Model = val
+			}
+		case "-m":
+			// llama-server -m model.gguf (for python "-m" names a module)
+			if p.Engine == "llama.cpp" {
+				p.Model = val
+			}
+		case "--served-model-name", "--alias", "--name", "--model-name":
 			p.ServedName = val
 		case "--headless":
 			p.Worker = true
@@ -385,14 +479,73 @@ func parseComputeProc(line string) (computeProcRaw, bool) {
 		return p, false
 	}
 	if p.Port == 0 {
-		if p.Engine == "sglang" {
-			p.Port = 30000
-		} else {
-			p.Port = 8000
-		}
+		p.Port = computeEngineDefaultPort(p.Engine)
 	}
 	if p.ServedName == "" {
 		p.ServedName = p.Model
 	}
 	return p, true
+}
+
+// computeProgEngines: keyword of the program name → engine. AlwaysServe
+// marks programs that are servers by themselves (no "serve" sub-command).
+var computeProgEngines = []struct {
+	Key, Engine string
+	AlwaysServe bool
+}{
+	{"tensorfold", "tensorfold", false},
+	{"llama-server", "llama.cpp", true},
+	{"ollama", "ollama", false},
+	{"lmdeploy", "lmdeploy", false},
+	{"trtllm-serve", "trtllm", true},
+	{"text-generation-launcher", "tgi", true},
+	{"tritonserver", "triton", true},
+	{"funasr", "funasr", true},
+}
+
+func computeEngineDefaultPort(engine string) int {
+	switch engine {
+	case "sglang":
+		return 30000
+	case "llama.cpp":
+		return 8080
+	case "ollama":
+		return 11434
+	case "lmdeploy":
+		return 23333
+	case "tgi":
+		return 80
+	case "funasr":
+		return 10095
+	}
+	return 8000
+}
+
+// computeProgram returns the base name of the program a command line runs:
+// the executable itself, or for an interpreter the module (-m) / script.
+func computeProgram(args []string) string {
+	if len(args) == 0 {
+		return ""
+	}
+	base := func(s string) string {
+		if i := strings.LastIndex(s, "/"); i >= 0 {
+			s = s[i+1:]
+		}
+		return strings.ToLower(s)
+	}
+	exe := base(args[0])
+	if !strings.HasPrefix(exe, "python") {
+		return exe
+	}
+	for i := 1; i < len(args); i++ {
+		a := args[i]
+		if a == "-m" && i+1 < len(args) {
+			return base(args[i+1])
+		}
+		if strings.HasPrefix(a, "-") {
+			continue
+		}
+		return base(a)
+	}
+	return exe
 }

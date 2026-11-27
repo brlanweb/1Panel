@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
 	"os"
@@ -174,6 +175,88 @@ func TestComputeProcEdgeCases(t *testing.T) {
 	p, ok := parseComputeProc("77 python3 -m sglang.launch_server --model-path /m/glm --served-model-name glm-5")
 	if !ok || p.Engine != "sglang" || p.Port != 30000 || p.ServedName != "glm-5" || p.Worker {
 		t.Fatalf("sglang: %+v %v", p, ok)
+	}
+}
+
+// DGX-E-123: six FunASR containers (process is "python /app/server.py")
+// plus a benchmark wrapper whose path mentions funasr.
+const funasrSlowOut = `@@CTR
+funasr-nano-8002|local/funasr-nano-arm64:1.4.14|Up 8 days (healthy)|6006/tcp, 8888/tcp, 10.15.9.123:8002->8000/tcp
+funasr-nano-8001|local/funasr-nano-arm64:1.4.14|Up 8 days (healthy)|6006/tcp, 8888/tcp, 10.15.9.123:8001->8000/tcp
+funasr-old|local/funasr-nano-arm64:1.4.13|Exited (0) 2 days ago|
+nginx|nginx:latest|Up 3 days|0.0.0.0:80->80/tcp, :::80->80/tcp
+@@PROC
+104746 bash -c cd ~/funasr-replicas && (while true; do nvidia-smi; sleep 2; done > /tmp/gpu.log) & ./bench.sh 6 3
+`
+
+func TestParseComputeSlowFunASR(t *testing.T) {
+	r := parseComputeSlow(funasrSlowOut)
+	if len(r.Procs) != 2 {
+		t.Fatalf("procs: %+v", r.Procs)
+	}
+	for i, port := range []int{8002, 8001} {
+		p := r.Procs[i]
+		if p.Engine != "funasr" || p.Port != port || p.ServedName != fmt.Sprintf("funasr-nano-%d", port) {
+			t.Fatalf("proc%d: %+v", i, p)
+		}
+	}
+	if r.Containers[0].Ports == "" {
+		t.Fatal("ports column must be kept")
+	}
+	// Old 3-column output of not yet upgraded agents still parses.
+	old := parseComputeSlow("@@CTR\nvllm-ds|nvcr.io/nvidia/vllm:25.09-py3|Up 3 days\n")
+	if len(old.Containers) != 1 || len(old.Procs) != 0 {
+		t.Fatalf("old ctr: %+v", old)
+	}
+}
+
+func TestComputeProcOtherEngines(t *testing.T) {
+	// DGX-F-125
+	p, ok := parseComputeProc("3150406 tensorfold-native serve /hf/tensorfold-dsv41/45ee5d0f/model --backend cuda --host 0.0.0.0 --port 8888 --name DeepSeek-V4.1-Flash-1017 --context 1048576")
+	if !ok || p.Engine != "tensorfold" || p.Port != 8888 || p.ServedName != "DeepSeek-V4.1-Flash-1017" || p.Model != "/hf/tensorfold-dsv41/45ee5d0f/model" {
+		t.Fatalf("tensorfold: %+v %v", p, ok)
+	}
+	p, ok = parseComputeProc("12 /opt/llama.cpp/llama-server -m /models/qwen.gguf --port 8081 --alias qwen")
+	if !ok || p.Engine != "llama.cpp" || p.Port != 8081 || p.ServedName != "qwen" || p.Model != "/models/qwen.gguf" {
+		t.Fatalf("llama.cpp: %+v %v", p, ok)
+	}
+	p, ok = parseComputeProc("13 /usr/local/bin/ollama serve")
+	if !ok || p.Engine != "ollama" || p.Port != 11434 {
+		t.Fatalf("ollama: %+v %v", p, ok)
+	}
+	p, ok = parseComputeProc("14 /usr/bin/python3 /usr/local/bin/lmdeploy serve api_server /models/internlm --server-port 23334")
+	if !ok || p.Engine != "lmdeploy" || p.Port != 23334 || p.Model != "/models/internlm" {
+		t.Fatalf("lmdeploy: %+v %v", p, ok)
+	}
+	// Wrappers and helpers mentioning an engine are not engines.
+	for _, line := range []string{
+		"15 bash -c cd ~/funasr-replicas && ./bench.sh 6 3",
+		"16 python3 -u /home/jks/model-deploy/deepseek41-1017/deepseek41-progress.py",
+		"17 bash memguard.sh run dsv41-1017-exl3-tf 2.5 /home/jks/tensorfold/memguard.log",
+		"18 ollama run qwen",
+	} {
+		if p, ok := parseComputeProc(line); ok {
+			t.Fatalf("%q must not be an engine: %+v", line, p)
+		}
+	}
+	// vLLM keeps working.
+	p, ok = parseComputeProc("2203 python3 -m vllm.entrypoints.openai.api_server --model=/models/x --port=8101")
+	if !ok || p.Engine != "vllm" || p.Port != 8101 {
+		t.Fatalf("vllm: %+v %v", p, ok)
+	}
+}
+
+func TestComputeModelSourceMasterLast(t *testing.T) {
+	hosts := map[uint]model.ComputeHost{1: {Source: model.ComputeSourceNode}}
+	if !computeMasterIsSource(hosts) {
+		t.Fatal("no local host: master must be scanned")
+	}
+	hosts[2] = model.ComputeHost{Source: model.ComputeSourceLocal}
+	if computeMasterIsSource(hosts) {
+		t.Fatal("local host imported: master must not be scanned twice")
+	}
+	if h := computeHostOrMaster(hosts, computeMasterID); h.Source != model.ComputeSourceLocal || h.Name != "master" {
+		t.Fatalf("master: %+v", h)
 	}
 }
 

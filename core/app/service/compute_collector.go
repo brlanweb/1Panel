@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -632,7 +633,23 @@ func computeCollectEngine(in model.ComputeInstance, st *computeInstState, path s
 	if err == nil {
 		sample = parseComputeMetrics(body, computeUpstreamModel(in))
 		if !sample.Found {
-			err = fmt.Errorf("no engine metrics")
+			err = errors.New(computeNoMetricsMsg)
+		}
+	}
+	if err != nil {
+		if perr := computeProbeHealth(in, err); perr == nil {
+			// Alive but without metrics: healthy, load unknown.
+			computeState.mu.Lock()
+			m = dto.ComputeEngineMetrics{Healthy: true, SampledAt: now.UnixMilli(), LastActiveAt: st.m.LastActiveAt}
+			if m.LastActiveAt == 0 {
+				m.LastActiveAt = now.UnixMilli()
+			}
+			st.m, st.prev, st.prevAt = m, nil, now
+			computeState.mu.Unlock()
+			computeSetInstStatus(in, true, "")
+			return
+		} else {
+			err = perr
 		}
 	}
 	computeState.mu.Lock()
@@ -718,7 +735,51 @@ func computeHTTPGet(url string, in model.ComputeInstance) (string, error) {
 		return "", err
 	}
 	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("http %d", resp.StatusCode)
+		return "", computeHTTPStatusErr{Code: resp.StatusCode}
 	}
 	return string(body), nil
+}
+
+const computeNoMetricsMsg = "no engine metrics"
+
+type computeHTTPStatusErr struct{ Code int }
+
+func (e computeHTTPStatusErr) Error() string { return fmt.Sprintf("http %d", e.Code) }
+
+func computeHTTPCode(err error) int {
+	var se computeHTTPStatusErr
+	if errors.As(err, &se) {
+		return se.Code
+	}
+	return 0
+}
+
+// computeHealthPaths are probed when an engine exposes no Prometheus
+// metrics (FunASR, tensorfold, llama.cpp, ...): reachable means healthy,
+// load figures stay empty.
+var computeHealthPaths = []string{"/health", "/v1/models"}
+
+// computeProbeHealth decides health from a failed metrics read. A 401/403
+// is reported as such (the instance needs its API key, otherwise routed
+// requests would fail too); a missing / non-Prometheus metrics endpoint
+// falls back to the health paths.
+func computeProbeHealth(in model.ComputeInstance, metricsErr error) error {
+	switch computeHTTPCode(metricsErr) {
+	case http.StatusUnauthorized, http.StatusForbidden:
+		if computeInstanceKey(in) == "" {
+			return fmt.Errorf("http %d: engine requires an API key, set it on the instance", computeHTTPCode(metricsErr))
+		}
+		return fmt.Errorf("http %d: API key rejected by the engine", computeHTTPCode(metricsErr))
+	case 0:
+		if metricsErr.Error() != computeNoMetricsMsg {
+			return metricsErr // connection refused / timeout
+		}
+	}
+	base := strings.TrimRight(in.Endpoint, "/")
+	for _, p := range computeHealthPaths {
+		if _, err := computeHTTPGet(base+p, in); err == nil {
+			return nil
+		}
+	}
+	return metricsErr
 }

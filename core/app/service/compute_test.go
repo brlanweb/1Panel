@@ -2,7 +2,10 @@ package service
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
 	"os"
@@ -243,6 +246,49 @@ func TestComputeProcOtherEngines(t *testing.T) {
 	p, ok = parseComputeProc("2203 python3 -m vllm.entrypoints.openai.api_server --model=/models/x --port=8101")
 	if !ok || p.Engine != "vllm" || p.Port != 8101 {
 		t.Fatalf("vllm: %+v %v", p, ok)
+	}
+}
+
+func TestComputeProbeHealth(t *testing.T) {
+	// FunASR: no /metrics (404), /health 200.
+	funasr := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/health" {
+			_, _ = w.Write([]byte(`{"status":"ok"}`))
+			return
+		}
+		http.NotFound(w, r)
+	}))
+	defer funasr.Close()
+	in := model.ComputeInstance{Endpoint: funasr.URL}
+	_, err := computeHTTPGet(funasr.URL+"/metrics", in)
+	if computeHTTPCode(err) != 404 {
+		t.Fatalf("metrics err: %v", err)
+	}
+	if perr := computeProbeHealth(in, err); perr != nil {
+		t.Fatalf("funasr must be healthy: %v", perr)
+	}
+	// tensorfold: everything but /health needs a key; JSON (no Prometheus) metrics.
+	tf := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/health" && r.Header.Get("Authorization") == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		_, _ = w.Write([]byte(`{"status": "ok"}`))
+	}))
+	defer tf.Close()
+	in = model.ComputeInstance{Endpoint: tf.URL}
+	_, err = computeHTTPGet(tf.URL+"/metrics", in)
+	perr := computeProbeHealth(in, err)
+	if perr == nil || !strings.Contains(perr.Error(), "API key") {
+		t.Fatalf("401 must ask for the API key, got %v", perr)
+	}
+	// Reachable but nothing healthy -> keep the original error.
+	if perr := computeProbeHealth(model.ComputeInstance{Endpoint: "http://127.0.0.1:1"}, errors.New("dial tcp: refused")); perr == nil {
+		t.Fatal("unreachable must stay unhealthy")
+	}
+	// Non-Prometheus 200 metrics fall back to /health.
+	if perr := computeProbeHealth(model.ComputeInstance{Endpoint: funasr.URL}, errors.New(computeNoMetricsMsg)); perr != nil {
+		t.Fatalf("no-metrics fallback: %v", perr)
 	}
 }
 

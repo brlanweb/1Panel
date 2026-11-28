@@ -24,7 +24,7 @@
             </template>
             <template #main>
                 <div class="kpis">
-                    <div v-for="k in kpis" :key="k.label" class="kpi">
+                    <div v-for="k in kpis" :key="k.label" class="kpi" :title="k.title || k.sub">
                         <div class="kpi-label">{{ k.label }}</div>
                         <div class="kpi-value" :class="k.cls">{{ k.value }}</div>
                         <div class="kpi-sub">{{ k.sub }}</div>
@@ -145,16 +145,25 @@ const kpis = computed(() => {
     const s = data.value?.summary;
     if (!s) return [];
     const rateCls = s.requests ? (s.successRate < 95 ? 'stat-danger' : 'stat-success') : '';
+    // Totals are persisted (all time); the window figures come from memory.
+    const tot = data.value?.totals;
+    const win = rangeLabel(range.value);
     return [
         {
             label: t('compute.ana.totalCalls'),
-            value: fmt(s.requests),
-            sub: t('compute.ana.failures', [fmt(s.failures)]),
+            value: fmt(tot ? tot.requests : s.requests),
+            sub: tot
+                ? `${t('compute.ana.today')} ${fmt(tot.todayRequests)} · ${win} ${fmt(s.requests)} · ${t('compute.ana.failures', [fmt(tot.failures)])}`
+                : t('compute.ana.failures', [fmt(s.failures)]),
+            title: tot?.since ? t('compute.ana.since', [tot.since]) : '',
         },
         {
             label: t('compute.ana.totalTokens'),
-            value: fmt(s.totalTokens),
-            sub: `${t('compute.ana.input')} ${fmt(s.promptTokens)} · ${t('compute.ana.output')} ${fmt(s.completionTokens)}`,
+            value: fmt(tot ? tot.totalTokens : s.totalTokens),
+            sub: tot
+                ? `${t('compute.ana.today')} ${fmt(tot.todayTokens)} · ${win} ${fmt(s.totalTokens)} · ${t('compute.ana.input')} ${fmt(tot.promptTokens)} / ${t('compute.ana.output')} ${fmt(tot.completionTokens)}`
+                : `${t('compute.ana.input')} ${fmt(s.promptTokens)} · ${t('compute.ana.output')} ${fmt(s.completionTokens)}`,
+            title: tot?.since ? t('compute.ana.since', [tot.since]) : '',
         },
         {
             label: t('compute.ana.avgRpm'),

@@ -549,7 +549,21 @@ type ComputeAnalyticsShare struct {
 	AvgTTFT  float64 `json:"avgTtftMs"`
 }
 
+// ComputeUsageTotals is the persisted (all-time) usage of the router,
+// independent of the in-memory log retention.
+type ComputeUsageTotals struct {
+	Since            string `json:"since"` // first recorded day, YYYY-MM-DD
+	Requests         int64  `json:"requests"`
+	Failures         int64  `json:"failures"`
+	PromptTokens     int64  `json:"promptTokens"`
+	CompletionTokens int64  `json:"completionTokens"`
+	TotalTokens      int64  `json:"totalTokens"`
+	TodayRequests    int64  `json:"todayRequests"`
+	TodayTokens      int64  `json:"todayTokens"`
+}
+
 type ComputeAnalytics struct {
+	Totals     ComputeUsageTotals       `json:"totals"`
 	Start      int64                    `json:"start"`
 	End        int64                    `json:"end"`
 	BucketSec  int64                    `json:"bucketSec"`

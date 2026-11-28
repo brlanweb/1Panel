@@ -337,14 +337,28 @@ func computeClientIP(req *http.Request) string {
 	return host
 }
 
-// computeLoadScore: queue dominates, then running + our own in-flight,
-// then the recent time to first token (every 500 ms counts like one
-// running request, so a slow replica — e.g. one whose prefill competes
-// with long prompts — gets less new traffic), then KV pressure.
+// computeLoadScore: the active requests of a replica, with queued ones
+// weighing 4x, then the recent time to first token (every 500 ms counts
+// like one running request, so a slow replica — e.g. one whose prefill
+// competes with long prompts — gets less new traffic), then KV usage.
+//
+// The engine's running + waiting and the router's own in-flight count are
+// two views of mostly the same requests (the engine view is sampled, the
+// in-flight one is live), so the larger one is used instead of their sum:
+// adding them punished a busy but strong replica twice for the same work.
+// KV usage counts over its whole range so a replica with free cache wins
+// ties, with an extra penalty once it is nearly full.
 func computeLoadScore(m dto.ComputeEngineMetrics, inflight int64) float64 {
-	score := m.Waiting*4 + m.Running + float64(inflight)*1.5
+	active := m.Running + m.Waiting
+	if f := float64(inflight); f > active {
+		active = f
+	}
+	score := active + m.Waiting*3
 	if m.TTFTMs > 0 {
 		score += math.Min(m.TTFTMs/500, 20)
+	}
+	if m.KVUsage > 0 {
+		score += math.Min(m.KVUsage, 1) * 10
 	}
 	if m.KVUsage > 0.9 {
 		score += (m.KVUsage - 0.9) * 100
@@ -488,9 +502,11 @@ func (r *computeRouterSrv) forward(w http.ResponseWriter, req *http.Request, in 
 		n, rerr := resp.Body.Read(buf)
 		if n > 0 {
 			chunk := buf[:n]
-			if call.log.TTFTMs == 0 {
-				// First body byte: for SSE the first token event (role /
-				// content), for JSON the whole answer is ready.
+			if call.log.TTFTMs == 0 && stream {
+				// First body byte of an SSE stream = the first token event.
+				// A non-streamed (JSON) answer only starts once it is
+				// complete, so its first byte is the full latency, not a
+				// time to first token: it is left at 0 and not averaged.
 				call.log.TTFTMs = max(time.Since(start).Milliseconds(), 1)
 			}
 			usage.feed(chunk)
@@ -732,6 +748,7 @@ func computeUsageFlushLoop() {
 	ticker := time.NewTicker(computeUsageFlush)
 	defer ticker.Stop()
 	for range ticker.C {
+		computeDaily.flush()
 		r := computeRouter
 		r.usageMu.Lock()
 		batch := r.usage

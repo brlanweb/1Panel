@@ -68,6 +68,7 @@ func computeLogRetention() time.Duration {
 }
 
 func (s *computeCallLogStore) add(l dto.ComputeCallLog) {
+	computeDaily.add(l)
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.nextID++
@@ -291,6 +292,7 @@ func (u *ComputeService) Analytics(req dto.ComputeAnalyticsReq) dto.ComputeAnaly
 	res.ByModel = computeShares(byModel)
 	res.ByConsumer = computeShares(byConsumer)
 	res.Models, res.Consumers = computeKeys(models), computeKeys(consumers)
+	res.Totals = computeUsageTotals(req.Model, req.Consumer)
 	return res
 }
 

@@ -256,7 +256,18 @@ export namespace Compute {
         failures: number;
         avgTtftMs: number;
     }
+    export interface UsageTotals {
+        since: string;
+        requests: number;
+        failures: number;
+        promptTokens: number;
+        completionTokens: number;
+        totalTokens: number;
+        todayRequests: number;
+        todayTokens: number;
+    }
     export interface Analytics {
+        totals?: UsageTotals;
         start: number;
         end: number;
         bucketSec: number;

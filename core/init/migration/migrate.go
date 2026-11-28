@@ -104,5 +104,6 @@ func coreMigrations() []*gormigrate.Migration {
 		migrations.ComputeIntoModelServices,
 		migrations.ComputeInstanceUpstreamModel,
 		migrations.ComputeProfileWizard,
+		migrations.ComputeUsageDaily,
 	}
 }

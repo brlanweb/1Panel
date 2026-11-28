@@ -284,3 +284,20 @@ type ComputePolicy struct {
 }
 
 func (ComputePolicy) TableName() string { return "compute_policies" }
+
+// ComputeUsageDaily is the persisted usage of the model router: one row per
+// day, model and caller. Call logs stay in memory only; these counters are
+// what survives restarts and the log retention window, so total calls and
+// tokens keep accumulating day after day.
+type ComputeUsageDaily struct {
+	ID               uint   `gorm:"primarykey;AUTO_INCREMENT" json:"id"`
+	Day              string `gorm:"not null;uniqueIndex:idx_compute_usage_day_key,priority:1" json:"day"` // YYYY-MM-DD, server local time
+	Model            string `gorm:"not null;default:'';uniqueIndex:idx_compute_usage_day_key,priority:2" json:"model"`
+	Consumer         string `gorm:"not null;default:'';uniqueIndex:idx_compute_usage_day_key,priority:3" json:"consumer"`
+	Requests         int64  `gorm:"not null;default:0" json:"requests"`
+	Failures         int64  `gorm:"not null;default:0" json:"failures"`
+	PromptTokens     int64  `gorm:"not null;default:0" json:"promptTokens"`
+	CompletionTokens int64  `gorm:"not null;default:0" json:"completionTokens"`
+}
+
+func (ComputeUsageDaily) TableName() string { return "compute_usage_dailies" }

@@ -4,10 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"github.com/1Panel-dev/1Panel/core/app/dto"
 	"github.com/1Panel-dev/1Panel/core/app/model"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"regexp"
 	"strings"
@@ -499,6 +499,51 @@ func TestComputeLoadScoreTTFT(t *testing.T) {
 	}
 	if capped := computeLoadScore(dto.ComputeEngineMetrics{TTFTMs: 1e7}, 0); capped > 21 {
 		t.Fatalf("TTFT term must be capped, got %.2f", capped)
+	}
+}
+
+func TestComputeLoadScoreNoDoubleCount(t *testing.T) {
+	// The router's in-flight requests are the engine's running ones: the
+	// score must not add both.
+	engine := computeLoadScore(dto.ComputeEngineMetrics{Running: 15}, 0)
+	both := computeLoadScore(dto.ComputeEngineMetrics{Running: 15}, 15)
+	if both != engine {
+		t.Fatalf("in-flight double counted: engine %.2f both %.2f", engine, both)
+	}
+	// Live in-flight beyond the last sample still counts.
+	if ahead := computeLoadScore(dto.ComputeEngineMetrics{Running: 15}, 21); ahead <= engine {
+		t.Fatalf("in-flight ahead of the sample must count: %.2f", ahead)
+	}
+	// Free KV cache wins over a nearly full one at equal requests.
+	free := computeLoadScore(dto.ComputeEngineMetrics{Running: 6, KVUsage: 0.15}, 0)
+	full := computeLoadScore(dto.ComputeEngineMetrics{Running: 6, KVUsage: 0.94}, 0)
+	if free >= full {
+		t.Fatalf("free KV must score lower: free %.2f full %.2f", free, full)
+	}
+}
+
+// The live pool snapshot that started this: the Huawei replica (15 running,
+// 21 in flight, KV 15%, 5x the throughput) must beat the busy GPUs that
+// queue, even with a modest weight.
+func TestComputeLoadScoreStrongReplica(t *testing.T) {
+	type r struct {
+		m      dto.ComputeEngineMetrics
+		in     int64
+		weight float64
+	}
+	final := func(x r) float64 { return (computeLoadScore(x.m, x.in) + 1) * 100 / x.weight }
+	huawei := r{dto.ComputeEngineMetrics{Running: 15, TTFTMs: 899, KVUsage: 0.15}, 21, 110}
+	gpus := []r{
+		{dto.ComputeEngineMetrics{Running: 8, Waiting: 3, TTFTMs: 1160, KVUsage: 0.95}, 3, 100},
+		{dto.ComputeEngineMetrics{Running: 6, TTFTMs: 8350, KVUsage: 0.94}, 2, 100},
+		{dto.ComputeEngineMetrics{Running: 6, TTFTMs: 1950, KVUsage: 0.91}, 10, 100},
+		{dto.ComputeEngineMetrics{Running: 8, Waiting: 2, TTFTMs: 889, KVUsage: 0.93}, 7, 100},
+	}
+	h := final(huawei)
+	for i, g := range gpus {
+		if s := final(g); h >= s {
+			t.Fatalf("huawei %.2f must beat gpu #%d %.2f", h, i, s)
+		}
 	}
 }
 

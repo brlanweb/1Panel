@@ -35,6 +35,29 @@ export namespace Cluster {
         unlockMinutes: number;
     }
 
+    export interface NodeJoinReq {
+        hostId: number;
+        name: string;
+        groupId: number;
+        masterIp: string;
+        entryHost: string;
+        installDocker: boolean;
+    }
+    export interface NodeJoinStatus {
+        hostId: number;
+        stage: string;
+        running: boolean;
+        error: string;
+        done: number;
+        total: number;
+        installed: boolean;
+        nodeId: number;
+        nodeName: string;
+        entryUrl: string;
+        username: string;
+        password: string;
+        logs: string[];
+    }
     export interface NodeLoginLockResult {
         nodeId: number;
         name: string;

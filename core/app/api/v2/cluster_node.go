@@ -287,3 +287,40 @@ func (b *BaseApi) UpdateManagedLogin(c *gin.Context) {
 	}
 	helper.SuccessWithData(c, state)
 }
+
+// @Tags Cluster Node
+// @Summary Join a terminal host to the cluster (install the panel over SSH when missing, create an API key, register the node)
+// @Accept json
+// @Param request body dto.ClusterNodeJoinReq true "request"
+// @Success 200
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/join [post]
+// @x-panel-log {"bodyKeys":["hostId"],"paramKeys":[],"BeforeFunctions":[],"formatZH":"终端主机加入集群 [hostId]","formatEN":"join terminal host [hostId] to the cluster"}
+func (b *BaseApi) JoinClusterNode(c *gin.Context) {
+	var req dto.ClusterNodeJoinReq
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	if err := clusterNodeService.JoinCluster(req); err != nil {
+		helper.InternalServer(c, err)
+		return
+	}
+	helper.Success(c)
+}
+
+// @Tags Cluster Node
+// @Summary Load the join progress of a terminal host
+// @Accept json
+// @Param request body dto.OperateByID true "request (id = terminal host id)"
+// @Success 200 {object} dto.ClusterNodeJoinStatus
+// @Security ApiKeyAuth
+// @Security Timestamp
+// @Router /core/cluster/nodes/join/status [post]
+func (b *BaseApi) GetClusterNodeJoinStatus(c *gin.Context) {
+	var req dto.OperateByID
+	if err := helper.CheckBindAndValidate(&req, c); err != nil {
+		return
+	}
+	helper.SuccessWithData(c, clusterNodeService.JoinClusterStatus(req.ID))
+}

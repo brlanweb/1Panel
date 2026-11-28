@@ -44,6 +44,8 @@ type IClusterNodeService interface {
 	UpgradeNode(req dto.ClusterNodeUpgradeReq) error
 	NodeUpgradeStatus(id uint) (dto.ClusterNodeUpgradeStatus, error)
 	SetNodesLoginLock(req dto.ClusterNodeLoginLockReq) ([]dto.ClusterNodeLoginLockResult, error)
+	JoinCluster(req dto.ClusterNodeJoinReq) error
+	JoinClusterStatus(hostID uint) dto.ClusterNodeJoinStatus
 	// ProxyRequest forwards one request to the named panel node. It
 	// returns false when the name is not a registered cluster node.
 	// isAdmin reports whether the master session belongs to a super admin.

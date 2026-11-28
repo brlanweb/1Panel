@@ -175,3 +175,35 @@ type ClusterNodeLoginLockResult struct {
 	UnlockUntil int64  `json:"unlockUntil"`
 	Message     string `json:"message"`
 }
+
+// ClusterNodeJoinReq joins a Terminal → Hosts entry to the cluster: the
+// panel is installed over SSH when missing, then a dedicated API key is
+// created on it and the node is registered.
+type ClusterNodeJoinReq struct {
+	HostID uint `json:"hostId" validate:"required"`
+	// Node name; empty = the terminal host name.
+	Name    string `json:"name"`
+	GroupID uint   `json:"groupId"`
+	// IP / CIDR list (comma separated) allowed to use the key; empty = the
+	// source IP the host sees for the master's SSH connection.
+	MasterIP string `json:"masterIp"`
+	// Address the master uses for the panel; empty = the SSH address.
+	EntryHost     string `json:"entryHost"`
+	InstallDocker bool   `json:"installDocker"`
+}
+
+type ClusterNodeJoinStatus struct {
+	HostID    uint     `json:"hostId"`
+	Stage     string   `json:"stage"`
+	Running   bool     `json:"running"`
+	Error     string   `json:"error"`
+	Done      int64    `json:"done"`
+	Total     int64    `json:"total"`
+	Installed bool     `json:"installed"`
+	NodeID    uint     `json:"nodeId"`
+	NodeName  string   `json:"nodeName"`
+	EntryURL  string   `json:"entryUrl"`
+	Username  string   `json:"username"`
+	Password  string   `json:"password"`
+	Logs      []string `json:"logs"`
+}

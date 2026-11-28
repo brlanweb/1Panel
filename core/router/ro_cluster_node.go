@@ -28,6 +28,8 @@ func (a *ClusterNodeRouter) InitRouter(Router *gin.RouterGroup) {
 		clusterNodeRouter.POST("/upgrade", baseApi.UpgradeClusterNode)
 		clusterNodeRouter.POST("/upgrade/status", baseApi.GetClusterNodeUpgradeStatus)
 		clusterNodeRouter.POST("/login-lock", baseApi.SetClusterNodeLoginLock)
+		clusterNodeRouter.POST("/join", baseApi.JoinClusterNode)
+		clusterNodeRouter.POST("/join/status", baseApi.GetClusterNodeJoinStatus)
 	}
 
 	// Called by the master panel on this node; the handlers accept API-key

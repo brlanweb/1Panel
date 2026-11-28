@@ -11,6 +11,9 @@
                 <el-button type="primary" plain :disabled="selects.length === 0" @click="onBatchDelete(null)">
                     {{ $t('commons.button.delete') }}
                 </el-button>
+                <el-button type="primary" plain :disabled="selects.length !== 1" @click="onJoinCluster(selects[0])">
+                    {{ $t('cluster.joinCluster') }}
+                </el-button>
             </template>
             <template #rightToolBar>
                 <el-select v-model="group" @change="search()" clearable class="p-w-200">
@@ -79,7 +82,7 @@
                             }}
                         </template>
                     </el-table-column>
-                    <fu-table-operations width="200px" :buttons="buttons" :label="$t('commons.table.operate')" fix />
+                    <fu-table-operations width="260px" :buttons="buttons" :label="$t('commons.table.operate')" fix />
                 </ComplexTable>
             </template>
         </LayoutContent>
@@ -87,6 +90,7 @@
         <OpDialog ref="opRef" @search="search" />
         <OperateDialog @search="search" ref="dialogRef" />
         <GroupDialog @search="search" ref="dialogGroupRef" />
+        <JoinDialog ref="joinRef" />
     </div>
 </template>
 
@@ -94,6 +98,7 @@
 import { useSearchState } from '@/utils/search-reset';
 import GroupDialog from '@/components/agent-group/index.vue';
 import OperateDialog from '@/views/terminal/host/operate/index.vue';
+import JoinDialog from '@/views/terminal/host/join/index.vue';
 import { deleteHost, editHostGroup, searchHosts } from '@/api/modules/terminal';
 import { getAgentGroupList } from '@/api/modules/group';
 import { toRef, reactive, ref } from 'vue';
@@ -169,6 +174,11 @@ const onBatchDelete = async (row: Host.Host | null) => {
     });
 };
 
+const joinRef = ref();
+const onJoinCluster = (row: Host.Host) => {
+    joinRef.value!.acceptParams(row);
+};
+
 const loadGroups = async () => {
     const res = await getAgentGroupList('host');
     groupList.value = res.data;
@@ -181,6 +191,12 @@ const updateGroup = async (row: any) => {
 };
 
 const buttons = [
+    {
+        label: i18n.global.t('cluster.joinCluster'),
+        click: (row: Host.Host) => {
+            onJoinCluster(row);
+        },
+    },
     {
         label: i18n.global.t('commons.button.edit'),
         click: (row: any) => {

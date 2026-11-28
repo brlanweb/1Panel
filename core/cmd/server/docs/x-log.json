@@ -974,6 +974,15 @@
 		"formatZH": "删除集群节点 [name]",
 		"formatEN": "delete cluster node [name]"
 	},
+	"/core/cluster/nodes/join": {
+		"bodyKeys": [
+			"hostId"
+		],
+		"paramKeys": [],
+		"beforeFunctions": [],
+		"formatZH": "终端主机加入集群 [hostId]",
+		"formatEN": "join terminal host [hostId] to the cluster"
+	},
 	"/core/cluster/nodes/login-lock": {
 		"bodyKeys": [
 			"nodeIds",

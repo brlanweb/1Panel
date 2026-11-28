@@ -522,6 +522,30 @@ const message = {
             'Only add trusted nodes; self-signed certificates are accepted. Nodes added here are panel nodes (panel URL + API Key); after switching at the bottom, the whole site operates that panel. They are different from nodes that require SSH installation.',
         switchAdminOnly: 'Only master admins can switch nodes',
         switchTestFailed: 'Node connection test failed, cannot switch',
+        joinCluster: 'Join cluster',
+        joinHelper:
+            'Uses the SSH credentials saved for this host. When the panel is missing, the master downloads the package, uploads it and installs it non-interactively; when it is installed, a dedicated API key that only the master IP may use is created on the host. The host is then registered as a cluster node and managed from the master. Joining again rotates that key.',
+        joinMasterIp: 'Master IP (API key allowlist)',
+        joinMasterIpPlaceholder: 'Leave empty to detect',
+        joinMasterIpHelper:
+            'Empty = the source IP the host sees for the master SSH connection. Comma separated, CIDR allowed.',
+        joinEntryHost: 'Panel address',
+        joinEntryHostHelper: 'IP / domain the master uses to reach this panel. Empty = the SSH address.',
+        joinInstallDocker: 'Also install Docker when the panel is installed',
+        joinConfirm:
+            'This runs the install / API key creation on the host over SSH (root or passwordless sudo required). Continue?',
+        joinSuccess: 'Joined the cluster as node {0}',
+        joinInitialLogin: 'Initial panel login: {0} / {1} (shown only once, save and change it)',
+        joinGoNodes: 'View cluster nodes',
+        joinStage: {
+            connect: 'Connect',
+            download: 'Prepare package',
+            upload: 'Upload package',
+            install: 'Install panel',
+            key: 'Create API key',
+            register: 'Register node',
+            done: 'Done',
+        },
         terminalStaysLocal:
             'Terminal does not follow node switching: the hosts listed here belong to the master panel (this machine), and terminals always connect here. To reach another panel’s machines, add them as SSH hosts on this panel.',
         apiInterfaceHelper:

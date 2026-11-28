@@ -50,6 +50,16 @@ export const setClusterNodeLoginLock = (req: Cluster.NodeLoginLockReq) => {
     return http.postLocalNode<Cluster.NodeLoginLockResult[]>(`/core/cluster/nodes/login-lock`, req, 60000);
 };
 
+// Join a Terminal → Hosts entry: install the panel over SSH when missing,
+// create a master-only API key on it and register it as a node.
+export const joinClusterNode = (req: Cluster.NodeJoinReq) => {
+    return http.postLocalNode<any>(`/core/cluster/nodes/join`, req, 60000);
+};
+
+export const loadClusterNodeJoinStatus = (hostId: number) => {
+    return http.postLocalNode<Cluster.NodeJoinStatus>(`/core/cluster/nodes/join/status`, { id: hostId });
+};
+
 export const loadClusterNodeUpgradeStatus = (id: number) => {
     return http.postLocalNode<Cluster.NodeUpgradeStatus>(`/core/cluster/nodes/upgrade/status`, { id });
 };

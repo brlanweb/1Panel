@@ -81,3 +81,6 @@ superpowers
 .codex/
 
 /agent/utils/vm/helper/bin/1panel-kvm*
+
+# fork-release.sh output
+build/release/
